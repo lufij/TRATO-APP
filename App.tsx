@@ -291,9 +291,7 @@ function AppContent() {
 
   // Show a visible warning toast if Supabase env vars are missing in production
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const misconfigured = (window as any).__SUPABASE_MISCONFIGURED__;
-    if (misconfigured) {
+    if (!supabaseEnvDiagnostics.hasEnv && supabaseEnvDiagnostics.isProd) {
       toast.error('Configurar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel. Usando fallback del repo.');
     }
   }, []);

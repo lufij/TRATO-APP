@@ -51,9 +51,7 @@ export const supabaseEnvDiagnostics = (() => {
     console.error(
       '[Supabase] Variables de entorno faltantes en producción. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel. Se está usando el proyecto de fallback del repositorio (no recomendado).'
     );
-    // Mark a global flag so UI can show a warning toast if desired
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).__SUPABASE_MISCONFIGURED__ = true;
+  // Note: We no longer set a global hard-stop flag; UI can still toast a warning.
   }
 
   return {

@@ -52,20 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lastUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    // If Supabase env is misconfigured in prod, don't enter auth loop
-    if (MISCONFIGURED) {
-      setLoading(false);
-      setUser(null);
-      setSession(null);
-      setOrphanedUser(null);
-      // Redirect to diagnostic page if not already
-      if (!window.location.search.includes('diag=1')) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('diag', '1');
-        window.history.replaceState({}, '', url.toString());
-      }
-      return;
-    }
+    // If Supabase env is misconfigured in prod, continue anyway using fallback config.
+    // We'll still show a toast elsewhere (App.tsx) but we won't block auth here.
     let isMounted = true;
 
     // Get initial session with error handling
