@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+  "jsx": "react-jsx",
+  "allowImportingTsExtensions": true,
+    "strict": true,
+    "baseUrl": "."
+  },
+  "include": [
+  "App.tsx",
+  "contexts/**/*.ts",
+  "contexts/**/*.tsx",
+  "utils/**/*.ts",
+  "utils/**/*.tsx",
+  "hooks/useServiceWorker.ts",
+  "components/DiagnosticPage.tsx",
+  "components/CredentialChecker.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "database/**",
+    "**/*.sql",
+    "**/*.sql.tsx"
+  ]
+}

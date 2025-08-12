@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Production builds
+build/
+dist/
+.next/
+out/
+
+# Environment files
+.env*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+
+# Cache
+.cache/
+.eslintcache
+
+# Configuration files
+*.config.js
+*.config.ts
+vite.config.ts
+tailwind.config.js
+postcss.config.js
+
+# Generated files
+*.min.js
+*.min.css
+
+# Supabase
+.supabase/
+supabase/functions/**/*.js
+
+# Database
+*.sql
+
+# Public assets
+public/sw.js
+public/manifest.json
+
+# Temporary files
+*.tmp
+*.temp

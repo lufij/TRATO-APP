@@ -1,0 +1,215 @@
+{
+  "TRATO React Component": {
+    "prefix": "trc",
+    "body": [
+      "import React from 'react';",
+      "",
+      "interface ${1:ComponentName}Props {",
+      "  ${2:// props here}",
+      "}",
+      "",
+      "export function ${1:ComponentName}({ ${3} }: ${1:ComponentName}Props) {",
+      "  return (",
+      "    <div className=\"${4:p-4 bg-white rounded-lg shadow-sm border border-gray-200}\">",
+      "      ${0}",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Crear un componente React con TypeScript para TRATO"
+  },
+  
+  "TRATO Card Component": {
+    "prefix": "trcard",
+    "body": [
+      "import React from 'react';",
+      "import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';",
+      "",
+      "interface ${1:ComponentName}Props {",
+      "  ${2:title?: string;}",
+      "  ${3:// additional props}",
+      "}",
+      "",
+      "export function ${1:ComponentName}({ ${4:title, ...props} }: ${1:ComponentName}Props) {",
+      "  return (",
+      "    <Card className=\"${5:border-orange-200}\">",
+      "      {title && (",
+      "        <CardHeader>",
+      "          <CardTitle className=\"${6:text-orange-800}\">{title}</CardTitle>",
+      "        </CardHeader>",
+      "      )}",
+      "      <CardContent>",
+      "        ${0}",
+      "      </CardContent>",
+      "    </Card>",
+      "  );",
+      "}"
+    ],
+    "description": "Crear un componente Card con estilo TRATO"
+  },
+  
+  "TRATO Button Gradient": {
+    "prefix": "trbtn",
+    "body": [
+      "<Button className=\"bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 text-white\">",
+      "  ${1:Texto del botón}",
+      "</Button>"
+    ],
+    "description": "Botón con gradiente TRATO"
+  },
+  
+  "TRATO Hook": {
+    "prefix": "trhook",
+    "body": [
+      "import { useState, useEffect } from 'react';",
+      "",
+      "interface Use${1:HookName}Options {",
+      "  ${2:// options here}",
+      "}",
+      "",
+      "interface Use${1:HookName}Return {",
+      "  ${3:// return values here}",
+      "}",
+      "",
+      "export function use${1:HookName}(${4:options}: Use${1:HookName}Options): Use${1:HookName}Return {",
+      "  ${5:// Hook implementation}",
+      "  ",
+      "  return {",
+      "    ${6:// return object}",
+      "  };",
+      "}"
+    ],
+    "description": "Crear un custom hook con TypeScript"
+  },
+  
+  "TRATO Supabase Query": {
+    "prefix": "trsupa",
+    "body": [
+      "const { data: ${1:dataName}, error } = await supabase",
+      "  .from('${2:table_name}')",
+      "  .select('${3:*}')",
+      "  ${4:.eq('${5:column}', ${6:value})}",
+      "  ${7:.order('${8:created_at}', { ascending: ${9:false} })};",
+      "",
+      "if (error) {",
+      "  console.error('Error loading ${1:dataName}:', error);",
+      "  ${10:throw error;}",
+      "}"
+    ],
+    "description": "Query básica de Supabase"
+  },
+  
+  "TRATO Loading State": {
+    "prefix": "trload",
+    "body": [
+      "if (${1:loading}) {",
+      "  return (",
+      "    <div className=\"flex items-center justify-center h-${2:64}\">",
+      "      <div className=\"text-center\">",
+      "        <div className=\"animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4\"></div>",
+      "        <p className=\"text-gray-600\">${3:Cargando...}</p>",
+      "      </div>",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Estado de carga con spinner TRATO"
+  },
+  
+  "TRATO Error State": {
+    "prefix": "trerr",
+    "body": [
+      "if (${1:error}) {",
+      "  return (",
+      "    <div className=\"bg-red-50 border border-red-200 rounded-lg p-4\">",
+      "      <div className=\"flex items-center\">",
+      "        <AlertCircle className=\"w-5 h-5 text-red-600 mr-3\" />",
+      "        <div>",
+      "          <h3 className=\"text-red-800 font-medium\">Error</h3>",
+      "          <p className=\"text-red-600 text-sm\">${2:{error.message}}</p>",
+      "        </div>",
+      "      </div>",
+      "    </div>",
+      "  );",
+      "}"
+    ],
+    "description": "Estado de error con estilo TRATO"
+  },
+  
+  "TRATO Form Field": {
+    "prefix": "trfield",
+    "body": [
+      "<div className=\"space-y-2\">",
+      "  <Label htmlFor=\"${1:fieldName}\">${2:Label Text}</Label>",
+      "  <Input",
+      "    id=\"${1:fieldName}\"",
+      "    type=\"${3:text}\"",
+      "    value={${4:value}}",
+      "    onChange={(e) => ${5:setValue(e.target.value)}}",
+      "    placeholder=\"${6:Placeholder text}\"",
+      "    className=\"${7:}\"",
+      "  />",
+      "</div>"
+    ],
+    "description": "Campo de formulario con Label e Input"
+  },
+  
+  "TRATO useEffect": {
+    "prefix": "treff",
+    "body": [
+      "useEffect(() => {",
+      "  ${1:// Effect implementation}",
+      "  ",
+      "  return () => {",
+      "    ${2:// Cleanup function}",
+      "  };",
+      "}, [${3:dependencies}]);"
+    ],
+    "description": "useEffect con cleanup function"
+  },
+  
+  "TRATO useState": {
+    "prefix": "trus",
+    "body": [
+      "const [${1:state}, set${1/(.*)/${1:/capitalize}/}] = useState${2:<${3:type}>}(${4:initialValue});"
+    ],
+    "description": "useState con TypeScript"
+  },
+  
+  "TRATO Console Log": {
+    "prefix": "trcl",
+    "body": [
+      "console.log('🔍 [TRATO] ${1:message}:', ${2:variable});"
+    ],
+    "description": "Console log con identificador TRATO"
+  },
+  
+  "TRATO TODO Comment": {
+    "prefix": "trtodo",
+    "body": [
+      "// TODO: ${1:Description of what needs to be done}",
+      "// Priority: ${2:High|Medium|Low}",
+      "// Assigned: ${3:Developer name}",
+      "// Due: ${4:Date}"
+    ],
+    "description": "Comentario TODO estructurado"
+  },
+  
+  "TRATO API Error Handler": {
+    "prefix": "trapi",
+    "body": [
+      "try {",
+      "  ${1:// API call}",
+      "} catch (error) {",
+      "  console.error('❌ [TRATO API] ${2:Operation name} failed:', error);",
+      "  ",
+      "  if (error instanceof Error) {",
+      "    ${3:setError(error.message);}",
+      "  } else {",
+      "    ${3:setError('Error desconocido en la operación');}",
+      "  }",
+      "}"
+    ],
+    "description": "Manejo de errores de API con logging TRATO"
+  }
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#f97316" />
+    <title>TRATO - Mercado Local Gualán</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register SW only in production and only if the file exists to avoid cache issues
+      (function () {
+        const isLocal = /^(localhost|127\.0\.0\.1|192\.168\.)$/.test(location.hostname) || location.hostname.includes('192.168.');
+        if ('serviceWorker' in navigator && !isLocal) {
+          window.addEventListener('load', async () => {
+            try {
+              const res = await fetch('/sw.js', { method: 'HEAD', cache: 'no-store' });
+              if (!res.ok) return; // Skip if sw.js not present
+              await navigator.serviceWorker.register('/sw.js').catch(() => {});
+            } catch {}
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>

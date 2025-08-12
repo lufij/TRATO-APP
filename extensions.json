@@ -1,0 +1,45 @@
+{
+  "recommendations": [
+    // React & TypeScript essentials
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-eslint",
+    
+    // React specific
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+    
+    // File management & productivity
+    "ms-vscode.vscode-json",
+    "PKief.material-icon-theme",
+    "aaron-bond.better-comments",
+    "usernamehw.errorlens",
+    
+    // Git & collaboration
+    "eamodio.gitlens",
+    "GitHub.vscode-pull-request-github",
+    
+    // Database & Supabase
+    "ms-vscode.vscode-sql-server-tools",
+    "supabase.supabase",
+    
+    // Additional productivity
+    "ms-vscode.vscode-color-picker",
+    "ritwickdey.LiveServer",
+    "ms-vscode.vscode-import-cost",
+    "wix.vscode-import-cost",
+    
+    // Code quality
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-colorize",
+    
+    // Markdown & documentation
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript"
+  ]
+}

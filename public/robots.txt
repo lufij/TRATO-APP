@@ -1,0 +1,11 @@
+# robots.txt for TRATO
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow internal app endpoints if any (examples)
+# Disallow: /admin
+# Disallow: /api/
+
+# Sitemap (optional; add if you have one)
+# Sitemap: https://your-domain.com/sitemap.xml
