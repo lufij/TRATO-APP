@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -76,6 +76,18 @@ export function AddressSelector({
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLocationManager, setShowLocationManager] = useState(false);
+  const inflightRef = useRef(false);
+  const autoSelectedRef = useRef<string | null>(null);
+  const selectedIdRef = useRef<string | undefined>(selectedAddressId);
+  const onSelectRef = useRef(onAddressSelect);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedAddressId;
+  }, [selectedAddressId]);
+
+  useEffect(() => {
+    onSelectRef.current = onAddressSelect;
+  }, [onAddressSelect]);
 
   // Load user addresses
   const loadAddresses = useCallback(async () => {
@@ -87,29 +99,48 @@ export function AddressSelector({
 
     try {
       setLoading(true);
+      if (inflightRef.current) return; // single-flight
+      inflightRef.current = true;
       const { data, error } = await supabase
         .from('user_addresses')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .order('is_primary', { ascending: false })
         .order('times_used', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      const addressList = data || [];
-      setAddresses(addressList);
+      const addressList = (data || []) as UserAddress[];
+      // Sort with primary first; support schemas using is_default
+      const sorted = [...addressList].sort((a, b) => {
+        const aPrimary = (a as any).is_primary === true || (a as any).is_default === true;
+        const bPrimary = (b as any).is_primary === true || (b as any).is_default === true;
+        if (aPrimary && !bPrimary) return -1;
+        if (!aPrimary && bPrimary) return 1;
+        // then by times_used desc, then created_at desc
+        const aTimes = a.times_used ?? 0;
+        const bTimes = b.times_used ?? 0;
+        if (aTimes !== bTimes) return bTimes - aTimes;
+        const aDate = new Date(a.created_at).getTime();
+        const bDate = new Date(b.created_at).getTime();
+        return bDate - aDate;
+      });
+      setAddresses(sorted);
 
-      // Auto-select primary address if none is selected
-      if (!selectedAddressId && addressList.length > 0) {
-        const primaryAddress = addressList.find(addr => addr.is_primary) || addressList[0];
-        onAddressSelect(primaryAddress);
+    // Auto-select primary address if none is selected
+    if (!selectedIdRef.current && sorted.length > 0) {
+        const primaryAddress = sorted.find(addr => (addr as any).is_primary || (addr as any).is_default) || sorted[0];
+        if (primaryAddress && autoSelectedRef.current !== primaryAddress.id) {
+          autoSelectedRef.current = primaryAddress.id;
+      onSelectRef.current(primaryAddress);
+        }
       }
     } catch (error) {
       console.error('Error loading addresses:', error);
     } finally {
       setLoading(false);
+      inflightRef.current = false;
     }
   }, [user, selectedAddressId, onAddressSelect]);
 
@@ -230,7 +261,7 @@ export function AddressSelector({
           <div className="space-y-3">
             <RadioGroup 
               value={selectedAddressId || ''} 
-              onValueChange={(value) => {
+              onValueChange={(value: string) => {
                 const address = addresses.find(addr => addr.id === value);
                 if (address) {
                   handleAddressSelect(address);

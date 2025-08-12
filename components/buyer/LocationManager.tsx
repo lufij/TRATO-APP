@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -90,6 +90,7 @@ export function LocationManager({
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [editingAddress, setEditingAddress] = useState<UserAddress | null>(null);
   const [permissionRequested, setPermissionRequested] = useState(false);
+  const inflightRef = useRef(false);
 
   // Geolocation hook
   const {
@@ -143,6 +144,8 @@ export function LocationManager({
 
     try {
       setLoading(true);
+      if (inflightRef.current) return; // single-flight
+      inflightRef.current = true;
       const { data, error } = await supabase
         .from('user_addresses')
         .select('*')
@@ -153,10 +156,11 @@ export function LocationManager({
 
       if (error) throw error;
       setAddresses(data || []);
-    } catch (error) {
+  } catch (error: any) {
       console.error('Error loading addresses:', error);
     } finally {
       setLoading(false);
+      inflightRef.current = false;
     }
   }, [user]);
 
@@ -187,7 +191,7 @@ export function LocationManager({
           accuracy: position.coords.accuracy
         });
       }
-    } catch (error) {
+  } catch (error: any) {
       console.error('🚨 Error detallado de geolocalización:', {
         error,
         errorType: typeof error,
@@ -359,7 +363,7 @@ export function LocationManager({
       setIsAddingAddress(false);
       setEditingAddress(null);
 
-    } catch (error) {
+  } catch (error: any) {
       console.error('Error saving address:', error);
       alert('Error al guardar la dirección. Por favor intenta de nuevo.');
     } finally {
@@ -385,8 +389,9 @@ export function LocationManager({
         .eq('id', addressId);
 
       if (error) throw error;
-      await loadAddresses();
-    } catch (error) {
+      // Optimistic update to avoid extra refetch loops
+      setAddresses(prev => prev.map(a => ({ ...a, is_primary: a.id === addressId })));
+  } catch (error: any) {
       console.error('Error setting primary address:', error);
       alert('Error al establecer dirección principal');
     }
@@ -684,7 +689,7 @@ export function LocationManager({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={(e) => {
+                              onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation();
                                 setPrimaryAddress(address.id);
                               }}
@@ -698,7 +703,7 @@ export function LocationManager({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               startEditAddress(address);
                               setIsAddingAddress(true);
@@ -711,7 +716,7 @@ export function LocationManager({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={(e: React.MouseEvent) => {
                               e.stopPropagation();
                               deleteAddress(address.id);
                             }}
@@ -763,7 +768,7 @@ export function LocationManager({
                   <Label htmlFor="address_type">Tipo de dirección</Label>
                   <Select 
                     value={addressForm.address_type} 
-                    onValueChange={(value) => handleFormChange('address_type', value)}
+                    onValueChange={(value: 'residential' | 'business' | 'other') => handleFormChange('address_type', value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
