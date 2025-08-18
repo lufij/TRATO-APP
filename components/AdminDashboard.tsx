@@ -360,8 +360,14 @@ function UsersManagement() {
                         </Select>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" title="Eliminar usuario">
-                              <Trash2 className="w-4 h-4" />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Eliminar usuario"
+                              className="text-red-600 border-red-300 hover:text-red-700 hover:bg-red-50"
+                           >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Eliminar
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
