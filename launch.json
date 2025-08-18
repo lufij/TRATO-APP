@@ -14,7 +14,7 @@
         "${workspaceFolder}/node_modules/**/*.js",
         "<node_internals>/**/*.js"
       ],
-      "preLaunchTask": "🚀 Desarrollo - Iniciar servidor"
+  "preLaunchTask": "🚀 Desarrollo - Iniciar y abrir navegador"
     },
     {
       "name": "🌐 Attach to Chrome",
