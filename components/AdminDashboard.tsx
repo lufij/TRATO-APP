@@ -1461,52 +1461,45 @@ export function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      
-      // Fetch user statistics
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, role, created_at, status');
 
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-      } else {
-        setStats(prev => ({
-          ...prev,
-          totalUsers: usersData?.length || 0,
-          activeUsers: usersData?.filter(u => (u.status || 'active') === 'active').length || 0
-        }));
-      }
-
-      // Fetch business statistics
-      const { data: businessesData, error: businessesError } = await supabase
-        .from('sellers')
-        .select('id, is_verified, created_at');
-
-      if (!businessesError && businessesData) {
-        setStats(prev => ({
-          ...prev,
-          totalBusinesses: businessesData.length || 0
-        }));
-      }
-
-      // Fetch orders statistics
       const today = new Date().toISOString().split('T')[0];
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, total, created_at, status')
-        .gte('created_at', today);
 
-      if (!ordersError && ordersData) {
-        const todayRevenue = ordersData
-          .filter(order => order.status === 'delivered')
-          .reduce((sum, order) => sum + (order.total || 0), 0);
-          
-        setStats(prev => ({
-          ...prev,
-          totalOrders: ordersData.length || 0,
-          todayRevenue: todayRevenue
-        }));
-      }
+      // Run light-weight count queries in parallel to reduce TTFB
+      const [
+        totalUsersRes,
+        activeUsersRes,
+        totalBusinessesRes,
+        totalOrdersTodayRes,
+        deliveredTodayRes
+      ] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('sellers').select('*', { count: 'exact', head: true }),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', today),
+        supabase
+          .from('orders')
+          .select('total,status,created_at')
+          .gte('created_at', today)
+          .eq('status', 'delivered')
+      ]);
+
+      const totalUsers = totalUsersRes.count ?? 0;
+      const activeUsers = activeUsersRes.count ?? 0;
+      const totalBusinesses = totalBusinessesRes.count ?? 0;
+      const totalOrdersToday = totalOrdersTodayRes.count ?? 0;
+      const todayRevenue = (deliveredTodayRes.data || []).reduce(
+        (sum: number, o: any) => sum + (o.total || 0),
+        0
+      );
+
+      setStats(prev => ({
+        ...prev,
+        totalUsers,
+        activeUsers,
+        totalBusinesses,
+        totalOrders: totalOrdersToday,
+        todayRevenue
+      }));
 
     } catch (error) {
       console.error('Error fetching admin stats:', error);

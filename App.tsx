@@ -199,7 +199,7 @@ function AppContent() {
   // Check database connectivity on app start with improved error handling
   const checkDatabase = useCallback(async () => {
     try {
-      const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+      const { error } = await supabase.from('users').select('*', { count: 'exact', head: true });
       
       if (error) {
         // Check if it's a configuration-related error

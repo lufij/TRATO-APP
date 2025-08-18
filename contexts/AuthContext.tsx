@@ -64,7 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const session = data?.session ?? null;
         setSession(session);
         if (session?.user) {
-          await fetchUserProfile(session.user);
+          // Kick off profile fetch but don't block the UI; we'll show skeletons
+          fetchUserProfile(session.user);
+          // Optimistic: allow UI to render while profile resolves
+          setLoading(false);
         } else {
           setLoading(false);
         }
