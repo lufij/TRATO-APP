@@ -93,6 +93,7 @@ export function useBuyerData() {
         const code = (error as any)?.code || '';
         const msg = (error as any)?.message?.toLowerCase?.() || '';
         const isRelIssue =
+          code === 'PGRST201' || // ambiguous relationship
           code === 'PGRST200' || // relationship not found
           code === '42P01' || // relation does not exist
           code === '42703' || // column does not exist
@@ -142,7 +143,7 @@ export function useBuyerData() {
       const endOfDay = new Date(today);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('daily_products')
         .select(`
           *,
@@ -160,17 +161,66 @@ export function useBuyerData() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
         // Handle table-not-found gracefully (PGRST205)
-        if ((error as any)?.code === 'PGRST205') {
+        if (code === 'PGRST205') {
           console.log('daily_products table does not exist yet');
           setDailyProducts([]);
           return;
         }
-        console.error('Error fetching daily products:', error);
-        return;
+
+        // If relationship embedding is ambiguous or related columns/relations are missing, fallback
+        const isRelIssue =
+          code === 'PGRST201' || // more than one relationship was found
+          code === 'PGRST200' || // relationship not found
+          code === '42P01' || // relation does not exist
+          code === '42703' || // column does not exist
+          msg.includes('relationship') || msg.includes('relation') || msg.includes('column');
+
+        if (isRelIssue) {
+          // First, try without nested user join
+          const r1 = await supabase
+            .from('daily_products')
+            .select(`
+              *,
+              seller:sellers(
+                id,
+                business_name,
+                logo_url,
+                is_verified
+              )
+            `)
+            .gt('stock_quantity', 0)
+            .gte('expires_at', new Date().toISOString())
+            .lte('expires_at', endOfDay.toISOString())
+            .order('created_at', { ascending: false });
+
+          if (r1.error) {
+            // Final fallback: plain select(*)
+            const r2 = await supabase
+              .from('daily_products')
+              .select('*')
+              .gt('stock_quantity', 0)
+              .gte('expires_at', new Date().toISOString())
+              .lte('expires_at', endOfDay.toISOString())
+              .order('created_at', { ascending: false });
+
+            data = r2.data as any[] | null;
+            error = r2.error as any;
+          } else {
+            data = r1.data as any[] | null;
+            error = r1.error as any;
+          }
+        }
       }
 
-      setDailyProducts(data || []);
+      if (error) {
+        console.error('Error fetching daily products:', error);
+        setDailyProducts([]);
+      } else {
+        setDailyProducts(data || []);
+      }
     } catch (error) {
       console.error('Error fetching daily products:', error);
     } finally {
@@ -203,7 +253,7 @@ export function useBuyerData() {
         const code = (error as any)?.code || '';
         const msg = (error as any)?.message?.toLowerCase?.() || '';
         const isRelIssue =
-          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          code === 'PGRST201' || code === 'PGRST200' || code === '42P01' || code === '42703' ||
           msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
         if (isRelIssue) {
           const r = await supabase
@@ -324,7 +374,7 @@ export function useBuyerData() {
         const code = (error as any)?.code || '';
         const msg = (error as any)?.message?.toLowerCase?.() || '';
         const isRelIssue =
-          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          code === 'PGRST201' || code === 'PGRST200' || code === '42P01' || code === '42703' ||
           msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
         if (isRelIssue) {
           const r = await supabase

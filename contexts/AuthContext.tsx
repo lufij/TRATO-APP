@@ -490,11 +490,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .insert([userProfile]);
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
-        setIsRegistering(false);
-        setRegistrationProgress(0);
-        setRegistrationStep('');
-        return { success: false, error: `Error creating profile: ${profileError.message}` };
+        // If profile already exists (race with onAuthStateChange/auto-create), continue
+        const code = (profileError as any)?.code;
+        if (code === '23505' || /duplicate key/i.test((profileError as any)?.message || '')) {
+          console.warn('Profile already exists, continuing signup flow');
+        } else {
+          console.error('Profile creation error:', profileError);
+          setIsRegistering(false);
+          setRegistrationProgress(0);
+          setRegistrationStep('');
+          return { success: false, error: `Error creating profile: ${profileError.message}` };
+        }
       }
 
       console.log('User profile created successfully');

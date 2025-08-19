@@ -237,7 +237,7 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                             />
                             <Badge className="absolute top-2 right-2 bg-red-500 text-white animate-pulse">
                               <Clock className="w-3 h-3 mr-1" />
-                              {getTimeRemaining(product.expires_at)}
+                              {product.expires_at ? getTimeRemaining(product.expires_at) : 'Hoy'}
                             </Badge>
                             <Badge className="absolute top-2 left-2 bg-orange-500 text-white">
                               Hoy únicamente
