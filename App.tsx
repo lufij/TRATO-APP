@@ -309,7 +309,7 @@ function AppContent() {
   // Show a visible warning toast if Supabase env vars are missing in production
   useEffect(() => {
     if (!supabaseEnvDiagnostics.hasEnv && supabaseEnvDiagnostics.isProd) {
-      toast.error('Configurar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel. Usando fallback del repo.');
+      toast.error('Producción está usando claves de fallback. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel → Project Settings → Environment Variables.');
     }
   }, []);
 

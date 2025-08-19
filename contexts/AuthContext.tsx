@@ -141,10 +141,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await createAdminProfile(supabaseUser);
               return;
             } else {
-              // Not during registration - this is an orphaned user
-              console.warn('User authenticated but profile not found in users table - orphaned user detected');
-              setOrphanedUser(supabaseUser);
-              setUser(null);
+              // Try to auto-create a minimal profile for first sign-in to avoid blocking login
+              if (retryCount < 1) {
+                try {
+                  const guessedName = (supabaseUser.email || 'Usuario').split('@')[0];
+                  const minimalProfile: Partial<User> = {
+                    id: supabaseUser.id,
+                    email: supabaseUser.email || '',
+                    name: guessedName,
+                    role: 'comprador',
+                  } as Partial<User>;
+                  console.log('Auto-creating minimal user profile for first sign-in:', minimalProfile);
+                  const { error: createErr } = await supabase
+                    .from('users')
+                    .insert([minimalProfile]);
+                  if (createErr) {
+                    console.warn('Auto-create profile failed:', createErr);
+                    // Fall back to orphaned flow
+                    setOrphanedUser(supabaseUser);
+                    setUser(null);
+                  } else {
+                    // Fetch again after a short delay
+                    setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 500);
+                    return;
+                  }
+                } catch (autoErr) {
+                  console.warn('Auto-create profile threw:', autoErr);
+                  setOrphanedUser(supabaseUser);
+                  setUser(null);
+                }
+              } else {
+                // Not during registration - this is an orphaned user
+                console.warn('User authenticated but profile not found in users table - orphaned user detected');
+                setOrphanedUser(supabaseUser);
+                setUser(null);
+              }
             }
           }
         } else if (error.code === 'PGRST205') {
