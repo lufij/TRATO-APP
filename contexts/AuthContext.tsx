@@ -456,6 +456,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         options: {
           emailRedirectTo: undefined,
+          // Store basic metadata to improve fallbacks before profile exists
+          data: {
+            name: userData.name,
+            role: userData.role,
+            phone: userData.phone ?? null,
+          },
         }
       });
 
@@ -493,21 +499,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Creating user profile:', userProfile);
       setRegistrationProgress(50);
 
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert([userProfile]);
+      // No bloquear el flujo por una inserción lenta: intentar insert con timeout corto
+      let profileError: any = null;
+      try {
+        const insertPromise = supabase.from('users').insert([userProfile]);
+        const timeoutMs = 2000; // 2s máximo para no colgar UX
+        await Promise.race([
+          insertPromise.then(({ error }) => { profileError = error; }),
+          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+        ]);
+      } catch (e) {
+        // Ignorar excepciones de red transitorias, continuamos y el fetch se encargará
+        profileError = e;
+      }
 
       if (profileError) {
-        // If profile already exists (race with onAuthStateChange/auto-create), continue
         const code = (profileError as any)?.code;
-        if (code === '23505' || /duplicate key/i.test((profileError as any)?.message || '')) {
-          console.warn('Profile already exists, continuing signup flow');
+        const msg = (profileError as any)?.message || '';
+        const isDuplicate = code === '23505' || /duplicate key/i.test(msg);
+        if (isDuplicate) {
+          console.warn('Profile already exists (or created concurrently), continuing signup flow');
         } else {
-          console.error('Profile creation error:', profileError);
-          setIsRegistering(false);
-          setRegistrationProgress(0);
-          setRegistrationStep('');
-          return { success: false, error: `Error creating profile: ${profileError.message}` };
+          console.warn('Profile insert not confirmed (will rely on fetch fallback):', profileError);
+          // Continuar sin abortar: fetchUserProfile manejará crear/leer el perfil
         }
       }
 
