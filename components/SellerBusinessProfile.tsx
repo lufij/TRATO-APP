@@ -74,6 +74,7 @@ export function SellerBusinessProfile() {
   const [locationDetails, setLocationDetails] = useState<string>('');
   const [googleMapsConfigured, setGoogleMapsConfigured] = useState(false);
   const [showGPSError, setShowGPSError] = useState(false);
+  const [missingProfile, setMissingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize weekly hours hook
@@ -110,6 +111,11 @@ export function SellerBusinessProfile() {
   useEffect(() => {
     if (user) {
       loadProfile();
+    } else {
+      // No usuario autenticado: evitar spinner infinito en esta vista
+      setProfile(null);
+      setMissingProfile(false);
+      setLoading(false);
     }
     setGoogleMapsConfigured(checkGoogleMapsConfig());
   }, [user]);
@@ -133,6 +139,11 @@ export function SellerBusinessProfile() {
 
       if (error && error.code !== 'PGRST116') {
         throw error;
+      }
+
+      if (error?.code === 'PGRST116') {
+        // No existe perfil de vendedor todavía
+        setMissingProfile(true);
       }
 
       if (data) {
@@ -182,6 +193,53 @@ export function SellerBusinessProfile() {
       setError('Error al cargar el perfil del negocio');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createMinimalSellerProfile = async () => {
+    if (!user) return;
+    try {
+      setSaving(true);
+      setError('');
+
+      const minimal = {
+        business_name: formData.business_name?.trim() || 'Mi Negocio',
+        business_description: formData.business_description?.trim() || '',
+        business_category: formData.business_category || '',
+        phone: formData.phone?.trim() || '',
+        email: formData.email?.trim() || '',
+        address: formData.address?.trim() || '',
+        latitude: formData.latitude || 0,
+        longitude: formData.longitude || 0,
+        business_hours: getHoursAsJSON(),
+        delivery_time: formData.delivery_time || 30,
+        delivery_radius: formData.delivery_radius || 5,
+        minimum_order: formData.minimum_order || 0,
+        is_active: true,
+        is_open_now: false,
+        social_media: formData.social_media,
+        is_verified: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('sellers')
+        .upsert({ id: user.id, ...minimal });
+
+      if (error) throw error;
+
+      setSuccess('✅ Perfil de vendedor creado. Completa la información y guarda los cambios.');
+      setMissingProfile(false);
+      setIsEditing(true);
+      await loadProfile();
+
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      console.error('Error creating minimal seller profile:', err);
+      setError('No se pudo crear el perfil de vendedor. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -372,6 +430,46 @@ export function SellerBusinessProfile() {
           <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-4" />
           <p className="text-gray-600">Cargando perfil del negocio...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!loading && missingProfile) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Perfil del Negocio</h2>
+            <p className="text-gray-600">Aún no has configurado tu perfil de vendedor.</p>
+          </div>
+        </div>
+
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <AlertCircle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            Crea tu perfil para que los clientes puedan conocer tu negocio y realizar pedidos.
+          </AlertDescription>
+        </Alert>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Crear perfil de vendedor</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-gray-600 text-sm">
+              Generaremos un perfil básico que podrás completar y actualizar. Puedes cambiar toda la información después.
+            </p>
+            <div className="flex gap-3">
+              <Button onClick={createMinimalSellerProfile} disabled={saving}>
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Crear perfil ahora
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Completar manualmente
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -580,7 +678,7 @@ export function SellerBusinessProfile() {
                   <Label htmlFor="business_category">Categoría *</Label>
                   <Select 
                     value={formData.business_category} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, business_category: value }))}
+                    onValueChange={(value: string) => setFormData(prev => ({ ...prev, business_category: value }))}
                     disabled={!isEditing}
                   >
                     <SelectTrigger>
@@ -869,10 +967,10 @@ export function SellerBusinessProfile() {
                     {formData.is_active ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
-                {isEditing && (
+        {isEditing && (
                   <Switch
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
+          checked={formData.is_active}
+          onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, is_active: checked }))}
                   />
                 )}
               </div>
