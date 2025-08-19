@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, Product } from '../utils/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 export function useProducts() {
   const { user } = useAuth();
@@ -10,6 +11,7 @@ export function useProducts() {
   const fetchProducts = async (sellerId?: string) => {
     try {
       setLoading(true);
+      // First attempt: include related seller info (may fail if relationship is not configured)
       let query = supabase
         .from('products')
         .select(`
@@ -22,16 +24,42 @@ export function useProducts() {
         query = query.eq('seller_id', sellerId);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      let { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        // Known cases: relationship not found, column not found, table not found
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || // relationship not found
+          code === '42P01' || // relation does not exist
+          code === '42703' || // column does not exist
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+
+        if (isRelIssue) {
+          console.warn('[products] Relationship select failed, falling back to plain select(*)');
+          let fallback = supabase
+            .from('products')
+            .select('*')
+            .eq('is_public', true);
+          if (sellerId) fallback = fallback.eq('seller_id', sellerId);
+          const r = await fallback.order('created_at', { ascending: false });
+          data = r.data as Product[] | null;
+          error = r.error as any;
+        }
+      }
 
       if (error) {
         console.error('Error fetching products:', error);
+        toast.error('No se pudieron cargar productos');
+        setProducts([]);
         return;
       }
 
-      setProducts(data || []);
+      setProducts((data as Product[] | null) || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+      toast.error('Error al cargar productos');
     } finally {
       setLoading(false);
     }
@@ -172,6 +200,7 @@ export function useProducts() {
   const searchProducts = async (query: string, category?: string) => {
     try {
       setLoading(true);
+      // Attempt with relationship first
       let supabaseQuery = supabase
         .from('products')
         .select(`
@@ -188,16 +217,38 @@ export function useProducts() {
         supabaseQuery = supabaseQuery.eq('category', category);
       }
 
-      const { data, error } = await supabaseQuery.order('created_at', { ascending: false });
+      let { data, error } = await supabaseQuery.order('created_at', { ascending: false });
+
+      if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' ||
+          code === '42P01' ||
+          code === '42703' ||
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        if (isRelIssue) {
+          console.warn('[products] search: relationship select failed, using plain select');
+          let fb = supabase.from('products').select('*').eq('is_public', true);
+          if (query) fb = fb.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+          if (category) fb = fb.eq('category', category);
+          const r = await fb.order('created_at', { ascending: false });
+          data = r.data as Product[] | null;
+          error = r.error as any;
+        }
+      }
 
       if (error) {
         console.error('Error searching products:', error);
+        toast.error('No se pudo completar la búsqueda de productos');
+        setProducts([]);
         return;
       }
 
-      setProducts(data || []);
+      setProducts((data as Product[] | null) || []);
     } catch (error) {
       console.error('Error searching products:', error);
+      toast.error('Error al buscar productos');
     } finally {
       setLoading(false);
     }
