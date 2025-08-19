@@ -35,7 +35,8 @@ const GUALAN_BOUNDS = {
 // Safe way to get API key
 function getGoogleMapsApiKey(): string | undefined {
   try {
-    return import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY;
+    // Cast to any to avoid type errors when vite/client types are not loaded
+    return (import.meta as any)?.env?.VITE_GOOGLE_MAPS_API_KEY;
   } catch (error) {
     return undefined;
   }

@@ -7,7 +7,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertDescription } from './ui/alert';
-import { useChat, ChatConversation, ChatMessage } from '../contexts/ChatContext';
+import { useChat, type Conversation as ChatConversation, type Message as ChatMessage } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useUserStatus } from '../hooks/useUserStatus';
@@ -37,14 +37,13 @@ export function ChatButton({
     activeConversation,
     messages,
     loading,
-    sendingMessage,
-    isAvailable,
-    getOrCreateConversation,
+  hasChatTables,
+  // fields available in ChatContextType
+  createConversation,
     setActiveConversation,
     sendMessage,
     markMessagesAsRead,
-    getTotalUnreadCount,
-    getConversationWithUser
+  // helper methods not present are implemented locally below
   } = useChat();
   const { currentStatus, getUserStatus, isStatusAvailable } = useUserStatus();
 
@@ -54,21 +53,23 @@ export function ChatButton({
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Get unread count
-  const unreadCount = getTotalUnreadCount();
+  const unreadCount = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
   // Handle opening chat with specific recipient
   const handleOpenChat = async (targetRecipientId?: string) => {
-    if (!isAvailable) {
+  if (!hasChatTables) {
       setIsOpen(true);
       return;
     }
 
     if (targetRecipientId && user) {
-      const conversation = await getOrCreateConversation(targetRecipientId);
-      if (conversation) {
-        setSelectedConversation(conversation);
-        setActiveConversation(conversation);
-        await markMessagesAsRead(conversation.id);
+      const existing = conversations.find(c => c.participant1_id === targetRecipientId || c.participant2_id === targetRecipientId);
+      const conversationId = existing ? existing.id : await createConversation(targetRecipientId);
+      if (conversationId) {
+        const selected = existing ?? ({ id: conversationId } as any);
+        setSelectedConversation(selected);
+        setActiveConversation(conversationId);
+        await markMessagesAsRead(conversationId);
       }
     }
     setIsOpen(true);
@@ -77,22 +78,20 @@ export function ChatButton({
   // Handle conversation selection
   const handleConversationSelect = async (conversation: ChatConversation) => {
     setSelectedConversation(conversation);
-    setActiveConversation(conversation);
+    setActiveConversation(conversation.id);
     await markMessagesAsRead(conversation.id);
   };
 
   // Handle sending message
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user || !isAvailable) return;
+  if (!newMessage.trim() || !selectedConversation || !user || !hasChatTables) return;
 
     const receiverId = selectedConversation.participant1_id === user.id 
       ? selectedConversation.participant2_id 
       : selectedConversation.participant1_id;
 
-    const success = await sendMessage(selectedConversation.id, receiverId, newMessage);
-    if (success) {
-      setNewMessage('');
-    }
+  await sendMessage(selectedConversation.id, newMessage);
+  setNewMessage('');
   };
 
   // Handle key press in message input
@@ -110,16 +109,16 @@ export function ChatButton({
     if (conversation.participant1_id === user.id) {
       return {
         id: conversation.participant2_id,
-        name: conversation.participant2_name || 'Usuario',
-        avatar: conversation.participant2_avatar,
-        status: conversation.participant2_status || 'offline'
+        name: conversation.participant2?.name || 'Usuario',
+        avatar: undefined,
+        status: 'offline'
       };
     } else {
       return {
         id: conversation.participant1_id,
-        name: conversation.participant1_name || 'Usuario',
-        avatar: conversation.participant1_avatar,
-        status: conversation.participant1_status || 'offline'
+        name: conversation.participant1?.name || 'Usuario',
+        avatar: undefined,
+        status: 'offline'
       };
     }
   };
@@ -155,7 +154,7 @@ export function ChatButton({
 
   const ChatContent = () => {
     // Show unavailable message if chat system is not available
-    if (!isAvailable) {
+  if (!hasChatTables) {
       return (
         <div className="p-4">
           <Alert className="mb-4">
@@ -236,9 +235,9 @@ export function ChatButton({
                             </span>
                           )}
                         </div>
-                        {conversation.last_message_content && (
+            {conversation.last_message?.content && (
                           <p className="text-sm text-gray-600 truncate">
-                            {conversation.last_message_content}
+              {conversation.last_message?.content}
                           </p>
                         )}
                       </div>
@@ -341,7 +340,7 @@ export function ChatButton({
                           : 'bg-gray-100 text-gray-900'
                       )}
                     >
-                      <p>{message.message}</p>
+                      <p>{message.content}</p>
                       <p
                         className={cn(
                           'text-xs mt-1',
@@ -369,15 +368,15 @@ export function ChatButton({
               onKeyPress={handleKeyPress}
               placeholder="Escribe tu mensaje..."
               className="flex-1"
-              disabled={sendingMessage || !isAvailable}
+              disabled={loading || !hasChatTables}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim() || sendingMessage || !isAvailable}
+              disabled={!newMessage.trim() || loading || !hasChatTables}
               size="sm"
               className="px-3"
             >
-              {sendingMessage ? (
+              {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />
@@ -399,7 +398,7 @@ export function ChatButton({
           className={cn(
             variant === 'floating' && 'rounded-full shadow-lg bg-orange-500 hover:bg-orange-600',
             variant === 'floating' && size !== 'sm' && sizeClasses[size],
-            !isAvailable && 'opacity-50',
+            !hasChatTables && 'opacity-50',
             className
           )}
           onClick={() => recipientId ? handleOpenChat(recipientId) : handleOpenChat()}
@@ -414,7 +413,7 @@ export function ChatButton({
         </Button>
 
         {/* Unread Badge */}
-        {showUnreadBadge && unreadCount > 0 && isAvailable && (
+  {showUnreadBadge && unreadCount > 0 && hasChatTables && (
           <Badge 
             variant="destructive" 
             className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"

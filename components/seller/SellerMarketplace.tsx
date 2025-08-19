@@ -36,7 +36,7 @@ interface Business {
   total_reviews: number;
   profile_image_url: string;
   is_open: boolean;
-  created_at: string;
+  created_at?: string;
 }
 
 interface Product {
@@ -140,8 +140,7 @@ function SellerMarketplaceContent() {
         business_rating: 4.5, // Default value since column may not exist
         total_reviews: 0, // Default value since column may not exist
         profile_image_url: '', // Default value since column may not exist
-        is_open: true, // Default value since column may not exist
-        created_at: seller.created_at
+        is_open: true // Default value since column may not exist
       }));
 
       console.log('Processed businesses:', businessData);
@@ -316,7 +315,7 @@ function SellerMarketplaceContent() {
             </Button>
             <h2 className="text-xl font-semibold">Mi Carrito de Compras</h2>
           </div>
-          <BuyerCart onBackToShopping={() => setCurrentView('businesses')} />
+          <BuyerCart onClose={() => setCurrentView('businesses')} />
         </div>
       </OrderProvider>
     );
@@ -393,7 +392,7 @@ function SellerMarketplaceContent() {
       )}
 
       {/* Navigation Tabs */}
-      <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as MarketView)}>
+  <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MarketView)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="businesses" className="flex items-center gap-2">
             <Store className="w-4 h-4" />

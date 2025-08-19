@@ -351,7 +351,7 @@ export function ProfileRecovery() {
                   <div className="space-y-2">
                     <Label htmlFor="vehicleType">Tipo de vehículo *</Label>
                     <Select 
-                      onValueChange={(value) => setFormData({ ...formData, vehicleType: value })}
+                      onValueChange={(value: string) => setFormData({ ...formData, vehicleType: value })}
                       disabled={isCreating}
                     >
                       <SelectTrigger>

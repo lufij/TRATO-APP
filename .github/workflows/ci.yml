@@ -75,12 +75,12 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-    - name: Deploy to Vercel
+      - name: Deploy to Vercel
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-      vercel deploy --prod dist --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
+          vercel deploy --prod dist --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
           echo "url=$(tail -n 1 deploy_url.txt)" >> $GITHUB_OUTPUT

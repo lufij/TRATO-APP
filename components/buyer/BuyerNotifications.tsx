@@ -19,7 +19,6 @@ import {
   Store,
   AlertCircle,
   Trash2,
-  MarkAsUnread,
   Database
 } from 'lucide-react';
 
@@ -427,7 +426,7 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation();
                                       markAsRead(notification.id);
                                     }}
@@ -438,7 +437,7 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation();
                                       deleteNotification(notification.id);
                                     }}

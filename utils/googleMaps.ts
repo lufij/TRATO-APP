@@ -4,6 +4,15 @@ interface GoogleMapsConfig {
   scriptLoaded: boolean;
 }
 
+// Allow using the global `google` namespace without @types/google.maps at typecheck time
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+declare global {
+  // Minimal shape to satisfy type checker; runtime provided by loaded script
+  interface Window { google: any }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace google { const maps: any }
+}
+
 class GoogleMapsManager {
   private config: GoogleMapsConfig | null = null;
 
@@ -61,7 +70,7 @@ class GoogleMapsManager {
     });
   }
 
-  async geocodeAddress(address: string): Promise<google.maps.GeocoderResult[]> {
+  async geocodeAddress(address: string): Promise<any[]> {
     const config = this.getConfig();
     
     if (!config.scriptLoaded) {
@@ -69,7 +78,10 @@ class GoogleMapsManager {
     }
 
     return new Promise((resolve, reject) => {
-      const geocoder = new google.maps.Geocoder();
+      const geocoder = (window as any).google?.maps ? new (window as any).google.maps.Geocoder() : null;
+      if (!geocoder) {
+        return reject(new Error('Google Maps not available'));
+      }
       
       geocoder.geocode(
         {
@@ -80,7 +92,7 @@ class GoogleMapsManager {
             administrativeArea: 'Zacapa'
           }
         },
-        (results, status) => {
+  (results: any, status: any) => {
           if (status === 'OK' && results) {
             resolve(results);
           } else {

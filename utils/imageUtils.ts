@@ -3,12 +3,12 @@ import { supabase } from './supabase/client';
 /**
  * Convierte una ruta de storage de Supabase a una URL pública completa
  */
-export function getSupabaseImageUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
+export function getSupabaseImageUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
   
   // Si ya es una URL completa, devolverla tal como está
   if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
+  return path;
   }
   
   // Si es una ruta de storage de Supabase, construir la URL pública
@@ -17,7 +17,7 @@ export function getSupabaseImageUrl(path: string | null | undefined): string | n
                    path.startsWith('avatars/') ? 'avatars' : 'products';
     
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
+  return data.publicUrl;
   }
   
   // Si es solo el nombre del archivo, asumir que está en business-logos
@@ -26,13 +26,13 @@ export function getSupabaseImageUrl(path: string | null | undefined): string | n
     return data.publicUrl;
   }
   
-  return path;
+  return path as string | undefined;
 }
 
 /**
  * Obtiene la mejor imagen disponible para un comercio
  */
-export function getBusinessImageUrl(business: { logo_url?: string; user?: { avatar_url?: string } }): string | null {
+export function getBusinessImageUrl(business: { logo_url?: string; user?: { avatar_url?: string } }): string | undefined {
   // Priorizar logo_url del negocio
   if (business.logo_url) {
     return getSupabaseImageUrl(business.logo_url);
@@ -43,14 +43,14 @@ export function getBusinessImageUrl(business: { logo_url?: string; user?: { avat
     return getSupabaseImageUrl(business.user.avatar_url);
   }
   
-  return null;
+  return undefined;
 }
 
 /**
  * Obtiene la URL de imagen de un producto
  */
-export function getProductImageUrl(product: { image_url?: string }): string | null {
-  if (!product.image_url) return null;
+export function getProductImageUrl(product: { image_url?: string }): string | undefined {
+  if (!product.image_url) return undefined;
   return getSupabaseImageUrl(product.image_url);
 }
 
@@ -58,6 +58,6 @@ export function getProductImageUrl(product: { image_url?: string }): string | nu
  * Procesa cualquier URL de imagen para uso en componentes
  * Alias para getSupabaseImageUrl para compatibilidad
  */
-export function processImageUrl(url: string | null | undefined): string | null {
+export function processImageUrl(url: string | null | undefined): string | undefined {
   return getSupabaseImageUrl(url);
 }

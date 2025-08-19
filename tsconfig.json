@@ -15,19 +15,25 @@
     "baseUrl": "."
   },
   "include": [
-  "App.tsx",
-  "contexts/**/*.ts",
-  "contexts/**/*.tsx",
-  "utils/**/*.ts",
-  "utils/**/*.tsx",
-  "hooks/useServiceWorker.ts",
-  "components/DiagnosticPage.tsx",
-  "components/CredentialChecker.tsx"
+    "vite.config.ts",
+  "env.d.ts",
+  "shims.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "App.tsx",
+    "contexts/**/*.ts",
+    "contexts/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
+    "hooks/useServiceWorker.ts",
+    "components/DiagnosticPage.tsx",
+    "components/CredentialChecker.tsx"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "database/**",
+  "supabase/functions/**",
     "**/*.sql",
     "**/*.sql.tsx"
   ]

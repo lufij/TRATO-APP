@@ -193,7 +193,7 @@ export function OrphanedUserDiagnostic() {
       // Test 6: Check RLS policies
       try {
         const { data, error } = await supabase
-          .rpc('pg_policies')
+          .from('pg_policies')
           .select('*')
           .eq('schemaname', 'public')
           .eq('tablename', 'users');

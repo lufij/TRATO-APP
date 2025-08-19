@@ -48,7 +48,7 @@ export interface WeeklyHours {
 // Safe function to check Google Maps configuration
 export function checkGoogleMapsConfig(): boolean {
   try {
-    return !!(import.meta?.env?.VITE_GOOGLE_MAPS_API_KEY);
+    return !!(import.meta && (import.meta as any).env && (import.meta as any).env.VITE_GOOGLE_MAPS_API_KEY);
   } catch (error) {
     return false;
   }

@@ -23,7 +23,7 @@ import {
   Star,
   MessageSquare
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface PurchaseOrder {
   id: string;
@@ -131,7 +131,7 @@ export function SellerPurchaseOrders() {
         query = query.eq('status', filterStatus);
       }
 
-      const { data: ordersData, error } = await query;
+  const { data: ordersData, error } = await query as any;
 
       if (error) {
         throw error;
@@ -140,13 +140,13 @@ export function SellerPurchaseOrders() {
       console.log('Loaded purchase orders:', ordersData);
 
       // Transform data to match our PurchaseOrder interface
-      const transformedOrders: PurchaseOrder[] = (ordersData || []).map(order => ({
+      const transformedOrders: PurchaseOrder[] = (ordersData || []).map((order: any) => ({
         id: order.id,
-        seller_name: order.seller?.name || 'Vendedor',
-        seller_phone: order.seller?.phone || 'Sin teléfono',
-        seller_business_name: order.seller?.business_name || 'Comercio',
-        items: (order.order_items || []).map(item => ({
-          product_name: item.product?.name || 'Producto',
+        seller_name: (order.seller && !Array.isArray(order.seller) ? order.seller.name : undefined) || 'Vendedor',
+        seller_phone: (order.seller && !Array.isArray(order.seller) ? order.seller.phone : undefined) || 'Sin teléfono',
+        seller_business_name: (order.seller && !Array.isArray(order.seller) ? order.seller.business_name : undefined) || 'Comercio',
+        items: (order.order_items || []).map((item: any) => ({
+          product_name: (item.product && !Array.isArray(item.product) ? item.product.name : undefined) || 'Producto',
           quantity: item.quantity || 1,
           price: item.price_per_unit || 0,
           total: item.total_price || 0

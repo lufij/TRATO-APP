@@ -153,8 +153,8 @@ export function CheckoutFlow({ onBack, onOrderCreated }: CheckoutFlowProps) {
 
     try {
       // Prepare delivery address and location data
-      let finalDeliveryAddress = '';
-      let deliveryLocationData = null;
+  let finalDeliveryAddress = '';
+  let deliveryLocationData: CreateOrderRequest['delivery_location'] | undefined = undefined;
 
       if (deliveryType === 'delivery') {
         if (selectedAddress) {
@@ -186,7 +186,7 @@ export function CheckoutFlow({ onBack, onOrderCreated }: CheckoutFlowProps) {
         phone_number: phoneNumber.trim(),
         customer_notes: customerNotes.trim() || undefined,
         delivery_address: finalDeliveryAddress || undefined,
-        delivery_location: deliveryLocationData
+  delivery_location: deliveryLocationData
       };
 
       const result = await createOrder(orderRequest);

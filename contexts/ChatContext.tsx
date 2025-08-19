@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../utils/supabase/client';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
-interface Message {
+export interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
@@ -18,7 +18,7 @@ interface Message {
   };
 }
 
-interface Conversation {
+export interface Conversation {
   id: string;
   participant1_id: string;
   participant2_id: string;
@@ -42,7 +42,7 @@ interface Conversation {
   unread_count: number;
 }
 
-interface ChatContextType {
+export interface ChatContextType {
   conversations: Conversation[];
   messages: Message[];
   activeConversation: string | null;

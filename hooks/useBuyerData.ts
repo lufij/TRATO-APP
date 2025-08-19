@@ -57,6 +57,8 @@ export function useBuyerData() {
     try {
       setLoading(prev => ({ ...prev, products: true }));
       
+      // Try with relationships first; fallback to plain select(*) if the
+      // relationship or columns are not configured/accessible under RLS.
       let query = supabase
         .from('products')
         .select(`
@@ -85,14 +87,45 @@ export function useBuyerData() {
         query = query.limit(filters.limit);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      let { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || // relationship not found
+          code === '42P01' || // relation does not exist
+          code === '42703' || // column does not exist
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+
+        if (isRelIssue) {
+          // Fallback: plain select(*)
+          let fb = supabase
+            .from('products')
+            .select('*')
+            .eq('is_public', true)
+            .gt('stock_quantity', 0);
+          if (filters?.search) {
+            fb = fb.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+          }
+          if (filters?.category && filters.category !== 'all') {
+            fb = fb.eq('category', filters.category);
+          }
+          if (filters?.limit) {
+            fb = fb.limit(filters.limit);
+          }
+          const r = await fb.order('created_at', { ascending: false });
+          data = r.data as any[] | null;
+          error = r.error as any;
+        }
+      }
 
       if (error) {
         console.error('Error fetching products:', error);
-        return;
+        setProducts([]);
+      } else {
+        setProducts((data as any[]) || []);
       }
-
-      setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -104,18 +137,6 @@ export function useBuyerData() {
   const fetchDailyProducts = async () => {
     try {
       setLoading(prev => ({ ...prev, dailyProducts: true }));
-      
-      // First check if daily_products table exists
-      const { error: tableCheckError } = await supabase
-        .from('daily_products')
-        .select('count', { count: 'exact', head: true });
-
-      if (tableCheckError?.code === 'PGRST205') {
-        // Table doesn't exist yet
-        console.log('daily_products table does not exist yet');
-        setDailyProducts([]);
-        return;
-      }
 
       const today = new Date();
       const endOfDay = new Date(today);
@@ -139,6 +160,12 @@ export function useBuyerData() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        // Handle table-not-found gracefully (PGRST205)
+        if ((error as any)?.code === 'PGRST205') {
+          console.log('daily_products table does not exist yet');
+          setDailyProducts([]);
+          return;
+        }
         console.error('Error fetching daily products:', error);
         return;
       }
@@ -156,7 +183,8 @@ export function useBuyerData() {
     try {
       setLoading(prev => ({ ...prev, businesses: true }));
       
-      const { data, error } = await supabase
+      // Try with user join first; fallback to plain select if relationship fails
+      let { data, error } = await supabase
         .from('sellers')
         .select(`
           id,
@@ -172,59 +200,95 @@ export function useBuyerData() {
         .order('is_verified', { ascending: false });
 
       if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        if (isRelIssue) {
+          const r = await supabase
+            .from('sellers')
+            .select('id,business_name,business_description,business_address,business_phone,logo_url,is_verified')
+            .not('business_name', 'is', null)
+            .order('is_verified', { ascending: false });
+          data = r.data as any[] | null;
+          error = r.error as any;
+        }
+      }
+
+      if (error) {
         console.error('Error fetching businesses:', error);
+        setBusinesses([]);
         return;
       }
 
-      console.log('Raw businesses data from Supabase:', data);
-      
-      // Log individual logo URLs to debug
-      data?.forEach((business, index) => {
-        console.log(`Business ${index + 1} (${business.business_name}):`, {
-          logo_url: business.logo_url,
-          user_avatar: business.user?.avatar_url,
-          has_logo: !!business.logo_url,
-          has_avatar: !!business.user?.avatar_url
-        });
-      });
+      // Build product counts in ONE query instead of N per business
+      type SellerRow = {
+        id: string;
+        business_name: string;
+        business_description?: string | null;
+        business_address?: string | null;
+        business_phone?: string | null;
+        logo_url?: string | null;
+        is_verified: boolean;
+        user?: { name: string; phone?: string; avatar_url?: string } | null;
+      };
 
-      // Get product counts for each business
-      const businessesWithStats = await Promise.all(
-        (data || []).map(async (business) => {
-          // Count products for this seller
-          const { count, error: countError } = await supabase
+  const sellers = (data as unknown as SellerRow[]) || [];
+
+      const sellerIds = sellers.map(b => b.id);
+      let productsBySeller = new Map<string, number>();
+      if (sellerIds.length > 0) {
+        try {
+          const { data: productRows, error: productsErr } = await supabase
             .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('seller_id', business.id)
+            .select('seller_id')
+            .in('seller_id', sellerIds)
             .eq('is_public', true);
 
-          if (countError) {
-            console.error('Error counting products for business:', countError);
+          if (productsErr) {
+            console.error('Error fetching products for counts:', productsErr);
+          } else {
+            productsBySeller = (productRows as { seller_id: string }[] | null | undefined)?.reduce((acc: Map<string, number>, row: { seller_id: string }) => {
+              acc.set(row.seller_id, (acc.get(row.seller_id) || 0) + 1);
+              return acc;
+            }, new Map<string, number>()) ?? new Map<string, number>();
           }
+        } catch (err) {
+          console.error('Error aggregating product counts:', err);
+        }
+      }
 
-          // Generar la URL completa de la imagen del negocio
-          const businessImageUrl = getBusinessImageUrl(business);
-          
-          return {
-            id: business.id,
-            business_name: business.business_name,
-            business_description: business.business_description,
-            business_address: business.business_address,
-            business_phone: business.business_phone,
-            logo_url: businessImageUrl, // Usar la URL completa procesada
-            is_verified: business.is_verified,
-            products_count: count || 0,
-            rating: 4.2 + Math.random() * 0.8, // Mock rating between 4.2 and 5.0
-            user: business.user,
-            // Campos adicionales para compatibilidad
-            cover_image: businessImageUrl, // Usar la misma URL procesada
-            category: 'General', // Valor por defecto
-            address: business.business_address || 'Gualán, Zacapa',
-            phone_number: business.business_phone || business.user?.phone,
-            is_open_now: true // Valor por defecto
-          };
-        })
-      );
+      // Compose final businesses list with counts and normalized images
+      const businessesWithStats = sellers.map((business) => {
+        const businessImageUrl = getBusinessImageUrl({
+          logo_url: business.logo_url ?? undefined,
+          user: business.user ? { avatar_url: business.user.avatar_url } : undefined,
+        });
+        const productCount = productsBySeller.get(business.id) || 0;
+        return {
+          id: business.id,
+          business_name: business.business_name,
+          business_description: business.business_description ?? undefined,
+          business_address: business.business_address ?? undefined,
+          business_phone: business.business_phone ?? undefined,
+          logo_url: businessImageUrl ?? undefined,
+          is_verified: business.is_verified,
+          products_count: productCount,
+          rating: 4.2 + Math.random() * 0.8, // Mock rating between 4.2 and 5.0
+          user: {
+            name: business.user?.name ?? 'Usuario',
+            phone: business.user?.phone ?? undefined,
+            avatar_url: business.user?.avatar_url ?? undefined,
+          },
+          // Campos adicionales para compatibilidad
+          cover_image: businessImageUrl ?? undefined,
+          category: 'General',
+          address: (business.business_address ?? undefined) || 'Gualán, Zacapa',
+          phone_number: (business.business_phone ?? undefined) || (business.user?.phone ?? undefined),
+          is_open_now: true
+        };
+      });
 
       setBusinesses(businessesWithStats);
     } catch (error) {
@@ -237,7 +301,8 @@ export function useBuyerData() {
   // Get products by business
   const getBusinessProducts = async (businessId: string): Promise<Product[]> => {
     try {
-      const { data, error } = await supabase
+      // Try with relationship, then fallback
+      let q = supabase
         .from('products')
         .select(`
           *,
@@ -253,12 +318,33 @@ export function useBuyerData() {
         .gt('stock_quantity', 0)
         .order('created_at', { ascending: false });
 
+      let { data, error } = await q;
+
+      if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        if (isRelIssue) {
+          const r = await supabase
+            .from('products')
+            .select('*')
+            .eq('seller_id', businessId)
+            .eq('is_public', true)
+            .gt('stock_quantity', 0)
+            .order('created_at', { ascending: false });
+          data = r.data as any[] | null;
+          error = r.error as any;
+        }
+      }
+
       if (error) {
         console.error('Error fetching business products:', error);
         return [];
       }
 
-      return data || [];
+      return (data as any[]) || [];
     } catch (error) {
       console.error('Error fetching business products:', error);
       return [];
@@ -268,22 +354,12 @@ export function useBuyerData() {
   // Get daily products by business
   const getBusinessDailyProducts = async (businessId: string): Promise<DailyProduct[]> => {
     try {
-      // First check if daily_products table exists
-      const { error: tableCheckError } = await supabase
-        .from('daily_products')
-        .select('count', { count: 'exact', head: true });
-
-      if (tableCheckError?.code === 'PGRST205') {
-        // Table doesn't exist yet
-        console.log('daily_products table does not exist yet');
-        return [];
-      }
-
       const today = new Date();
       const endOfDay = new Date(today);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const { data, error } = await supabase
+      // Try with nested joins first
+      let { data, error } = await supabase
         .from('daily_products')
         .select(`
           *,
@@ -302,11 +378,35 @@ export function useBuyerData() {
         .order('created_at', { ascending: false });
 
       if (error) {
+        const code = (error as any)?.code;
+        if (code === 'PGRST205') {
+          console.log('daily_products table does not exist yet');
+          return [];
+        }
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        if (isRelIssue) {
+          const r = await supabase
+            .from('daily_products')
+            .select('*')
+            .eq('seller_id', businessId)
+            .gt('stock_quantity', 0)
+            .gte('expires_at', new Date().toISOString())
+            .lte('expires_at', endOfDay.toISOString())
+            .order('created_at', { ascending: false });
+          data = r.data as any[] | null;
+          error = r.error as any;
+        }
+      }
+
+      if (error) {
         console.error('Error fetching business daily products:', error);
         return [];
       }
 
-      return data || [];
+      return (data as any[]) || [];
     } catch (error) {
       console.error('Error fetching business daily products:', error);
       return [];
@@ -316,7 +416,8 @@ export function useBuyerData() {
   // Get business details by ID
   const getBusinessById = async (businessId: string): Promise<BusinessListing | null> => {
     try {
-      const { data, error } = await supabase
+      // Try with joined user; fallback if relationship fails
+      let { data, error } = await supabase
         .from('sellers')
         .select(`
           id,
@@ -333,6 +434,23 @@ export function useBuyerData() {
         .single();
 
       if (error) {
+        const code = (error as any)?.code || '';
+        const msg = (error as any)?.message?.toLowerCase?.() || '';
+        const isRelIssue =
+          code === 'PGRST200' || code === '42P01' || code === '42703' ||
+          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        if (isRelIssue) {
+          const r = await supabase
+            .from('sellers')
+            .select('id,business_name,business_description,business_address,business_phone,logo_url,is_verified,rating_avg')
+            .eq('id', businessId)
+            .single();
+          data = r.data as any;
+          error = r.error as any;
+        }
+      }
+
+      if (error) {
         console.error('Error fetching business:', error);
         return null;
       }
@@ -345,24 +463,32 @@ export function useBuyerData() {
         .eq('is_public', true);
 
       // Generar la URL completa de la imagen del negocio
-      const businessImageUrl = getBusinessImageUrl(data);
+  const businessImageUrl = getBusinessImageUrl({
+        logo_url: (data as any)?.logo_url ?? undefined,
+        user: (data as any)?.user ? { avatar_url: (data as any).user.avatar_url } : undefined,
+      });
       
+      const row: any = data as any;
       return {
-        id: data.id,
-        business_name: data.business_name,
-        business_description: data.business_description,
-        business_address: data.business_address,
-        business_phone: data.business_phone,
-        logo_url: businessImageUrl, // Usar la URL completa procesada
-        is_verified: data.is_verified,
+        id: row.id,
+        business_name: row.business_name,
+        business_description: row.business_description ?? undefined,
+        business_address: row.business_address ?? undefined,
+        business_phone: row.business_phone ?? undefined,
+        logo_url: businessImageUrl ?? undefined, // Usar la URL completa procesada
+        is_verified: row.is_verified,
         products_count: count || 0,
-        rating: data.rating_avg || 4.2 + Math.random() * 0.8,
-        user: data.user,
+        rating: row.rating_avg || 4.2 + Math.random() * 0.8,
+        user: {
+          name: row.user?.name ?? 'Usuario',
+          phone: row.user?.phone ?? undefined,
+          avatar_url: row.user?.avatar_url ?? undefined,
+        },
         // Campos adicionales para compatibilidad
-        cover_image: businessImageUrl, // Usar la misma URL procesada
+        cover_image: businessImageUrl ?? undefined, // Usar la misma URL procesada
         category: 'General',
-        address: data.business_address || 'Gualán, Zacapa',
-        phone_number: data.business_phone || data.user?.phone,
+        address: (row.business_address ?? undefined) || 'Gualán, Zacapa',
+        phone_number: (row.business_phone ?? undefined) || (row.user?.phone ?? undefined),
         is_open_now: true
       };
     } catch (error) {

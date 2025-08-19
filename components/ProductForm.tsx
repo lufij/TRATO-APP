@@ -401,7 +401,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               {/* Category */}
               <div className="space-y-2">
                 <Label>Categoría *</Label>
-                <Select onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <Select onValueChange={(value: string) => setFormData({ ...formData, category: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder={formData.category || "Selecciona una categoría"} />
                   </SelectTrigger>

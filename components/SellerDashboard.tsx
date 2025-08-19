@@ -970,7 +970,7 @@ export function SellerDashboard() {
         )}
 
         {/* Navigation Tabs */}
-        <Tabs value={currentView} onValueChange={(value) => setCurrentView(value as MainView)} className="space-y-6">
+  <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
             {navigationItems.map((item) => {
               const Icon = item.icon;

@@ -279,7 +279,7 @@ export function BuyerDashboard() {
         </div>
 
         {/* Success Toast for Orders */}
-        {currentView === 'order-tracking' && (
+  {currentView === ('order-tracking' as ViewState) && (
           <div className="fixed top-4 right-4 z-50">
             <Card className="border-green-200 bg-green-50">
               <CardContent className="p-4">

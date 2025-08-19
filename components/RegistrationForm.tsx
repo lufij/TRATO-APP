@@ -323,7 +323,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                       <div className="space-y-2">
                         <Label htmlFor="vehicleType">Tipo de vehículo *</Label>
                         <Select 
-                          onValueChange={(value) => setFormData({ ...formData, vehicleType: value })}
+                          onValueChange={(value: string) => setFormData({ ...formData, vehicleType: value })}
                           disabled={loading || isRegistering}
                         >
                           <SelectTrigger>
