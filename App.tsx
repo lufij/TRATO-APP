@@ -1,22 +1,22 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ImageModalProvider } from './contexts/ImageModalContext';
 import { CartProvider } from './contexts/CartContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { UserStatusProvider } from './components/UserStatusIndicator';
-import { WelcomeScreen } from './components/WelcomeScreen';
-import { RoleSelection } from './components/RoleSelection';
-import { RegistrationForm } from './components/RegistrationForm';
-import { ProfileRecovery } from './components/ProfileRecovery';
-import { OrphanedUserDiagnostic } from './components/OrphanedUserDiagnostic';
-import { BuyerDashboard } from './components/BuyerDashboard';
-import { SellerDashboard } from './components/SellerDashboard';
-import { DriverDashboard } from './components/DriverDashboard';
-import { DiagnosticPage } from './components/DiagnosticPage';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AdminSetup } from './components/AdminSetup';
+const WelcomeScreen = lazy(() => import('./components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
+const RoleSelection = lazy(() => import('./components/RoleSelection').then(m => ({ default: m.RoleSelection })));
+const RegistrationForm = lazy(() => import('./components/RegistrationForm').then(m => ({ default: m.RegistrationForm })));
+const ProfileRecovery = lazy(() => import('./components/ProfileRecovery').then(m => ({ default: m.ProfileRecovery })));
+const OrphanedUserDiagnostic = lazy(() => import('./components/OrphanedUserDiagnostic').then(m => ({ default: m.OrphanedUserDiagnostic })));
+const BuyerDashboard = lazy(() => import('./components/BuyerDashboard').then(m => ({ default: m.BuyerDashboard })));
+const SellerDashboard = lazy(() => import('./components/SellerDashboard').then(m => ({ default: m.SellerDashboard })));
+const DriverDashboard = lazy(() => import('./components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
+const DiagnosticPage = lazy(() => import('./components/DiagnosticPage').then(m => ({ default: m.DiagnosticPage })));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminSetup = lazy(() => import('./components/AdminSetup').then(m => ({ default: m.AdminSetup })));
 import { UserRole } from './utils/supabase/client';
-import { supabaseEnvDiagnostics } from './utils/supabase/config';
+import { supabaseEnvDiagnostics, supabaseConfig, environment } from './utils/supabase/config';
 import { supabase } from './utils/supabase/client';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -31,6 +31,13 @@ type AppState = 'welcome' | 'role-selection' | 'register' | 'diagnostic' | 'orph
 // PWA Meta Tags Component
 function PWAMetaTags() {
   useEffect(() => {
+    // Supabase preconnect to speed up TLS/DNS for auth & DB calls
+    let supaOrigin = '';
+    try {
+      supaOrigin = new URL(supabaseConfig.url).origin;
+    } catch {
+      // ignore
+    }
     // Add PWA meta tags to document head
     const meta = [
       { name: 'theme-color', content: '#f97316' },
@@ -42,10 +49,14 @@ function PWAMetaTags() {
       { name: 'viewport', content: 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' }
     ];
 
-    const links = [
+    const links: Array<{ rel: string; href: string }> = [
       { rel: 'manifest', href: '/manifest.json' },
       { rel: 'apple-touch-icon', href: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 180 180\'%3E%3Crect width=\'180\' height=\'180\' fill=\'%23f97316\'/%3E%3Ctext x=\'90\' y=\'110\' font-family=\'Arial, sans-serif\' font-size=\'36\' font-weight=\'bold\' text-anchor=\'middle\' fill=\'white\'%3ETRATO%3C/text%3E%3C/svg%3E' }
     ];
+    if (supaOrigin) {
+      links.push({ rel: 'preconnect', href: supaOrigin });
+      links.push({ rel: 'dns-prefetch', href: supaOrigin });
+    }
 
     // Add meta tags
     meta.forEach(({ name, content }) => {
@@ -230,7 +241,12 @@ function AppContent() {
       setCurrentState('diagnostic');
     }
 
-    checkDatabase();
+    // Skip eager DB check in production; run in idle/dev or when diagnostics requested
+    const shouldCheck = environment.isDevelopment || params.get('diag') === '1';
+    if (shouldCheck) {
+      const idle = (cb: () => void) => (window as any).requestIdleCallback ? (window as any).requestIdleCallback(cb) : setTimeout(cb, 250);
+      idle(() => { void checkDatabase(); });
+    }
   }, [checkDatabase]);
 
   // Improved timeout handling for registration with proper cleanup
@@ -328,7 +344,9 @@ function AppContent() {
     return (
       <div>
         <PWABanner />
-        <OrphanedUserDiagnostic />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          <OrphanedUserDiagnostic />
+        </Suspense>
       </div>
     );
   }
@@ -340,7 +358,9 @@ function AppContent() {
       return (
         <div>
           <PWABanner />
-          <AdminSetup />
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+            <AdminSetup />
+          </Suspense>
         </div>
       );
     }
@@ -378,7 +398,9 @@ function AppContent() {
       return (
         <div>
           <PWABanner />
-          <AdminSetup />
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+            <AdminSetup />
+          </Suspense>
         </div>
       );
     }
@@ -554,7 +576,9 @@ function AppContent() {
     return (
       <div>
         <PWABanner />
-        <DiagnosticPage />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          <DiagnosticPage />
+        </Suspense>
       </div>
     );
   }
@@ -567,7 +591,9 @@ function AppContent() {
         <UserStatusProvider>
           <ChatProvider>
             <PWABanner />
-            <AdminDashboard />
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+              <AdminDashboard />
+            </Suspense>
             <Toaster />
           </ChatProvider>
         </UserStatusProvider>
@@ -581,7 +607,9 @@ function AppContent() {
             <CartProvider>
               <ChatProvider>
                 <PWABanner />
-                <BuyerDashboard />
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                  <BuyerDashboard />
+                </Suspense>
                 <Toaster />
               </ChatProvider>
             </CartProvider>
@@ -592,7 +620,9 @@ function AppContent() {
           <UserStatusProvider>
             <ChatProvider>
               <PWABanner />
-              <SellerDashboard />
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                <SellerDashboard />
+              </Suspense>
               <Toaster />
             </ChatProvider>
           </UserStatusProvider>
@@ -602,7 +632,9 @@ function AppContent() {
           <UserStatusProvider>
             <ChatProvider>
               <PWABanner />
-              <DriverDashboard />
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                <DriverDashboard />
+              </Suspense>
               <Toaster />
             </ChatProvider>
           </UserStatusProvider>
@@ -633,10 +665,12 @@ function AppContent() {
     return (
       <div>
         <PWABanner />
-        <RoleSelection
-          onSelectRole={handleRoleSelection}
-          onBack={handleBackToWelcome}
-        />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          <RoleSelection
+            onSelectRole={handleRoleSelection}
+            onBack={handleBackToWelcome}
+          />
+        </Suspense>
         <Toaster />
       </div>
     );
@@ -653,10 +687,12 @@ function AppContent() {
     return (
       <div>
         <PWABanner />
-        <RegistrationForm
-          role={selectedRole}
-          onBack={handleBackFromRegister}
-        />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          <RegistrationForm
+            role={selectedRole}
+            onBack={handleBackFromRegister}
+          />
+        </Suspense>
         <Toaster />
       </div>
     );
@@ -666,9 +702,11 @@ function AppContent() {
   return (
     <div>
       <PWABanner />
-      <WelcomeScreen 
-        onRegisterClick={() => setCurrentState('role-selection')}
-      />
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+        <WelcomeScreen 
+          onRegisterClick={() => setCurrentState('role-selection')}
+        />
+      </Suspense>
       <Toaster />
     </div>
   );
@@ -679,7 +717,9 @@ export default function App() {
     <AuthProvider>
       <ImageModalProvider>
         <PWAMetaTags />
-        <AppContent />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div><p className="text-gray-600">Cargando…</p></div></div>}>
+          <AppContent />
+        </Suspense>
       </ImageModalProvider>
     </AuthProvider>
   );
