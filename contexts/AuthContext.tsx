@@ -576,23 +576,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRegistrationProgress(85);
       setRegistrationStep('Finalizando configuración...');
 
-      // Check if the user is automatically signed in
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        console.log('User automatically signed in');
+      // Evitar depender de getSession/signIn: usar el usuario retornado por signUp
+      const currentUser = authData.user;
+      if (currentUser) {
+        console.log('Proceeding with user from signUp, fetching profile...');
         setRegistrationProgress(95);
         setRegistrationStep('Cargando dashboard...');
-        // Fetch the profile we just created with retry logic
-        await fetchUserProfile(session.user);
+        await fetchUserProfile(currentUser);
         return { success: true };
-      } else {
-        console.log('User not automatically signed in, attempting manual sign in');
-        setRegistrationStep('Iniciando sesión...');
-        // Try to sign in manually
-        const signInResult = await signIn(email, password);
-        return signInResult;
       }
+
+      // Fallback extremo: intentar obtener el usuario actual y continuar
+      const { data: getUserData } = await supabase.auth.getUser();
+      if (getUserData?.user) {
+        console.log('Proceeding with user from getUser(), fetching profile...');
+        setRegistrationProgress(95);
+        setRegistrationStep('Cargando dashboard...');
+        await fetchUserProfile(getUserData.user);
+        return { success: true };
+      }
+
+      // Si aún no hay usuario disponible, intentar un inicio de sesión rápido
+      console.log('No user available post-signup, attempting quick sign-in');
+      setRegistrationStep('Iniciando sesión...');
+      const signInResult = await signIn(email, password);
+      return signInResult;
 
     } catch (error) {
       console.error('Unexpected error during signup:', error);
