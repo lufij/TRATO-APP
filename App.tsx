@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ImageModalProvider } from './contexts/ImageModalContext';
 import { CartProvider } from './contexts/CartContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { UserStatusProvider } from './components/UserStatusIndicator';
@@ -676,8 +677,10 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <PWAMetaTags />
-      <AppContent />
+      <ImageModalProvider>
+        <PWAMetaTags />
+        <AppContent />
+      </ImageModalProvider>
     </AuthProvider>
   );
 }
