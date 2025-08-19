@@ -149,15 +149,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .from('users')
                 .insert([minimalProfile]);
               if (createErr) {
-                console.warn('Final fallback auto-create profile failed:', createErr);
-                // Mark as orphaned so UI can guide recovery instead of hanging
-                setOrphanedUser(supabaseUser);
-                setUser(null);
-                setIsRegistering(false);
-                setRegistrationStep('No se pudo sincronizar el perfil. Usa la recuperación.');
-                return;
+                // Tolerar duplicados por carrera (23505 o "duplicate key") y reintentar fetch
+                const dup = (createErr as any)?.code === '23505' || /duplicate key/i.test((createErr as any)?.message || '');
+                if (!dup) {
+                  console.warn('Final fallback auto-create profile failed:', createErr);
+                  // Marcar como huérfano para guiar recuperación
+                  setOrphanedUser(supabaseUser);
+                  setUser(null);
+                  setIsRegistering(false);
+                  setRegistrationStep('No se pudo sincronizar el perfil. Usa la recuperación.');
+                  return;
+                }
               }
-              // Try fetching again shortly
+              // En éxito o duplicado, reintentar obtener el perfil
               setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 500);
               return;
             } catch (autoErr) {
@@ -190,15 +194,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .from('users')
                     .insert([minimalProfile]);
                   if (createErr) {
-                    console.warn('Auto-create profile failed:', createErr);
-                    // Fall back to orphaned flow
-                    setOrphanedUser(supabaseUser);
-                    setUser(null);
-                  } else {
-                    // Fetch again after a short delay
-                    setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 500);
-                    return;
+                    const dup = (createErr as any)?.code === '23505' || /duplicate key/i.test((createErr as any)?.message || '');
+                    if (!dup) {
+                      console.warn('Auto-create profile failed:', createErr);
+                      // Fallback a flujo de huérfano
+                      setOrphanedUser(supabaseUser);
+                      setUser(null);
+                    } else {
+                      console.warn('Auto-create profile duplicate detected; retrying fetch');
+                    }
                   }
+                  // En éxito o duplicado, reintentar obtener el perfil
+                  setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 500);
+                  return;
                 } catch (autoErr) {
                   console.warn('Auto-create profile threw:', autoErr);
                   setOrphanedUser(supabaseUser);
