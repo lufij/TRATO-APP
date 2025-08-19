@@ -57,6 +57,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isRegisteringRef.current = isRegistering;
   }, [isRegistering]);
 
+  // Intenta materializar el perfil en la tabla users en segundo plano
+  const ensureProfileExists = async (sbUser: SupabaseUser) => {
+    try {
+      const minimalProfile: Partial<User> = {
+        id: sbUser.id,
+        email: sbUser.email || '',
+        name: (sbUser.user_metadata as any)?.name || (sbUser.email || 'Usuario').split('@')[0],
+        role: (sbUser.user_metadata as any)?.role || 'comprador',
+      } as Partial<User>;
+      const { error } = await supabase
+        .from('users')
+        // Upsert para crear si falta; ignorar duplicados por carreras
+        .upsert([minimalProfile], { onConflict: 'id', ignoreDuplicates: true } as any);
+      if (error) {
+        const dup = (error as any)?.code === '23505' || /duplicate key/i.test((error as any)?.message || '');
+        if (!dup) console.warn('ensureProfileExists: upsert error (non-fatal):', error);
+      }
+    } catch (e) {
+      console.warn('ensureProfileExists: exception (non-fatal):', e);
+    }
+  };
+
   useEffect(() => {
     // If Supabase env is misconfigured in prod, continue anyway using fallback config.
     // We'll still show a toast elsewhere (App.tsx) but we won't block auth here.
@@ -251,6 +273,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsRegistering(false);
           setRegistrationProgress(100);
           setRegistrationStep('¡Completado!');
+          // Intentar materializar el perfil real en segundo plano
+          void ensureProfileExists(supabaseUser);
         } else if (error.code === 'PGRST205') {
           // Table doesn't exist
           console.error('Users table does not exist. Please run the database setup.');
@@ -273,6 +297,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsRegistering(false);
             setRegistrationProgress(100);
             setRegistrationStep('¡Completado!');
+            // Intentar materializar el perfil real en segundo plano
+            void ensureProfileExists(supabaseUser);
           } else {
             setUser(null);
           }
@@ -303,12 +329,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as User;
-        console.warn('Using temporary profile after exception to avoid blocking registration');
+  console.warn('Using temporary profile after exception to avoid blocking registration');
         setUser(tempUser);
         setOrphanedUser(null);
         setIsRegistering(false);
         setRegistrationProgress(100);
         setRegistrationStep('¡Completado!');
+  // Intentar materializar el perfil real en segundo plano
+  void ensureProfileExists(supabaseUser);
       } else {
         setUser(null);
       }
@@ -515,6 +543,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsRegistering(false);
             setRegistrationProgress(100);
             setRegistrationStep('¡Completado!');
+            // Materializar el perfil real en background
+            void ensureProfileExists(existing);
           }
         }, 4000);
         return { success: true };
@@ -664,7 +694,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRegistrationStep('Cargando dashboard...');
         // Lanzar fetch sin bloquear y aplicar watchdog para evitar quedarnos en 95%
         void fetchUserProfile(currentUser);
-        setTimeout(async () => {
+    setTimeout(async () => {
           if (isRegisteringRef.current) {
             // Cierre suave: perfil temporal desde metadata del token
             const tempUser: User = {
@@ -681,6 +711,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsRegistering(false);
             setRegistrationProgress(100);
             setRegistrationStep('¡Completado!');
+      // Materializar el perfil real en background
+      void ensureProfileExists(currentUser);
           }
         }, 4000);
         return { success: true };
@@ -693,7 +725,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setRegistrationProgress(95);
         setRegistrationStep('Cargando dashboard...');
         void fetchUserProfile(getUserData.user);
-        setTimeout(() => {
+    setTimeout(() => {
           if (isRegisteringRef.current) {
             const u = getUserData.user;
             const tempUser: User = {
@@ -710,6 +742,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsRegistering(false);
             setRegistrationProgress(100);
             setRegistrationStep('¡Completado!');
+      // Materializar el perfil real en background
+      void ensureProfileExists(u);
           }
         }, 4000);
         return { success: true };
