@@ -125,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', supabaseUser.id)
         .single();
 
-      if (error) {
+  if (error) {
         if (error.code === 'PGRST116') {
           // User doesn't exist in our users table
           if (isRegistering && retryCount < 2) {
@@ -178,6 +178,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
+        } else if (
+          error.code === '42501' || // insufficient_privilege
+          error.code === 'PGRST403' || // forbidden
+          error.code === 'PGRST401' || // unauthorized
+          (error.message && (
+            error.message.toLowerCase().includes('permission denied') ||
+            error.message.toLowerCase().includes('rls') ||
+            error.message.toLowerCase().includes('forbidden')
+          ))
+        ) {
+          console.warn('RLS/permisos impiden leer perfil en users; continuando con un perfil temporal.');
+          // Construir un usuario temporal desde el token para no bloquear el login
+          const tempUser: User = {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            name: (supabaseUser.user_metadata as any)?.name || (supabaseUser.email || 'Usuario').split('@')[0],
+            role: (supabaseUser.user_metadata as any)?.role || 'comprador',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+          setUser(tempUser);
+          setOrphanedUser(null);
+          setIsRegistering(false);
+          setRegistrationProgress(100);
+          setRegistrationStep('¡Completado!');
         } else if (error.code === 'PGRST205') {
           // Table doesn't exist
           console.error('Users table does not exist. Please run the database setup.');

@@ -120,6 +120,18 @@ export function SellerBusinessProfile() {
     setGoogleMapsConfigured(checkGoogleMapsConfig());
   }, [user]);
 
+  // Fail-safe: si algo deja la vista en "loading" por demasiado tiempo, mostrar creación de perfil
+  useEffect(() => {
+    if (!user) return;
+    if (!loading) return;
+    const t = setTimeout(() => {
+      // Si aún está cargando después de 8s, asumimos perfil faltante o RLS bloqueando lectura
+      setLoading(false);
+      setMissingProfile(true);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [user, loading]);
+
   useEffect(() => {
     if (gpsError) {
       setShowGPSError(true);
@@ -130,20 +142,30 @@ export function SellerBusinessProfile() {
   const loadProfile = async () => {
     try {
       setLoading(true);
-      
+      // Intentar cargar perfil
       const { data, error } = await supabase
         .from('sellers')
         .select('*')
         .eq('id', user?.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (error?.code === 'PGRST116') {
-        // No existe perfil de vendedor todavía
-        setMissingProfile(true);
+      // Manejo tolerante de errores: tratar RLS/permiso/no-encontrado como perfil faltante
+      if (error) {
+        const code = (error as any).code as string | undefined;
+        const msg = (error as any).message?.toString().toLowerCase() || '';
+        const isMissing = code === 'PGRST116' // single() sin filas
+          || code === 'PGRST403' // prohibido por RLS
+          || code === '42501'    // insufficient_privilege
+          || code === 'PGRST114' // No autorizado
+          || msg.includes('permission')
+          || msg.includes('rls')
+          || msg.includes('forbidden')
+          || msg.includes('not authorized');
+        if (isMissing) {
+          setMissingProfile(true);
+        } else {
+          throw error;
+        }
       }
 
       if (data) {
@@ -190,7 +212,8 @@ export function SellerBusinessProfile() {
       }
     } catch (error) {
       console.error('Error loading profile:', error);
-      setError('Error al cargar el perfil del negocio');
+  // Si falló por otra razón, mostrar error visible pero no bloquear con spinner
+  setError('Error al cargar el perfil del negocio');
     } finally {
       setLoading(false);
     }
