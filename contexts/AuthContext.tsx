@@ -484,6 +484,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Starting signup process for:', email, userData.role);
 
+      // Si ya hay una sesión activa, saltar signUp y continuar con el perfil
+      if (session?.user) {
+        console.log('Session already present; skipping signUp and fetching profile');
+        setRegistrationProgress(30);
+        setRegistrationStep('Cargando perfil existente...');
+        await fetchUserProfile(session.user);
+        return { success: true };
+      }
+
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -501,6 +510,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (authError) {
         console.error('Auth signup error:', authError);
+        // Manejar cuenta ya registrada (422) intentando iniciar sesión
+        // @supabase/supabase-js expone AuthApiError con status
+        const anyErr: any = authError as any;
+        const already = (anyErr?.status === 422) || /already registered/i.test(anyErr?.message || '');
+        if (already) {
+          console.warn('Email ya registrado; intentando iniciar sesión automáticamente');
+          setRegistrationStep('Cuenta ya existe. Iniciando sesión...');
+          const res = await signIn(email, password);
+          return res;
+        }
         setIsRegistering(false);
         setRegistrationProgress(0);
         setRegistrationStep('');
