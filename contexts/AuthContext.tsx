@@ -495,7 +495,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Session already present; skipping signUp and fetching profile');
         setRegistrationProgress(30);
         setRegistrationStep('Cargando perfil existente...');
-        await fetchUserProfile(session.user);
+        // Lanzar fetch sin bloquear
+        void fetchUserProfile(session.user);
+        // Watchdog: si en ~4s seguimos registrando (p.ej. RLS/latencia), completar con perfil temporal
+        const existing = session.user;
+        setTimeout(() => {
+          if (isRegisteringRef.current) {
+            const tempUser: User = {
+              id: existing.id,
+              email: existing.email || '',
+              name: (existing.user_metadata as any)?.name || (existing.email || 'Usuario').split('@')[0],
+              role: (existing.user_metadata as any)?.role || 'comprador',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as User;
+            console.warn('Watchdog(session-present): completing registration with temporary profile');
+            setUser(tempUser);
+            setOrphanedUser(null);
+            setIsRegistering(false);
+            setRegistrationProgress(100);
+            setRegistrationStep('¡Completado!');
+          }
+        }, 4000);
         return { success: true };
       }
 
