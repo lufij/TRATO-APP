@@ -134,6 +134,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setRegistrationStep('Sincronizando datos...');
             setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 800);
             return;
+          } else if (isRegistering && retryCount >= 2) {
+            // Final fallback during registration: ensure a minimal profile exists so the app can proceed
+            try {
+              const guessedName = (supabaseUser.email || 'Usuario').split('@')[0];
+              const minimalProfile: Partial<User> = {
+                id: supabaseUser.id,
+                email: supabaseUser.email || '',
+                name: guessedName,
+                role: 'comprador',
+              } as Partial<User>;
+              console.log('Final fallback: auto-creating minimal user profile after registration retries:', minimalProfile);
+              const { error: createErr } = await supabase
+                .from('users')
+                .insert([minimalProfile]);
+              if (createErr) {
+                console.warn('Final fallback auto-create profile failed:', createErr);
+                // Mark as orphaned so UI can guide recovery instead of hanging
+                setOrphanedUser(supabaseUser);
+                setUser(null);
+                setIsRegistering(false);
+                setRegistrationStep('No se pudo sincronizar el perfil. Usa la recuperación.');
+                return;
+              }
+              // Try fetching again shortly
+              setTimeout(() => fetchUserProfile(supabaseUser, retryCount + 1), 500);
+              return;
+            } catch (autoErr) {
+              console.warn('Final fallback auto-create profile threw:', autoErr);
+              setOrphanedUser(supabaseUser);
+              setUser(null);
+              setIsRegistering(false);
+              setRegistrationStep('No se pudo sincronizar el perfil. Usa la recuperación.');
+              return;
+            }
           } else if (!isRegistering) {
             // Check if this is the admin user
             if (supabaseUser.email === 'trato.app1984@gmail.com') {
