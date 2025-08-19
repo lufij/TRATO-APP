@@ -50,6 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Control para ignorar resultados obsoletos al cargar el perfil
   const profileReqIdRef = React.useRef(0);
   const lastUserIdRef = React.useRef<string | null>(null);
+  // Ref para leer el estado actual de isRegistering dentro de timeouts
+  const isRegisteringRef = React.useRef<boolean>(isRegistering);
+
+  useEffect(() => {
+    isRegisteringRef.current = isRegistering;
+  }, [isRegistering]);
 
   useEffect(() => {
     // If Supabase env is misconfigured in prod, continue anyway using fallback config.
@@ -635,7 +641,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Proceeding with user from signUp, fetching profile...');
         setRegistrationProgress(95);
         setRegistrationStep('Cargando dashboard...');
-        await fetchUserProfile(currentUser);
+        // Lanzar fetch sin bloquear y aplicar watchdog para evitar quedarnos en 95%
+        void fetchUserProfile(currentUser);
+        setTimeout(async () => {
+          if (isRegisteringRef.current) {
+            // Cierre suave: perfil temporal desde metadata del token
+            const tempUser: User = {
+              id: currentUser.id,
+              email: currentUser.email || '',
+              name: (currentUser.user_metadata as any)?.name || (currentUser.email || 'Usuario').split('@')[0],
+              role: (currentUser.user_metadata as any)?.role || 'comprador',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as User;
+            console.warn('Watchdog: completing registration with temporary profile');
+            setUser(tempUser);
+            setOrphanedUser(null);
+            setIsRegistering(false);
+            setRegistrationProgress(100);
+            setRegistrationStep('¡Completado!');
+          }
+        }, 4000);
         return { success: true };
       }
 
@@ -645,7 +671,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Proceeding with user from getUser(), fetching profile...');
         setRegistrationProgress(95);
         setRegistrationStep('Cargando dashboard...');
-        await fetchUserProfile(getUserData.user);
+        void fetchUserProfile(getUserData.user);
+        setTimeout(() => {
+          if (isRegisteringRef.current) {
+            const u = getUserData.user;
+            const tempUser: User = {
+              id: u.id,
+              email: u.email || '',
+              name: (u.user_metadata as any)?.name || (u.email || 'Usuario').split('@')[0],
+              role: (u.user_metadata as any)?.role || 'comprador',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as User;
+            console.warn('Watchdog(getUser): completing registration with temporary profile');
+            setUser(tempUser);
+            setOrphanedUser(null);
+            setIsRegistering(false);
+            setRegistrationProgress(100);
+            setRegistrationStep('¡Completado!');
+          }
+        }, 4000);
         return { success: true };
       }
 
