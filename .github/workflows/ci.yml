@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Allow manual re-runs from the Actions tab
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -82,11 +84,14 @@ jobs:
             missing=true
           fi
           echo "missing=$missing" >> $GITHUB_OUTPUT
+          if [ "$missing" = "true" ]; then
+            echo "Vercel secrets missing. Required: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID." >&2
+          fi
 
       - name: Skip deploy (missing secrets)
         if: steps.secrets_check.outputs.missing == 'true'
         run: |
-          echo "Vercel secrets missing. Define VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID in repo settings to enable deploy."
+          echo "Skipping deploy. Define VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID in repo secrets to enable deploy."
 
       - name: Install Vercel CLI
         if: steps.secrets_check.outputs.missing == 'false'
