@@ -66,6 +66,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
       - name: Check Vercel secrets
         id: secrets_check
         env:
@@ -99,7 +105,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-    - name: Deploy to Vercel (remote build)
+    - name: Deploy to Vercel (prebuilt static dist)
         id: deploy
         if: steps.secrets_check.outputs.missing == 'false'
         env:
@@ -107,6 +113,6 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-      # Deploy the repository root so Vercel performs the build remotely
-      vercel deploy --yes --prod --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
+      # Deploy the prebuilt Vite output without building on Vercel
+      vercel deploy --yes --prod --no-build dist --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
           echo "url=$(tail -n 1 deploy_url.txt)" >> $GITHUB_OUTPUT
