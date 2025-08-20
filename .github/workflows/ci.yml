@@ -1,5 +1,11 @@
-name: disabled
+name: workflow-disabled
 
-on: {}
+on:
+	# Only allow manual runs; pushes and PRs will not trigger anything
+	workflow_dispatch:
 
-jobs: {}
+jobs:
+	noop:
+		runs-on: ubuntu-latest
+		steps:
+			- run: echo "GitHub Actions disabled for this repo. Use Vercel auto-deploys or Vercel CLI."
