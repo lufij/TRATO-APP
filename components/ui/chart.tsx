@@ -70,9 +70,13 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme || config.color,
-  );
+  // Be defensive: some entries might be undefined at runtime; avoid reading properties of undefined
+  const colorConfig = Object.entries(config).filter(([, item]) => {
+    if (!item) return false;
+    // item can be either { color?: string } or { theme: Record<theme, string> }
+    const anyItem = item as any;
+    return Boolean(anyItem.theme || anyItem.color);
+  });
 
   if (!colorConfig.length) {
     return null;
@@ -197,8 +201,8 @@ function ChartTooltipContent({
                 formatter(item.value, item.name, item, index, item.payload)
               ) : (
                 <>
-                  {itemConfig?.icon ? (
-                    <itemConfig.icon />
+                  {itemConfig && (itemConfig as any)?.icon ? (
+                    React.createElement((itemConfig as any).icon)
                   ) : (
                     !hideIndicator && (
                       <div
@@ -287,8 +291,8 @@ function ChartLegendContent({
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3",
             )}
           >
-            {itemConfig?.icon && !hideIcon ? (
-              <itemConfig.icon />
+            {itemConfig && (itemConfig as any)?.icon && !hideIcon ? (
+              React.createElement((itemConfig as any).icon)
             ) : (
               <div
                 className="h-2 w-2 shrink-0 rounded-[2px]"
@@ -297,7 +301,7 @@ function ChartLegendContent({
                 }}
               />
             )}
-            {itemConfig?.label}
+            {(itemConfig as any)?.label}
           </div>
         );
       })}
