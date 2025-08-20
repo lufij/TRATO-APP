@@ -66,12 +66,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
       - name: Check Vercel secrets
         id: secrets_check
         env:
@@ -97,7 +91,7 @@ jobs:
         if: steps.secrets_check.outputs.missing == 'false'
         run: npm i -g vercel@latest
 
-      - name: Pull Vercel Environment Information
+    - name: Pull Vercel Environment Information
         if: steps.secrets_check.outputs.missing == 'false'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -105,7 +99,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Vercel
+    - name: Deploy to Vercel (remote build)
         id: deploy
         if: steps.secrets_check.outputs.missing == 'false'
         env:
@@ -113,5 +107,6 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          vercel deploy --prod dist --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
+      # Deploy the repository root so Vercel performs the build remotely
+      vercel deploy --yes --prod --token=${{ secrets.VERCEL_TOKEN }} | tee deploy_url.txt
           echo "url=$(tail -n 1 deploy_url.txt)" >> $GITHUB_OUTPUT
