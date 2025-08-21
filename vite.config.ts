@@ -10,6 +10,10 @@ export default defineConfig({
     host: true,
     port: 5173
   },
+  define: {
+    'process.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL),
+    'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY),
+  },
   resolve: {
     alias: {
       // Map version-pinned imports used in components to actual packages

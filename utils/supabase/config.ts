@@ -1,23 +1,15 @@
-// Load from environment when available (Vite), fallback to defaults currently in use
-let envUrl: string | undefined;
-let envAnon: string | undefined;
-try {
-  // Vite-style env vars
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env: any = (import.meta as any)?.env;
-  envUrl = env?.VITE_SUPABASE_URL;
-  envAnon = env?.VITE_SUPABASE_ANON_KEY;
-} catch (e) {
-  envUrl = undefined;
-  envAnon = undefined;
+// Load from environment when available (Vite)
+const envUrl = import.meta.env.VITE_SUPABASE_URL;
+const envAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!envUrl || !envAnon) {
+  console.error('[ERROR] VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are not set.');
+  throw new Error('Supabase configuration is required.');
 }
 
 export const supabaseConfig = {
-  // IMPORTANT: Do NOT store real project keys in the repository.
-  // Provide these values via environment variables (Vite: VITE_SUPABASE_*).
-  // If empty, code that requires a valid client should fail early so misconfigs are obvious.
-  url: envUrl ?? '',
-  anonKey: envAnon ?? '',
+  url: envUrl,
+  anonKey: envAnon,
 };
 
 // Service Role Key for admin operations (if needed)
