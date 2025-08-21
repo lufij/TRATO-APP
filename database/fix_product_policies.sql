@@ -1,5 +1,10 @@
 -- Fix for product loading and business status errors
--- Run this in Supabase SQL editor
+-- IMPORTANTE: Este script debe ejecutarse en el SQL editor de Supabase
+-- y asegurarse de que:
+-- 1. Se ejecute en el proyecto de Supabase correcto (verificar URL)
+-- 2. Las variables de entorno en Vercel (NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY)
+--    coincidan con el proyecto de Supabase
+-- 3. Después de ejecutar el script, redespliega la aplicación en Vercel
 
 -- Primero eliminar todas las políticas existentes para evitar conflictos
 drop policy if exists "Enable read access to all products" on public.products;
@@ -13,6 +18,8 @@ drop policy if exists "Allow sellers to delete their product images" on storage.
 
 drop policy if exists "Enable sellers to update their business status" on public.sellers;
 drop policy if exists "Enable sellers to read all data" on public.sellers;
+drop policy if exists "Allow public access to auth" on auth.users;
+drop policy if exists "Allow users to access own auth data" on auth.users;
 
 -- Asegurar que los productos sean accesibles para todos
 create policy "Enable public read access to products"
