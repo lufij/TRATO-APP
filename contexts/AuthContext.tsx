@@ -76,30 +76,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       console.log('Actualizando perfil para:', supabaseUser.id);
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .maybeSingle();
+      
+      // Intentar hasta 2 veces con delay entre intentos
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log('Reintentando obtener perfil...');
+        }
 
-      if (error) {
-        console.error('Error al actualizar perfil:', error);
-        pushAuthLog(`Error de perfil: ${error.message}`);
-        return;
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', supabaseUser.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error(`Error al actualizar perfil (intento ${attempt + 1}):`, error);
+          pushAuthLog(`Error de perfil: ${error.message}`);
+          continue; // Intentar de nuevo si hay más intentos
+        }
+
+        if (profile) {
+          console.log('Perfil obtenido exitosamente');
+          setUser(profile);
+          setOrphanedUser(null);
+          pushAuthLog('Perfil actualizado');
+          return; // Éxito - salir del bucle
+        }
       }
 
-      if (profile) {
-        setUser(profile);
-        setOrphanedUser(null);
-        pushAuthLog('Perfil actualizado');
-      } else {
-        setOrphanedUser(supabaseUser);
-        setUser(null);
-        pushAuthLog('Usuario sin perfil');
-      }
+      // Si llegamos aquí, no se encontró perfil después de todos los intentos
+      console.log('No se encontró perfil después de reintentos');
+      setOrphanedUser(supabaseUser);
+      pushAuthLog('Usuario sin perfil después de reintentos');
+      
     } catch (error) {
-      console.error('Error en fetchUserProfile:', error);
-      pushAuthLog(`Error: ${error}`);
+      console.error('Error inesperado en fetchUserProfile:', error);
+      pushAuthLog(`Error inesperado: ${error}`);
     }
   };
 
@@ -391,33 +404,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Proceeding with authenticated user');
       pushAuthLog('Configurando sesión final...');
       setRegistrationProgress(95);
-      setRegistrationStep('Cargando dashboard...');
+      setRegistrationStep('Finalizando...');
 
+      // Crear perfil temporal inmediatamente
+      const tempUser: User = {
+        id: authUser.id,
+        email: authUser.email || '',
+        name: userData.name,
+        role: userData.role,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as User;
+      
+      console.log('Iniciando con perfil temporal');
+      pushAuthLog('Iniciando con perfil temporal');
+      
+      setUser(tempUser);
+      setOrphanedUser(null);
+      
+      // Iniciar carga del perfil real en segundo plano
       void fetchUserProfile(authUser);
       
+      // Completar registro
+      setIsRegistering(false);
+      setRegistrationProgress(100);
+      setRegistrationStep('¡Bienvenido!');
+      
+      // Asegurar perfil en background
       setTimeout(() => {
-        if (isRegisteringRef.current) {
-          const tempUser: User = {
-            id: authUser.id,
-            email: authUser.email || '',
-            name: userData.name,
-            role: userData.role,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User;
-          
-          console.log('Completing registration with temp profile');
-          pushAuthLog('Completando registro con perfil temporal');
-          
-          setUser(tempUser);
-          setOrphanedUser(null);
-          setIsRegistering(false);
-          setRegistrationProgress(100);
-          setRegistrationStep('¡Completado!');
-          
-          void ensureProfileExists(authUser);
-        }
-      }, 4000);
+        void ensureProfileExists(authUser);
+      }, 1000);
 
       return { success: true };
       
