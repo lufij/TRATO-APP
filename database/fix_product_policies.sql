@@ -23,10 +23,15 @@ create policy "Enable sellers to manage their products"
     on public.products for all
     using (auth.uid() = seller_id);
 
--- Asegurar acceso público a los datos básicos
+-- Asegurar acceso público a los datos básicos y auth
 grant usage on schema public to anon;
+grant usage on schema auth to anon;
 grant select on public.products to anon;
 grant select on public.sellers to anon;
+grant execute on function auth.email() to anon;
+grant execute on function auth.uid() to anon;
+grant execute on function auth.role() to anon;
+grant select on auth.users to anon;
 
 -- Asegurar que los archivos sean accesibles públicamente
 create policy "Enable public read access to storage"
@@ -76,6 +81,16 @@ grant all on public.sellers to authenticated;
 -- Asegurar que RLS está habilitado
 alter table public.products enable row level security;
 alter table public.sellers enable row level security;
+
+-- Permitir que los usuarios anónimos accedan a auth
+create policy "Allow public access to auth"
+    on auth.users for select
+    using (true);
+
+-- Permitir que los usuarios autenticados accedan a su propia información
+create policy "Allow users to access own auth data"
+    on auth.users for select
+    using (auth.uid() = id);
 
 -- Conceder permisos necesarios
 grant usage on schema storage to authenticated;
