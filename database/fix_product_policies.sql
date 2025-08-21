@@ -22,25 +22,45 @@ create policy "Enable sellers to manage their products"
 grant usage on schema public to anon;
 grant select on public.products to anon;
 grant select on public.sellers to anon;
+grant select on public.categories to anon;
+grant select on public.product_categories to anon;
+grant select on public.business_hours to anon;
 
--- Asegurar que los archivos sean accesibles
-create policy "Give users read-only access to products bucket"
+-- Asegurar que las tablas relacionadas tengan RLS habilitado
+alter table if exists public.categories enable row level security;
+alter table if exists public.product_categories enable row level security;
+alter table if exists public.business_hours enable row level security;
+
+-- Permitir lectura pública de datos relacionados
+create policy "Enable public read access to categories"
+    on public.categories for select
+    using (true);
+
+create policy "Enable public read access to product categories"
+    on public.product_categories for select
+    using (true);
+
+create policy "Enable public read access to business hours"
+    on public.business_hours for select
+    using (true);
+
+-- Asegurar que los archivos sean accesibles públicamente
+create policy "Enable public read access to storage"
     on storage.objects for select
-    using (bucket_id = 'products');
+    using (true);
 
 create policy "Allow sellers to manage their product images"
     on storage.objects for insert
-    with check (
-        bucket_id = 'products' AND
-        (storage.foldername(name))[1] = auth.uid()::text
-    );
+    with check (bucket_id = 'products');
 
 create policy "Allow sellers to delete their product images"
     on storage.objects for delete
-    using (
-        bucket_id = 'products' AND
-        (storage.foldername(name))[1] = auth.uid()::text
-    );
+    using (bucket_id = 'products');
+
+-- Dar acceso público al storage
+grant usage on schema storage to anon;
+grant select on storage.objects to anon;
+grant select on storage.buckets to anon;
 
 -- Agregar columna is_open si no existe
 do $$
