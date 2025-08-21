@@ -1,13 +1,18 @@
 -- Fix for product loading and business status errors
 -- Run this in Supabase SQL editor
 
--- Primero eliminar políticas existentes para evitar conflictos
+-- Primero eliminar todas las políticas existentes para evitar conflictos
 drop policy if exists "Enable read access to all products" on public.products;
+drop policy if exists "Enable public read access to products" on public.products;
 drop policy if exists "Enable sellers to manage their products" on public.products;
+
 drop policy if exists "Give users read-only access to products bucket" on storage.objects;
+drop policy if exists "Enable public read access to storage" on storage.objects;
 drop policy if exists "Allow sellers to manage their product images" on storage.objects;
 drop policy if exists "Allow sellers to delete their product images" on storage.objects;
+
 drop policy if exists "Enable sellers to update their business status" on public.sellers;
+drop policy if exists "Enable sellers to read all data" on public.sellers;
 
 -- Asegurar que los productos sean accesibles para todos
 create policy "Enable public read access to products"
@@ -22,27 +27,6 @@ create policy "Enable sellers to manage their products"
 grant usage on schema public to anon;
 grant select on public.products to anon;
 grant select on public.sellers to anon;
-grant select on public.categories to anon;
-grant select on public.product_categories to anon;
-grant select on public.business_hours to anon;
-
--- Asegurar que las tablas relacionadas tengan RLS habilitado
-alter table if exists public.categories enable row level security;
-alter table if exists public.product_categories enable row level security;
-alter table if exists public.business_hours enable row level security;
-
--- Permitir lectura pública de datos relacionados
-create policy "Enable public read access to categories"
-    on public.categories for select
-    using (true);
-
-create policy "Enable public read access to product categories"
-    on public.product_categories for select
-    using (true);
-
-create policy "Enable public read access to business hours"
-    on public.business_hours for select
-    using (true);
 
 -- Asegurar que los archivos sean accesibles públicamente
 create policy "Enable public read access to storage"
