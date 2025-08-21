@@ -9,14 +9,19 @@ drop policy if exists "Allow sellers to manage their product images" on storage.
 drop policy if exists "Allow sellers to delete their product images" on storage.objects;
 drop policy if exists "Enable sellers to update their business status" on public.sellers;
 
--- Asegurar que los productos sean accesibles
-create policy "Enable read access to all products"
+-- Asegurar que los productos sean accesibles para todos
+create policy "Enable public read access to products"
     on public.products for select
     using (true);
 
 create policy "Enable sellers to manage their products"
     on public.products for all
     using (auth.uid() = seller_id);
+
+-- Asegurar acceso público a los datos básicos
+grant usage on schema public to anon;
+grant select on public.products to anon;
+grant select on public.sellers to anon;
 
 -- Asegurar que los archivos sean accesibles
 create policy "Give users read-only access to products bucket"
@@ -48,18 +53,21 @@ begin
     end if;
 end $$;
 
--- Asegurar que el estado del negocio sea actualizable
+-- Asegurar que el estado del negocio sea accesible y actualizable
+drop policy if exists "Enable sellers to read all data" on public.sellers;
+drop policy if exists "Enable sellers to update their business status" on public.sellers;
+
+create policy "Enable sellers to read all data"
+    on public.sellers for select
+    using (true);
+
 create policy "Enable sellers to update their business status"
     on public.sellers for update
     using (auth.uid() = id)
     with check (auth.uid() = id);
 
-create policy "Enable sellers to read their business status"
-    on public.sellers for select
-    using (auth.uid() = id);
-
--- Asegurar que los vendedores puedan actualizar is_open
-grant update(is_open) on public.sellers to authenticated;
+-- Asegurar que los vendedores puedan actualizar is_open y otros campos
+grant all on public.sellers to authenticated;
 
 -- Asegurar que RLS está habilitado
 alter table public.products enable row level security;
