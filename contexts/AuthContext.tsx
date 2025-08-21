@@ -448,6 +448,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userData.name,
         role: userData.role,
         phone: userData.phone,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       console.log('Creating missing user profile:', userProfile);
@@ -466,32 +468,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRegistrationProgress(70);
       setRegistrationStep('Configurando datos específicos...');
 
-      // Create role-specific profile
-      if (userData.role === 'vendedor') {
-        const sellerProfile: Partial<Seller> = {
-          id: orphanedUser.id,
-          business_name: userData.businessName || 'Mi Negocio',
-          business_description: userData.businessDescription,
-          is_verified: false,
-        };
+      // Create seller profile if needed
+      if (userData.role === 'vendedor' && userData.businessName) {
+        console.log('Creating seller profile...');
+        setRegistrationStep('Configurando perfil de vendedor...');
 
-        console.log('Creating seller profile:', sellerProfile);
+        const sellerProfile = {
+          id: orphanedUser.id,
+          business_name: userData.businessName,
+          description: userData.businessDescription || null,
+          is_active: true,
+          is_accepting_orders: true,
+          rating: 5.0,
+          total_ratings: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: orphanedUser.id
+        };
 
         const { error: sellerError } = await supabase
           .from('sellers')
           .insert([sellerProfile]);
 
         if (sellerError) {
-          console.error('Seller profile error:', sellerError);
-          // Don't fail the entire process for this
+          console.error('Seller profile creation error:', sellerError);
+          // Don't fail completely, but log error and notify user
+          const isForeignKeyError = sellerError.message?.includes('foreign key');
+          if (isForeignKeyError) {
+            return { 
+              success: false, 
+              error: 'Error de integridad al crear perfil de vendedor. Por favor, intenta de nuevo.' 
+            };
+          }
         }
-      } else if (userData.role === 'repartidor') {
-        const driverProfile: Partial<Driver> = {
+      }
+
+      // Create driver profile if needed
+      if (userData.role === 'repartidor' && userData.vehicleType) {
+        console.log('Creating driver profile...');
+        setRegistrationStep('Configurando perfil de repartidor...');
+
+        const driverProfile = {
           id: orphanedUser.id,
-          vehicle_type: userData.vehicleType || 'Moto',
-          license_number: userData.licenseNumber || '000000',
+          vehicle_type: userData.vehicleType,
+          license_number: userData.licenseNumber || 'TEMP-' + Date.now(),
           is_active: false,
           is_verified: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
 
         console.log('Creating driver profile:', driverProfile);
@@ -502,7 +526,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (driverError) {
           console.error('Driver profile error:', driverError);
-          // Don't fail the entire process for this
+          // Check for foreign key violation
+          const isForeignKeyError = driverError.message?.includes('foreign key');
+          if (isForeignKeyError) {
+            return { 
+              success: false, 
+              error: 'Error de integridad al crear perfil de repartidor. Por favor, intenta de nuevo.' 
+            };
+          }
+          // Other errors will be logged but won't block completion
         }
       }
 
