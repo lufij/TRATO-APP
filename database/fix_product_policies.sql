@@ -1,0 +1,89 @@
+-- Fix for product loading and business status errors
+-- Run this in Supabase SQL editor
+
+-- Primero eliminar políticas existentes para evitar conflictos
+drop policy if exists "Enable read access to all products" on public.products;
+drop policy if exists "Enable sellers to manage their products" on public.products;
+drop policy if exists "Give users read-only access to products bucket" on storage.objects;
+drop policy if exists "Allow sellers to manage their product images" on storage.objects;
+drop policy if exists "Allow sellers to delete their product images" on storage.objects;
+drop policy if exists "Enable sellers to update their business status" on public.sellers;
+
+-- Asegurar que los productos sean accesibles
+create policy "Enable read access to all products"
+    on public.products for select
+    using (true);
+
+create policy "Enable sellers to manage their products"
+    on public.products for all
+    using (auth.uid() = seller_id);
+
+-- Asegurar que los archivos sean accesibles
+create policy "Give users read-only access to products bucket"
+    on storage.objects for select
+    using (bucket_id = 'products');
+
+create policy "Allow sellers to manage their product images"
+    on storage.objects for insert
+    with check (
+        bucket_id = 'products' AND
+        (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+create policy "Allow sellers to delete their product images"
+    on storage.objects for delete
+    using (
+        bucket_id = 'products' AND
+        (storage.foldername(name))[1] = auth.uid()::text
+    );
+
+-- Agregar columna is_open si no existe
+do $$
+begin
+    if not exists (select 1 from information_schema.columns 
+                  where table_schema = 'public' 
+                  and table_name = 'sellers' 
+                  and column_name = 'is_open') then
+        alter table public.sellers add column is_open boolean not null default false;
+    end if;
+end $$;
+
+-- Asegurar que el estado del negocio sea actualizable
+create policy "Enable sellers to update their business status"
+    on public.sellers for update
+    using (auth.uid() = id)
+    with check (auth.uid() = id);
+
+create policy "Enable sellers to read their business status"
+    on public.sellers for select
+    using (auth.uid() = id);
+
+-- Asegurar que los vendedores puedan actualizar is_open
+grant update(is_open) on public.sellers to authenticated;
+
+-- Asegurar que RLS está habilitado
+alter table public.products enable row level security;
+alter table public.sellers enable row level security;
+
+-- Conceder permisos necesarios
+grant usage on schema storage to authenticated;
+grant all on storage.objects to authenticated;
+grant all on public.products to authenticated;
+
+-- Crear y configurar el bucket si no existe
+do $$
+declare
+    bucket_exists boolean;
+begin
+    select exists(select 1 from storage.buckets where id = 'products') into bucket_exists;
+    
+    if not bucket_exists then
+        insert into storage.buckets (id, name, public)
+        values ('products', 'products', true);
+    else
+        -- Si existe, actualizar para asegurar que es público
+        update storage.buckets
+        set public = true
+        where id = 'products';
+    end if;
+end $$;
