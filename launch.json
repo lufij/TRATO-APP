@@ -50,8 +50,10 @@
       "request": "launch",
       "program": "${workspaceFolder}/supabase/functions/server/index.tsx",
       "env": {
-        "SUPABASE_URL": "https://olidxbacfxrijmmtpcoy.supabase.co",
-        "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9saWR4YmFjZnhyaWptbXRwY295Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjI0ODcsImV4cCI6MjA3MDE5ODQ4N30.j0DydNPWRlsvONg6qPcY4w7Wezds7wvsgXrhWeRSVGc",
+        // For local debugging, set these in a local-only `.env.local` or your environment.
+        // Example: SUPABASE_URL=https://<your_project>.supabase.co
+        "SUPABASE_URL": "",
+        "SUPABASE_ANON_KEY": "",
         "NODE_ENV": "development"
       },
       "runtimeArgs": ["--loader", "tsx"],

@@ -12,6 +12,7 @@ interface AuthContextType {
   registrationProgress: number;
   registrationStep: string;
   orphanedUser: SupabaseUser | null; // User authenticated but no profile
+  authLogs: string[];
   signUp: (email: string, password: string, userData: {
     name: string;
     role: UserRole;
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [registrationProgress, setRegistrationProgress] = useState(0);
   const [registrationStep, setRegistrationStep] = useState('');
   const [orphanedUser, setOrphanedUser] = useState<SupabaseUser | null>(null);
+  const [authLogs, setAuthLogs] = useState<string[]>([]);
   // Single-flight guard para signIn para evitar múltiples llamadas concurrentes
   const signInPromiseRef = React.useRef<Promise<{ success: boolean; error?: string }> | null>(null);
   // Control para ignorar resultados obsoletos al cargar el perfil
@@ -52,6 +54,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const lastUserIdRef = React.useRef<string | null>(null);
   // Ref para leer el estado actual de isRegistering dentro de timeouts
   const isRegisteringRef = React.useRef<boolean>(isRegistering);
+
+  const pushAuthLog = (msg: string) => {
+    const line = `${new Date().toISOString()} - ${msg}`;
+    // console + state
+    // eslint-disable-next-line no-console
+    console.log('[AuthLog]', line);
+    setAuthLogs((s) => [...s.slice(-50), line]); // keep last 50
+    // also expose to window for quick inspection in prod
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const anyW: any = window;
+      anyW.__TRATO_AUTH_LOGS__ = anyW.__TRATO_AUTH_LOGS__ || [];
+      anyW.__TRATO_AUTH_LOGS__.push(line);
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     isRegisteringRef.current = isRegistering;
@@ -111,16 +128,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!isMounted) return;
       setSession(session ?? null);
       
-      if (session?.user) {
+        if (session?.user) {
         // Evitar procesar eventos duplicados para el mismo usuario en ráfaga
+          pushAuthLog(`Auth state change: ${event} for ${session.user.email}`);
         if (lastUserIdRef.current === session.user.id && (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
           return;
         }
         lastUserIdRef.current = session.user.id;
         // If we're not currently registering, fetch the profile immediately
-        if (!isRegistering) {
-          await fetchUserProfile(session.user);
-        }
+          if (!isRegistering) {
+            // ensure UI does not stay in loading state while profile fetches
+            setLoading(false);
+            await fetchUserProfile(session.user);
+          }
       } else {
         setUser(null);
         setOrphanedUser(null);
@@ -144,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isRegistering]);
 
   const fetchUserProfile = async (supabaseUser: SupabaseUser, retryCount = 0) => {
-    try {
+  try {
       // Incrementar id de solicitud y capturar el actual para ignorar resultados tardíos
       const reqId = ++profileReqIdRef.current;
       const { data, error } = await supabase
@@ -248,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-        } else if (
+  } else if (
           error.code === '42501' || // insufficient_privilege
           error.code === 'PGRST403' || // forbidden
           error.code === 'PGRST401' || // unauthorized
@@ -258,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             error.message.toLowerCase().includes('forbidden')
           ))
         ) {
+          pushAuthLog(`RLS/permission error reading users: ${error.code} ${error.message}`);
           console.warn('RLS/permisos impiden leer perfil en users; continuando con un perfil temporal.');
           // Construir un usuario temporal desde el token para no bloquear el login
           const tempUser: User = {
@@ -275,9 +296,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRegistrationStep('¡Completado!');
           // Intentar materializar el perfil real en segundo plano
           void ensureProfileExists(supabaseUser);
+          // ensure loading cleared so UI proceeds
+          setLoading(false);
         } else if (error.code === 'PGRST205') {
           // Table doesn't exist
           console.error('Users table does not exist. Please run the database setup.');
+          pushAuthLog('Users table missing (PGRST205)');
           setUser(null);
         } else {
           console.error('Error fetching user profile:', error);
@@ -291,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             } as User;
+            pushAuthLog(`Unexpected error fetching profile during register: ${(error as any)?.message}`);
             console.warn('Using temporary profile after unexpected error to avoid blocking registration');
             setUser(tempUser);
             setOrphanedUser(null);
@@ -318,8 +343,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
       }
-    } catch (error) {
-      console.error('Unexpected error fetching user profile:', error);
+  } catch (error) {
+  pushAuthLog(`Exception fetching user profile: ${(error as any)?.message}`);
+  console.error('Unexpected error fetching user profile:', error);
       if (isRegistering) {
         const tempUser: User = {
           id: supabaseUser.id,
@@ -363,6 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       console.log('Creating admin profile:', adminProfile);
+  pushAuthLog('Creating admin profile');
       setRegistrationProgress(70);
 
       const { error: profileError } = await supabase
@@ -371,8 +398,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (profileError) {
         console.error('Admin profile creation error:', profileError);
-        setIsRegistering(false);
-        setLoading(false);
+  pushAuthLog(`Admin profile creation error: ${(profileError as any)?.message}`);
+  setIsRegistering(false);
+  setLoading(false);
         return;
       }
 
@@ -382,6 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch the newly created profile
       await fetchUserProfile(supabaseUser);
+  setLoading(false);
       
       setRegistrationProgress(100);
       setRegistrationStep('¡Acceso administrativo configurado!');
@@ -852,6 +881,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     registrationProgress,
     registrationStep,
     orphanedUser,
+  authLogs,
     signUp,
     signIn,
     signOut,

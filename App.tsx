@@ -13,6 +13,10 @@ const BuyerDashboard = lazy(() => import('./components/BuyerDashboard').then(m =
 const SellerDashboard = lazy(() => import('./components/SellerDashboard').then(m => ({ default: m.SellerDashboard })));
 const DriverDashboard = lazy(() => import('./components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
 const DiagnosticPage = lazy(() => import('./components/DiagnosticPage').then(m => ({ default: m.DiagnosticPage })));
+const DiagnosticProbe = lazy(async () => {
+  const mod = await import('./components/DiagnosticProbe');
+  return { default: mod.default } as { default: React.ComponentType<any> };
+});
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminSetup = lazy(() => import('./components/AdminSetup').then(m => ({ default: m.AdminSetup })));
 import { UserRole } from './utils/supabase/client';
@@ -571,17 +575,21 @@ function AppContent() {
     );
   }
 
-  // Show diagnostic page
+  // Diagnostic screen (explicit query ?diag=1)
   if (currentState === 'diagnostic') {
     return (
       <div>
         <PWABanner />
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          {/* Diagnostic UI: existing page + low-level probe */}
           <DiagnosticPage />
+          <DiagnosticProbe />
         </Suspense>
       </div>
     );
   }
+
+  
 
   // If user is authenticated, show the appropriate dashboard
   if (user) {

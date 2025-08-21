@@ -13,11 +13,11 @@ try {
 }
 
 export const supabaseConfig = {
-  // Replace the fallback values with your own project if different
-  url: envUrl ?? 'https://olidxbacfxrijmmtpcoy.supabase.co',
-  anonKey:
-    envAnon ??
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9saWR4YmFjZnhyaWptbXRwY295Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjI0ODcsImV4cCI6MjA3MDE5ODQ4N30.j0DydNPWRlsvONg6qPcY4w7Wezds7wvsgXrhWeRSVGc',
+  // IMPORTANT: Do NOT store real project keys in the repository.
+  // Provide these values via environment variables (Vite: VITE_SUPABASE_*).
+  // If empty, code that requires a valid client should fail early so misconfigs are obvious.
+  url: envUrl ?? '',
+  anonKey: envAnon ?? '',
 };
 
 // Service Role Key for admin operations (if needed)
@@ -28,7 +28,8 @@ export const supabaseServiceConfig = {
 
 // Project information
 export const projectInfo = {
-  projectId: 'olidxbacfxrijmmtpcoy',
+  // Replace with your Supabase project ID when configuring locally/CI.
+  projectId: 'REPLACE_WITH_YOUR_PROJECT_ID',
   region: 'us-east-1', // Update if your project is in a different region
 };
 
@@ -40,24 +41,22 @@ export const environment = {
 
 // Diagnostics to detect when production is using repository fallback keys (misconfiguration on Vercel)
 export const supabaseEnvDiagnostics = (() => {
-  const usedFallbackUrl = !envUrl;
-  const usedFallbackAnon = !envAnon;
-  const usedFallback = usedFallbackUrl || usedFallbackAnon;
-  const isProd = environment.isProduction;
+      const isProd = environment.isProduction;
+      const hasEnv = Boolean(envUrl && envAnon);
 
-  // Surface a clear console error in production to help troubleshooting
-  if (isProd && usedFallback) {
-    // eslint-disable-next-line no-console
-    console.error(
-      '[Supabase] Variables de entorno faltantes en producción. Configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY en Vercel. Se está usando el proyecto de fallback del repositorio (no recomendado).'
-    );
-  // Note: We no longer set a global hard-stop flag; UI can still toast a warning.
-  }
+      if (isProd && !hasEnv) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[Supabase] ERROR: VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are not set in production.\n' +
+            'Configure these variables in your hosting provider (e.g., Vercel) and redeploy.\n' +
+            'Do NOT use hard-coded keys in the repository.'
+        );
+      }
 
-  return {
-    isProd,
-    usedFallback,
-    urlInUse: supabaseConfig.url,
-    hasEnv: Boolean(envUrl && envAnon),
-  };
-})();
+      return {
+        isProd,
+        usedFallback: !hasEnv,
+        urlInUse: supabaseConfig.url,
+        hasEnv,
+      };
+    })();

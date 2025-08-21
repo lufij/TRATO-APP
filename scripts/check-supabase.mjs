@@ -1,7 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = process.env.VITE_SUPABASE_URL || 'https://olidxbacfxrijmmtpcoy.supabase.co';
-const anon = process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9saWR4YmFjZnhyaWptbXRwY295Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MjI0ODcsImV4cCI6MjA3MDE5ODQ4N30.j0DydNPWRlsvONg6qPcY4w7Wezds7wvsgXrhWeRSVGc';
+const url = process.env.VITE_SUPABASE_URL || '';
+const anon = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!url || !anon) {
+  console.error('ERROR: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in the environment before running this script.');
+  process.exit(1);
+}
 
 async function main() {
   console.log('🔍 Verificando conexión con Supabase...');
