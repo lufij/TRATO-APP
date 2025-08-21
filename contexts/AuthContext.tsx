@@ -455,13 +455,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Creating missing user profile:', userProfile);
       setRegistrationProgress(50);
 
+      // Intentar crear el perfil
       const { error: profileError } = await supabase
         .from('users')
         .insert([userProfile]);
 
       if (profileError) {
         console.error('Profile creation error:', profileError);
-        return { success: false, error: `Error creating profile: ${profileError.message}` };
+        
+        // Si es un error de RLS, intentar otra vez después de un breve delay
+        if (profileError.message?.includes('violates row-level security')) {
+          console.log('RLS error detected, retrying after delay...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { error: retryError } = await supabase
+            .from('users')
+            .insert([userProfile]);
+            
+          if (retryError) {
+            console.error('Profile creation retry failed:', retryError);
+            return { success: false, error: `Error creating profile: ${retryError.message}` };
+          }
+        } else {
+          return { success: false, error: `Error creating profile: ${profileError.message}` };
+        }
       }
 
       console.log('User profile created successfully');
