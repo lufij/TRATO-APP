@@ -628,47 +628,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: undefined,
-          // Store basic metadata to improve fallbacks before profile exists
-          data: {
-            name: userData.name,
-            role: userData.role,
-            phone: userData.phone ?? null,
-          },
+      console.log('Starting auth signup with email:', email);
+      pushAuthLog('Iniciando registro de autenticación...');
+
+      // Create auth user with retries
+      let authData;
+      let authError;
+      const maxRetries = 2;
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          console.log(`Retry attempt ${attempt} for auth signup`);
+          pushAuthLog(`Reintentando registro (intento ${attempt})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
-      });
+
+        const result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: undefined,
+            data: {
+              name: userData.name,
+              role: userData.role,
+              phone: userData.phone ?? null,
+            },
+          }
+        });
+
+        authData = result.data;
+        authError = result.error;
+
+        if (!authError || authError?.status === 422) break;
+      }
 
       if (authError) {
-        console.error('Auth signup error:', authError);
-        // Manejar cuenta ya registrada (422) intentando iniciar sesión
-        // @supabase/supabase-js expone AuthApiError con status
-        const anyErr: any = authError as any;
+        console.error('Auth signup error after retries:', authError);
+        pushAuthLog(`Error de registro: ${authError.message}`);
+        
+        const anyErr: any = authError;
         const already = (anyErr?.status === 422) || /already registered/i.test(anyErr?.message || '');
+        
         if (already) {
           console.warn('Email ya registrado; intentando iniciar sesión automáticamente');
+          pushAuthLog('Cuenta existente detectada, iniciando sesión...');
           setRegistrationStep('Cuenta ya existe. Iniciando sesión...');
           const res = await signIn(email, password);
           return res;
         }
+        
         setIsRegistering(false);
         setRegistrationProgress(0);
         setRegistrationStep('');
         return { success: false, error: authError.message };
       }
 
-      if (!authData.user) {
+      if (!authData?.user) {
+        console.error('No user data returned from signup');
+        pushAuthLog('Error: No se recibieron datos de usuario');
         setIsRegistering(false);
         setRegistrationProgress(0);
         setRegistrationStep('');
-        return { success: false, error: 'Failed to create user' };
+        return { success: false, error: 'Error al crear usuario' };
       }
 
-      console.log('Auth user created:', authData.user.id);
+      const authUser = authData.user;
+      console.log('Auth user created:', authUser.id);
+      pushAuthLog('Usuario creado exitosamente');
       setRegistrationProgress(30);
       setRegistrationStep('Configurando perfil...');
 
@@ -677,7 +703,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Create user profile in our users table
       const userProfile: Partial<User> = {
-        id: authData.user.id,
+        id: authUser.id,
         email,
         name: userData.name,
         role: userData.role,
@@ -717,82 +743,137 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRegistrationProgress(70);
       setRegistrationStep('Configurando datos específicos...');
 
-      // Create role-specific profile
+      // Create role-specific profile with retries
       if (userData.role === 'vendedor') {
         const sellerProfile: Partial<Seller> = {
-          id: authData.user.id,
+          id: authUser.id,
           business_name: userData.businessName || 'Mi Negocio',
           business_description: userData.businessDescription,
           is_verified: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
 
         console.log('Creating seller profile:', sellerProfile);
+        pushAuthLog('Creando perfil de vendedor...');
+        
+        let sellerError;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) {
+            console.log(`Retry attempt ${attempt} for seller profile`);
+            pushAuthLog(`Reintentando crear perfil de vendedor (intento ${attempt})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
 
-        const { error: sellerError } = await supabase
-          .from('sellers')
-          .insert([sellerProfile]);
+          const result = await supabase
+            .from('sellers')
+            .insert([sellerProfile]);
+            
+          sellerError = result.error;
+          if (!sellerError) break;
+          
+          console.error(`Seller profile error (attempt ${attempt}):`, sellerError);
+        }
 
         if (sellerError) {
-          console.error('Seller profile error:', sellerError);
-          // Don't fail the entire signup for this
+          console.error('Final seller profile error:', sellerError);
+          pushAuthLog(`Error al crear perfil de vendedor: ${sellerError.message}`);
+          // No fallar el registro completo, pero notificar
+          if (sellerError.message?.includes('foreign key')) {
+            return { 
+              success: false, 
+              error: 'Error al vincular perfil de vendedor. Por favor intenta de nuevo.' 
+            };
+          }
         } else {
           console.log('Seller profile created successfully');
+          pushAuthLog('Perfil de vendedor creado exitosamente');
         }
       } else if (userData.role === 'repartidor') {
         const driverProfile: Partial<Driver> = {
-          id: authData.user.id,
+          id: authUser.id,
           vehicle_type: userData.vehicleType || 'Moto',
-          license_number: userData.licenseNumber || '000000',
+          license_number: userData.licenseNumber || 'TEMP-' + Date.now(),
           is_active: false,
           is_verified: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
 
         console.log('Creating driver profile:', driverProfile);
+        pushAuthLog('Creando perfil de repartidor...');
 
-        const { error: driverError } = await supabase
-          .from('drivers')
-          .insert([driverProfile]);
+        let driverError;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) {
+            console.log(`Retry attempt ${attempt} for driver profile`);
+            pushAuthLog(`Reintentando crear perfil de repartidor (intento ${attempt})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+
+          const result = await supabase
+            .from('drivers')
+            .insert([driverProfile]);
+            
+          driverError = result.error;
+          if (!driverError) break;
+          
+          console.error(`Driver profile error (attempt ${attempt}):`, driverError);
+        }
 
         if (driverError) {
-          console.error('Driver profile error:', driverError);
-          // Don't fail the entire signup for this
+          console.error('Final driver profile error:', driverError);
+          pushAuthLog(`Error al crear perfil de repartidor: ${driverError.message}`);
+          // No fallar el registro completo, pero notificar
+          if (driverError.message?.includes('foreign key')) {
+            return { 
+              success: false, 
+              error: 'Error al vincular perfil de repartidor. Por favor intenta de nuevo.' 
+            };
+          }
         } else {
           console.log('Driver profile created successfully');
+          pushAuthLog('Perfil de repartidor creado exitosamente');
         }
       }
 
       setRegistrationProgress(85);
       setRegistrationStep('Finalizando configuración...');
 
-      // Evitar depender de getSession/signIn: usar el usuario retornado por signUp
-      const currentUser = authData.user;
-      if (currentUser) {
-        console.log('Proceeding with user from signUp, fetching profile...');
-        setRegistrationProgress(95);
-        setRegistrationStep('Cargando dashboard...');
-        // Lanzar fetch sin bloquear y aplicar watchdog para evitar quedarnos en 95%
-        void fetchUserProfile(currentUser);
-    setTimeout(async () => {
-          if (isRegisteringRef.current) {
-            // Cierre suave: perfil temporal desde metadata del token
-            const tempUser: User = {
-              id: currentUser.id,
-              email: currentUser.email || '',
-              name: (currentUser.user_metadata as any)?.name || (currentUser.email || 'Usuario').split('@')[0],
-              role: (currentUser.user_metadata as any)?.role || 'comprador',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            } as User;
-            console.warn('Watchdog: completing registration with temporary profile');
-            setUser(tempUser);
-            setOrphanedUser(null);
-            setIsRegistering(false);
-            setRegistrationProgress(100);
-            setRegistrationStep('¡Completado!');
-      // Materializar el perfil real en background
-      void ensureProfileExists(currentUser);
-          }
-        }, 4000);
+      // Proceder con el usuario autenticado
+      console.log('Proceeding with authenticated user, fetching profile...');
+      pushAuthLog('Obteniendo perfil final...');
+      setRegistrationProgress(95);
+      setRegistrationStep('Cargando dashboard...');
+
+      // Lanzar fetch sin bloquear y aplicar watchdog 
+      void fetchUserProfile(authUser);
+      
+      setTimeout(async () => {
+        if (isRegisteringRef.current) {
+          // Cierre suave: perfil temporal desde metadata del token
+          const tempUser: User = {
+            id: authUser.id,
+            email: authUser.email || '',
+            name: (authUser.user_metadata as any)?.name || (authUser.email || 'Usuario').split('@')[0],
+            role: (authUser.user_metadata as any)?.role || 'comprador',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+          
+          console.warn('Watchdog: completing registration with temporary profile');
+          pushAuthLog('Completando registro con perfil temporal');
+          
+          setUser(tempUser);
+          setOrphanedUser(null);
+          setIsRegistering(false);
+          setRegistrationProgress(100);
+          setRegistrationStep('¡Completado!');
+          
+          // Materializar el perfil real en background
+          void ensureProfileExists(authUser);
+        }
+      }, 4000);
         return { success: true };
       }
 
