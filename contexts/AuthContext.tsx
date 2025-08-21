@@ -69,14 +69,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
+    // Evitar fetchs innecesarios
+    if (!supabaseUser?.id) {
+      console.log('No hay ID de usuario para buscar perfil');
+      return;
+    }
+
     try {
+      console.log('Fetching profile for user:', supabaseUser.id);
+      pushAuthLog('Buscando perfil de usuario...');
+
       const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', supabaseUser.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          // No resultados es normal para usuarios nuevos
+          console.log('No profile exists yet');
+          pushAuthLog('Perfil no existe todavía');
+          setOrphanedUser(supabaseUser);
+          return;
+        }
         console.error('Error fetching user profile:', error);
         pushAuthLog(`Error al obtener perfil: ${error.message}`);
         return;
@@ -87,6 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         pushAuthLog('Perfil encontrado y cargado');
         setUser(profile);
         setOrphanedUser(null);
+        setLoading(false);
       } else {
         console.log('No profile found for user', supabaseUser.id);
         pushAuthLog('No se encontró perfil para el usuario');
@@ -95,6 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('Unexpected error fetching profile:', error);
       pushAuthLog(`Error inesperado al obtener perfil: ${error.message}`);
+    } finally {
+      // Asegurar que loading se desactive
+      setLoading(false);
     }
   };
 
@@ -641,9 +661,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const currentUserId = lastUserIdRef.current;
+    
     const { data: { subscription: authSubscription } } = 
       supabase.auth.onAuthStateChange(async (event, currentSession) => {
-        console.log('Auth state changed:', event);
+        console.log('Auth state changed:', event, currentSession?.user?.id);
         pushAuthLog(`Estado de autenticación: ${event}`);
         
         setSession(currentSession);
@@ -651,11 +673,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setOrphanedUser(null);
+          lastUserIdRef.current = null;
           return;
         }
         
-        if (currentSession?.user && !user) {
+        // Solo cargar el perfil si el ID del usuario ha cambiado
+        if (currentSession?.user && currentSession.user.id !== currentUserId) {
+          lastUserIdRef.current = currentSession.user.id;
+          const reqId = ++profileReqIdRef.current;
           await fetchUserProfile(currentSession.user);
+          // Ignorar respuestas obsoletas
+          if (reqId !== profileReqIdRef.current) {
+            console.log('Ignorando respuesta obsoleta de perfil');
+            return;
+          }
         }
       });
 
