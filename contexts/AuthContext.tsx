@@ -69,16 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
-    // Evitar fetchs innecesarios
     if (!supabaseUser?.id) {
-      console.log('No hay ID de usuario para buscar perfil');
+      console.warn('fetchUserProfile: No hay ID de usuario');
       return;
     }
 
     try {
-      console.log('Fetching profile for user:', supabaseUser.id);
-      pushAuthLog('Buscando perfil de usuario...');
-
+      console.log('Actualizando perfil para:', supabaseUser.id);
       const { data: profile, error } = await supabase
         .from('users')
         .select('*')
@@ -86,35 +83,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No resultados es normal para usuarios nuevos
-          console.log('No profile exists yet');
-          pushAuthLog('Perfil no existe todavía');
-          setOrphanedUser(supabaseUser);
-          return;
-        }
-        console.error('Error fetching user profile:', error);
-        pushAuthLog(`Error al obtener perfil: ${error.message}`);
+        console.error('Error al actualizar perfil:', error);
+        pushAuthLog(`Error de perfil: ${error.message}`);
         return;
       }
 
       if (profile) {
-        console.log('Profile found:', profile);
-        pushAuthLog('Perfil encontrado y cargado');
         setUser(profile);
         setOrphanedUser(null);
-        setLoading(false);
+        pushAuthLog('Perfil actualizado');
       } else {
-        console.log('No profile found for user', supabaseUser.id);
-        pushAuthLog('No se encontró perfil para el usuario');
         setOrphanedUser(supabaseUser);
+        setUser(null);
+        pushAuthLog('Usuario sin perfil');
       }
-    } catch (error: any) {
-      console.error('Unexpected error fetching profile:', error);
-      pushAuthLog(`Error inesperado al obtener perfil: ${error.message}`);
-    } finally {
-      // Asegurar que loading se desactive
-      setLoading(false);
+    } catch (error) {
+      console.error('Error en fetchUserProfile:', error);
+      pushAuthLog(`Error: ${error}`);
     }
   };
 
@@ -648,50 +633,108 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Efecto para limpiar estado cuando no hay sesión
   useEffect(() => {
-    if (!session && !loading) {
+    if (!session && !loading && !isRegistering) {
+      console.log('Limpiando estado por falta de sesión');
       setUser(null);
       setOrphanedUser(null);
+      lastUserIdRef.current = null;
     }
-  }, [session, loading]);
+  }, [session, loading, isRegistering]);
 
+  // Efecto para manejar la sesión inicial y cambios de autenticación
   useEffect(() => {
     if (MISCONFIGURED) {
+      console.log('Supabase está mal configurado, saltando inicialización');
       setLoading(false);
       return;
     }
 
-    const currentUserId = lastUserIdRef.current;
+    console.log('Iniciando efecto de autenticación');
     
-    const { data: { subscription: authSubscription } } = 
-      supabase.auth.onAuthStateChange(async (event, currentSession) => {
-        console.log('Auth state changed:', event, currentSession?.user?.id);
-        pushAuthLog(`Estado de autenticación: ${event}`);
-        
-        setSession(currentSession);
-        
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setOrphanedUser(null);
-          lastUserIdRef.current = null;
+    // Función para manejar cambios de autenticación
+    const handleAuthChange = async (event: string, session: Session | null) => {
+      console.log('Cambio de autenticación:', event, session?.user?.id);
+      pushAuthLog(`Cambio de autenticación: ${event}`);
+
+      // Actualizar estado de sesión
+      setSession(session);
+
+      // Limpiar estado en cierre de sesión
+      if (event === 'SIGNED_OUT') {
+        console.log('Usuario cerró sesión');
+        setUser(null);
+        setOrphanedUser(null);
+        lastUserIdRef.current = null;
+        setLoading(false);
+        return;
+      }
+
+      // Si no hay usuario en la sesión, no hacer nada más
+      if (!session?.user) {
+        console.log('No hay usuario en la sesión');
+        setLoading(false);
+        return;
+      }
+
+      // Evitar cargas duplicadas del mismo usuario
+      if (session.user.id === lastUserIdRef.current && user) {
+        console.log('Usuario ya cargado:', session.user.id);
+        setLoading(false);
+        return;
+      }
+
+      // Actualizar referencia de último usuario
+      lastUserIdRef.current = session.user.id;
+
+      try {
+        console.log('Buscando perfil para:', session.user.id);
+        const { data: profile, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error al buscar perfil:', error);
+          pushAuthLog(`Error al buscar perfil: ${error.message}`);
+          setLoading(false);
           return;
         }
-        
-        // Solo cargar el perfil si el ID del usuario ha cambiado
-        if (currentSession?.user && currentSession.user.id !== currentUserId) {
-          lastUserIdRef.current = currentSession.user.id;
-          const reqId = ++profileReqIdRef.current;
-          await fetchUserProfile(currentSession.user);
-          // Ignorar respuestas obsoletas
-          if (reqId !== profileReqIdRef.current) {
-            console.log('Ignorando respuesta obsoleta de perfil');
-            return;
-          }
-        }
-      });
 
+        if (profile) {
+          console.log('Perfil encontrado:', profile);
+          pushAuthLog('Perfil cargado exitosamente');
+          setUser(profile);
+          setOrphanedUser(null);
+        } else {
+          console.log('No se encontró perfil, marcando como huérfano');
+          pushAuthLog('Usuario sin perfil detectado');
+          setOrphanedUser(session.user);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error inesperado:', error);
+        pushAuthLog(`Error inesperado: ${error}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Suscribirse a cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+
+    // Obtener y manejar sesión inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Sesión inicial:', session?.user?.id);
+      handleAuthChange('INITIAL_SESSION', session);
+    });
+
+    // Limpieza al desmontar
     return () => {
-      authSubscription.unsubscribe();
+      console.log('Limpiando suscripción de autenticación');
+      subscription.unsubscribe();
     };
   }, []);
 
