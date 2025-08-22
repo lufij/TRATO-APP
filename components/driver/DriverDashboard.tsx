@@ -1,0 +1,482 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../utils/supabase/client';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { ScrollArea } from '../ui/scroll-area';
+import { 
+  Truck, 
+  Store, 
+  MapPin, 
+  Clock, 
+  DollarSign,
+  Package,
+  CheckCircle,
+  RefreshCw,
+  AlertCircle,
+  Navigation,
+  Phone
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+interface AvailableDelivery {
+  order_id: string;
+  seller_name: string;
+  seller_address: string;
+  delivery_address: string;
+  total: number;
+  estimated_time: number;
+  created_at: string;
+  distance_km?: number;
+}
+
+interface AssignedOrder {
+  id: string;
+  customer_name: string;
+  phone_number: string;
+  delivery_address: string;
+  total: number;
+  status: string;
+  seller_name: string;
+  seller_address: string;
+  created_at: string;
+  picked_up_at?: string;
+  order_items: Array<{
+    product_name: string;
+    quantity: number;
+  }>;
+}
+
+export function DriverDashboard() {
+  const { user } = useAuth();
+  const [availableDeliveries, setAvailableDeliveries] = useState<AvailableDelivery[]>([]);
+  const [assignedOrders, setAssignedOrders] = useState<AssignedOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
+  const fetchAvailableDeliveries = async () => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_available_deliveries');
+
+      if (error) throw error;
+      setAvailableDeliveries(data || []);
+    } catch (error) {
+      console.error('Error fetching available deliveries:', error);
+      toast.error('Error al cargar entregas disponibles');
+    }
+  };
+
+  const fetchAssignedOrders = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            product_name,
+            quantity
+          ),
+          seller:users!seller_id (
+            name,
+            business_name,
+            address
+          )
+        `)
+        .eq('driver_id', user.id)
+        .in('status', ['assigned', 'picked-up', 'in-transit'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      const formattedData = data?.map(order => ({
+        ...order,
+        seller_name: order.seller?.[0]?.business_name || order.seller?.[0]?.name || 'Vendedor',
+        seller_address: order.seller?.[0]?.address || 'Dirección no disponible'
+      })) || [];
+
+      setAssignedOrders(formattedData);
+    } catch (error) {
+      console.error('Error fetching assigned orders:', error);
+      toast.error('Error al cargar órdenes asignadas');
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchAvailableDeliveries(),
+      fetchAssignedOrders()
+    ]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+    
+    // Suscribirse a cambios en tiempo real
+    const subscription = supabase
+      .channel('driver_orders')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders'
+      }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id]);
+
+  const acceptDelivery = async (orderId: string) => {
+    setProcessingOrderId(orderId);
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('assign_driver_to_order', {
+          p_order_id: orderId,
+          p_driver_id: user?.id
+        });
+
+      if (error) throw error;
+
+      if (data?.[0]?.success) {
+        toast.success('Entrega asignada exitosamente');
+        await fetchData();
+      } else {
+        toast.error(data?.[0]?.message || 'Error al aceptar entrega');
+      }
+    } catch (error) {
+      console.error('Error accepting delivery:', error);
+      toast.error('Error al aceptar la entrega');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    setProcessingOrderId(orderId);
+    
+    try {
+      const { data, error } = await supabase
+        .rpc('update_order_status', {
+          p_order_id: orderId,
+          p_new_status: newStatus,
+          p_user_id: user?.id
+        });
+
+      if (error) throw error;
+
+      if (data?.[0]?.success) {
+        const messages = {
+          'picked-up': 'Pedido marcado como recogido',
+          'in-transit': 'Pedido en camino al cliente',
+          'delivered': 'Pedido entregado exitosamente'
+        };
+        toast.success(messages[newStatus as keyof typeof messages]);
+        await fetchData();
+      } else {
+        toast.error(data?.[0]?.message || 'Error al actualizar estado');
+      }
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      toast.error('Error al actualizar el estado');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const getStatusInfo = (status: string) => {
+    const statusMap = {
+      assigned: { 
+        label: 'Asignado', 
+        color: 'bg-blue-100 text-blue-800', 
+        icon: Truck,
+        description: 'Ve a recoger el pedido'
+      },
+      'picked-up': { 
+        label: 'Recogido', 
+        color: 'bg-orange-100 text-orange-800', 
+        icon: Package,
+        description: 'En camino al cliente'
+      },
+      'in-transit': { 
+        label: 'En camino', 
+        color: 'bg-purple-100 text-purple-800', 
+        icon: Navigation,
+        description: 'Entregando al cliente'
+      }
+    };
+
+    return statusMap[status as keyof typeof statusMap] || statusMap.assigned;
+  };
+
+  const renderAvailableDeliveryCard = (delivery: AvailableDelivery) => {
+    const isProcessing = processingOrderId === delivery.order_id;
+    const timeAgo = new Date(delivery.created_at).toLocaleString('es-GT');
+
+    return (
+      <Card key={delivery.order_id} className="mb-4 hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Store className="w-4 h-4" />
+              {delivery.seller_name}
+            </CardTitle>
+            <Badge className="bg-green-100 text-green-800 border border-green-200">
+              <DollarSign className="w-3 h-3 mr-1" />
+              Q{delivery.total.toFixed(2)}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-red-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Recoger en:</p>
+                <p className="text-sm text-gray-600">{delivery.seller_address || 'Dirección del vendedor'}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2">
+              <Navigation className="w-4 h-4 text-blue-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Entregar en:</p>
+                <p className="text-sm text-gray-600">{delivery.delivery_address}</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex justify-between items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock className="w-3 h-3" />
+                Hace {timeAgo}
+              </div>
+              {delivery.distance_km && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Navigation className="w-3 h-3" />
+                  ~{delivery.distance_km} km
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={() => acceptDelivery(delivery.order_id)}
+              disabled={isProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isProcessing ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Truck className="w-4 h-4 mr-2" />
+              )}
+              Aceptar entrega
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderAssignedOrderCard = (order: AssignedOrder) => {
+    const statusInfo = getStatusInfo(order.status);
+    const StatusIcon = statusInfo.icon;
+    const isProcessing = processingOrderId === order.id;
+    
+    const canPickup = order.status === 'assigned';
+    const canMarkInTransit = order.status === 'picked-up';
+    const canDeliver = order.status === 'in-transit';
+
+    return (
+      <Card key={order.id} className="mb-4 hover:shadow-md transition-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">{order.customer_name}</CardTitle>
+              <p className="text-sm text-gray-600 flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                {order.phone_number}
+              </p>
+            </div>
+            <Badge className={statusInfo.color}>
+              <StatusIcon className="w-3 h-3 mr-1" />
+              {statusInfo.label}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <Store className="w-4 h-4 text-orange-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Recoger en:</p>
+                <p className="text-sm text-gray-600">{order.seller_name}</p>
+                <p className="text-sm text-gray-500">{order.seller_address}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-blue-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Entregar en:</p>
+                <p className="text-sm text-gray-600">{order.delivery_address}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-3 rounded-lg">
+            <p className="text-sm font-medium mb-2">Productos:</p>
+            <div className="space-y-1">
+              {order.order_items?.slice(0, 3).map((item, index) => (
+                <p key={index} className="text-sm text-gray-600">
+                  {item.quantity}x {item.product_name}
+                </p>
+              ))}
+              {(order.order_items?.length || 0) > 3 && (
+                <p className="text-sm text-gray-500">
+                  +{(order.order_items?.length || 0) - 3} productos más
+                </p>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-lg font-bold text-green-600">Q{order.total.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">{statusInfo.description}</p>
+            </div>
+
+            <div className="flex gap-2">
+              {canPickup && (
+                <Button
+                  onClick={() => updateOrderStatus(order.id, 'picked-up')}
+                  disabled={isProcessing}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Package className="w-4 h-4 mr-1" />
+                  )}
+                  Marcar recogido
+                </Button>
+              )}
+
+              {canMarkInTransit && (
+                <Button
+                  onClick={() => updateOrderStatus(order.id, 'in-transit')}
+                  disabled={isProcessing}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Navigation className="w-4 h-4 mr-1" />
+                  )}
+                  En camino
+                </Button>
+              )}
+
+              {canDeliver && (
+                <Button
+                  onClick={() => updateOrderStatus(order.id, 'delivered')}
+                  disabled={isProcessing}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                  )}
+                  Marcar entregado
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+        <span>Cargando entregas...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Dashboard Repartidor</h1>
+        <Button 
+          variant="outline" 
+          onClick={fetchData}
+          disabled={loading}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Actualizar
+        </Button>
+      </div>
+
+      {/* Órdenes asignadas */}
+      {assignedOrders.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Truck className="w-5 h-5" />
+            Tus entregas activas ({assignedOrders.length})
+          </h2>
+          {assignedOrders.map(renderAssignedOrderCard)}
+        </div>
+      )}
+
+      {/* Entregas disponibles */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <Package className="w-5 h-5" />
+          Entregas disponibles ({availableDeliveries.length})
+        </h2>
+        
+        {availableDeliveries.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Truck className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No hay entregas disponibles
+              </h3>
+              <p className="text-gray-600">
+                Las nuevas entregas aparecerán aquí cuando estén listas.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {availableDeliveries.map(renderAvailableDeliveryCard)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

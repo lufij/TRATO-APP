@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { ProductForm } from './ProductForm';
 import { DailyProductForm } from './DailyProductForm';
 import { ProductCard } from './ProductCard';
@@ -13,6 +14,9 @@ import { DailyProductCard } from './DailyProductCard';
 import { SellerBusinessProfile } from './SellerBusinessProfile';
 import { SellerOrderManagement } from './SellerOrderManagement';
 import { SellerMarketplace } from './seller/SellerMarketplace';
+import { LocationVerification } from './LocationVerification';
+import { VerificationAlert } from './VerificationAlert';
+import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { 
   Plus, 
   Package, 
@@ -34,7 +38,8 @@ import {
   Bell,
   Settings,
   LogOut,
-  ShoppingCart
+  ShoppingCart,
+  MapPin
 } from 'lucide-react';
 
 interface Product {
@@ -68,6 +73,7 @@ type ProductView = 'list' | 'add-product' | 'add-daily' | 'edit-product' | 'edit
 
 export function SellerDashboard() {
   const { user, signOut } = useAuth();
+  const { canPerformMainAction, refreshStatus } = useVerificationStatus('vendedor');
   const [currentView, setCurrentView] = useState<MainView>('dashboard');
   const [productView, setProductView] = useState<ProductView>('list');
   const [products, setProducts] = useState<Product[]>([]);
@@ -85,6 +91,7 @@ export function SellerDashboard() {
   }>>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedDailyProduct, setSelectedDailyProduct] = useState<DailyProduct | null>(null);
+  const [showVerificationDialog, setShowVerificationDialog] = useState(false);
 
   // Dashboard stats
   const [stats, setStats] = useState({
@@ -684,6 +691,10 @@ export function SellerDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button 
               onClick={() => {
+                if (!canPerformMainAction()) {
+                  setShowVerificationDialog(true);
+                  return;
+                }
                 setCurrentView('products');
                 setProductView('add-product');
               }}
@@ -697,6 +708,10 @@ export function SellerDashboard() {
 
             <Button 
               onClick={() => {
+                if (!canPerformMainAction()) {
+                  setShowVerificationDialog(true);
+                  return;
+                }
                 setCurrentView('products');
                 setProductView('add-daily');
               }}
@@ -969,6 +984,12 @@ export function SellerDashboard() {
           </Alert>
         )}
 
+        {/* Verification Alert */}
+        <VerificationAlert 
+          userRole="vendedor"
+          onOpenVerification={() => setShowVerificationDialog(true)}
+        />
+
         {/* Navigation Tabs */}
   <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
@@ -1021,6 +1042,25 @@ export function SellerDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Location Verification Dialog */}
+      <Dialog open={showVerificationDialog} onOpenChange={setShowVerificationDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <MapPin className="w-5 h-5 text-green-500" />
+              <span>Verificación de Perfil y Ubicación</span>
+            </DialogTitle>
+          </DialogHeader>
+          <LocationVerification 
+            userRole="vendedor"
+            onVerificationComplete={() => {
+              setShowVerificationDialog(false);
+              refreshStatus();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

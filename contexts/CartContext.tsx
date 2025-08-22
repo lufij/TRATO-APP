@@ -127,7 +127,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Use the database function for safe insertion
+      console.log('Adding to cart:', { productId, quantity, productType, userId: user.id });
+
+      // Use the database function for safe insertion with all required parameters
       const { data, error } = await supabase.rpc('add_to_cart_safe', {
         p_user_id: user.id,
         p_product_id: productId,
@@ -135,8 +137,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         p_product_type: productType
       });
 
+      console.log('RPC response:', { data, error });
+
       if (error) {
         console.error('Error adding to cart:', error);
+        
+        // Handle specific error messages
+        if (error.message.includes('overloading') || error.message.includes('function')) {
+          return {
+            success: false,
+            message: 'Error de configuración de la función. Contacta al administrador.'
+          };
+        }
+        
         return {
           success: false,
           message: `Error al agregar al carrito: ${error.message}`
@@ -145,6 +158,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       if (data && data.length > 0) {
         const result = data[0];
+        console.log('Cart operation result:', result);
+        
         if (result.success) {
           await fetchCartItems(); // Refresh cart data
           return {
@@ -164,8 +179,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         message: 'Respuesta inesperada del servidor'
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected error adding to cart:', error);
+      
+      // Handle network errors or other unexpected errors
+      if (error.message?.includes('NetworkError') || error.message?.includes('fetch')) {
+        return {
+          success: false,
+          message: 'Error de conexión. Verifica tu internet e intenta nuevamente.'
+        };
+      }
+      
       return {
         success: false,
         message: 'Error inesperado al agregar al carrito'

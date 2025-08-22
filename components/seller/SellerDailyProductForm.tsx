@@ -1,0 +1,76 @@
+import React, { useState } from 'react';
+import { supabase } from '../../utils/supabase/client';
+import { useAuth } from '../../contexts/AuthContext';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+
+const initialState = {
+  name: '',
+  description: '',
+  price: '',
+  image_url: '',
+  category: '',
+  stock_quantity: 1,
+};
+
+interface Props {
+  onProductCreated?: () => void;
+}
+
+export default function SellerDailyProductForm({ onProductCreated }: Props) {
+  const { user } = useAuth();
+  const [form, setForm] = useState(initialState);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const expires_at = new Date();
+      expires_at.setHours(23, 59, 59, 999); // Expira al final del día
+      if (!user?.id) throw new Error('Usuario no autenticado');
+      const { error } = await supabase.from('daily_products').insert({
+        seller_id: user.id,
+        name: form.name,
+        description: form.description,
+  price: parseFloat(form.price),
+  image_url: form.image_url,
+  category: form.category,
+  stock_quantity: Number(form.stock_quantity),
+  expires_at: expires_at.toISOString(),
+  is_available: true,
+      });
+      if (error) throw error;
+      setForm(initialState);
+      if (onProductCreated) onProductCreated();
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error desconocido');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Input name="name" value={form.name} onChange={handleChange} placeholder="Nombre del producto" required />
+      <Input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" required />
+      <Input name="price" value={form.price} onChange={handleChange} placeholder="Precio" type="number" required />
+      <Input name="image_url" value={form.image_url} onChange={handleChange} placeholder="URL de imagen" required />
+      <Input name="category" value={form.category} onChange={handleChange} placeholder="Categoría" required />
+      <Input name="stock_quantity" value={form.stock_quantity} onChange={handleChange} placeholder="Cantidad" type="number" min={1} required />
+      <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Crear producto del día'}</Button>
+      {error && <div className="text-red-500">{error}</div>}
+    </form>
+  );
+}

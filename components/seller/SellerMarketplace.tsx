@@ -26,6 +26,7 @@ import {
 import { processImageUrl } from '../../utils/imageUtils';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { BuyerCart } from '../buyer/BuyerCart';
+import SellerDailyProducts from './SellerDailyProducts';
 
 interface Business {
   id: string;
@@ -393,7 +394,15 @@ function SellerMarketplaceContent() {
 
       {/* Navigation Tabs */}
   <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MarketView)}>
-        <TabsList className="grid w-full grid-cols-3">
+  <TabsList className="grid w-full grid-cols-4">
+        <TabsTrigger value="my-daily-products" className="flex items-center gap-2">
+          <Clock className="w-4 h-4" />
+          Mis productos del día
+        </TabsTrigger>
+        {/* My Daily Products Tab (gestión separada) */}
+        <TabsContent value="my-daily-products" className="space-y-4">
+          <SellerDailyProducts />
+        </TabsContent>
           <TabsTrigger value="businesses" className="flex items-center gap-2">
             <Store className="w-4 h-4" />
             Comercios ({filteredBusinesses.length})

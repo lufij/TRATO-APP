@@ -13,7 +13,9 @@ import { BuyerHome } from './buyer/BuyerHome';
 import { BuyerOrders } from './buyer/BuyerOrders';
 import { BuyerProfile } from './buyer/BuyerProfile';
 import { BuyerCart } from './buyer/BuyerCart';
+import { BuyerCheckout } from './buyer/BuyerCheckout';
 import { BuyerNotifications } from './buyer/BuyerNotifications';
+import { NotificationCenter, useNotificationCount } from './ui/NotificationCenter';
 import { BusinessProfile } from './buyer/BusinessProfile';
 import { CheckoutFlow } from './buyer/CheckoutFlow';
 import { OrderTracking } from './buyer/OrderTracking';
@@ -35,10 +37,10 @@ type ViewState = 'dashboard' | 'business-profile' | 'checkout' | 'order-tracking
 export function BuyerDashboard() {
   const { user, signOut } = useAuth();
   const { getCartItemCount } = useCart();
+  const notificationCount = useNotificationCount();
   const [currentTab, setCurrentTab] = useState('home');
   const [showCart, setShowCart] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
   
   // Navigation state for different views
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -95,12 +97,13 @@ export function BuyerDashboard() {
 
   if (currentView === 'checkout') {
     return (
-      <OrderProvider>
-        <CheckoutFlow 
-          onBack={handleBackFromCheckout}
-          onOrderCreated={handleOrderCreated}
-        />
-      </OrderProvider>
+      <BuyerCheckout
+        onBack={handleBackFromCheckout}
+        onComplete={() => {
+          setCurrentView('dashboard');
+          setCurrentTab('orders');
+        }}
+      />
     );
   }
 
@@ -211,24 +214,14 @@ export function BuyerDashboard() {
           </div>
         )}
 
-        {/* Sliding Notifications Panel */}
+                {/* Sliding Notifications Panel */}
         {showNotifications && (
           <div className="fixed inset-0 z-50 overflow-hidden">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowNotifications(false)} />
-            <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <Bell className="w-5 h-5" />
-                  Notificaciones
-                </h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="h-full overflow-hidden">
-                <BuyerNotifications 
+            <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl">
+              <div className="h-full overflow-hidden p-6">
+                <NotificationCenter 
                   onClose={() => setShowNotifications(false)}
-                  onNotificationCountChange={setNotificationCount}
                 />
               </div>
             </div>

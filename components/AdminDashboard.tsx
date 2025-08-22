@@ -108,6 +108,11 @@ type AdminProduct = {
 type AdminDriver = {
   id: string;
   users?: { name?: string; email?: string; phone?: string };
+  vehicle_type?: string;
+  license_number?: string;
+  is_verified?: boolean;
+  is_active?: boolean;
+  created_at: string;
 };
 
 // Quick Stats Card Component
@@ -1160,7 +1165,7 @@ function SystemSettings() {
     deliveryFee: 10,
     minOrderAmount: 50
   });
-  const [drivers, setDrivers] = useState<(AdminDriver & { vehicle_type?: string; license_number?: string; is_verified?: boolean; is_active?: boolean })[]>([]);
+  const [drivers, setDrivers] = useState<AdminDriver[]>([]);
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
@@ -1169,18 +1174,30 @@ function SystemSettings() {
     try {
       setLoadingDrivers(true);
       const { data, error } = await supabase
-        .from('drivers')
-        .select(`
-          *,
-          users (name, email, phone)
-        `)
+        .from('users')
+        .select('*')
+        .eq('role', 'repartidor')
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching drivers:', error);
         setDrivers([]);
       } else {
-        setDrivers(data || []);
+        // Transform users data to match the expected driver structure
+        const driversData: AdminDriver[] = data?.map(user => ({
+          id: user.id,
+          users: {
+            name: user.name,
+            email: user.email,
+            phone: user.phone
+          },
+          vehicle_type: user.vehicle_type || 'No especificado',
+          license_number: user.license_number || 'No especificado',
+          is_verified: user.is_verified || false,
+          is_active: user.is_active || false,
+          created_at: user.created_at
+        })) || [];
+        setDrivers(driversData);
       }
     } catch (error) {
       console.error('Error fetching drivers:', error);
@@ -1193,9 +1210,10 @@ function SystemSettings() {
   const handleDriverStatusChange = async (driverId: string, field: string, newValue: boolean) => {
     try {
       const { error } = await supabase
-        .from('drivers')
+        .from('users')
         .update({ [field]: newValue })
-        .eq('id', driverId);
+        .eq('id', driverId)
+        .eq('role', 'repartidor');
 
       if (error) throw error;
       
@@ -1337,31 +1355,84 @@ function SystemSettings() {
           ) : (
             <div className="space-y-4">
               {drivers.map((driver) => (
-                <div key={driver.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={driver.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-orange-600" />
+                    <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                      <Truck className="w-6 h-6 text-orange-600" />
                     </div>
-                    <div>
-                      <p className="font-medium">{driver.users?.name || 'Repartidor'}</p>
-                      <p className="text-sm text-gray-500">{driver.users?.email}</p>
-                      <p className="text-sm text-gray-500">{driver.vehicle_type} - {driver.license_number}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-lg">{driver.users?.name || 'Repartidor'}</p>
+                        {!driver.is_verified && (
+                          <Badge variant="destructive" className="text-xs">
+                            Pendiente
+                          </Badge>
+                        )}
+                        {driver.is_verified && !driver.is_active && (
+                          <Badge variant="secondary" className="text-xs">
+                            Verificado
+                          </Badge>
+                        )}
+                        {driver.is_verified && driver.is_active && (
+                          <Badge variant="default" className="text-xs bg-green-500">
+                            Activo
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">{driver.users?.email}</p>
+                      <p className="text-sm text-gray-500">{driver.users?.phone}</p>
+                      <div className="flex items-center space-x-4 mt-1">
+                        <p className="text-xs text-gray-500">
+                          Vehículo: {driver.vehicle_type || 'No especificado'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Licencia: {driver.license_number || 'No especificado'}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        Registrado: {new Date(driver.created_at).toLocaleDateString('es-ES')}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button
-                      variant={driver.is_verified ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleDriverStatusChange(driver.id, 'is_verified', !driver.is_verified)}
-                    >
-                      {driver.is_verified ? 'Verificado' : 'Verificar'}
-                    </Button>
+                    {!driver.is_verified ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleDriverStatusChange(driver.id, 'is_verified', true)}
+                        className="bg-green-500 hover:bg-green-600 text-white"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Aprobar
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDriverStatusChange(driver.id, 'is_verified', false)}
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        Desaprobar
+                      </Button>
+                    )}
                     <Button
                       variant={driver.is_active ? "default" : "outline"}
                       size="sm"
                       onClick={() => handleDriverStatusChange(driver.id, 'is_active', !driver.is_active)}
+                      className={driver.is_active ? "bg-orange-500 hover:bg-orange-600 text-white" : ""}
                     >
-                      {driver.is_active ? 'Activo' : 'Activar'}
+                      {driver.is_active ? (
+                        <>
+                          <Activity className="w-4 h-4 mr-1" />
+                          Activo
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="w-4 h-4 mr-1" />
+                          Inactivo
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -1460,7 +1531,10 @@ export function AdminDashboard() {
     activeUsers: 0,
     totalBusinesses: 0,
     totalOrders: 0,
-    todayRevenue: 0
+    todayRevenue: 0,
+    totalDrivers: 0,
+    activeDrivers: 0,
+    pendingDrivers: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -1476,7 +1550,10 @@ export function AdminDashboard() {
         activeUsersRes,
         totalBusinessesRes,
         totalOrdersTodayRes,
-        deliveredTodayRes
+        deliveredTodayRes,
+        totalDriversRes,
+        activeDriversRes,
+        pendingDriversRes
       ] = await Promise.all([
         supabase.from('users').select('*', { count: 'exact', head: true }),
         supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'active'),
@@ -1486,7 +1563,10 @@ export function AdminDashboard() {
           .from('orders')
           .select('total,status,created_at')
           .gte('created_at', today)
-          .eq('status', 'delivered')
+          .eq('status', 'delivered'),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'repartidor'),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'repartidor').eq('is_active', true),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'repartidor').eq('is_verified', false)
       ]);
 
       const totalUsers = totalUsersRes.count ?? 0;
@@ -1497,6 +1577,9 @@ export function AdminDashboard() {
         (sum: number, o: any) => sum + (o.total || 0),
         0
       );
+      const totalDrivers = totalDriversRes.count ?? 0;
+      const activeDrivers = activeDriversRes.count ?? 0;
+      const pendingDrivers = pendingDriversRes.count ?? 0;
 
       setStats(prev => ({
         ...prev,
@@ -1504,7 +1587,10 @@ export function AdminDashboard() {
         activeUsers,
         totalBusinesses,
         totalOrders: totalOrdersToday,
-        todayRevenue
+        todayRevenue,
+        totalDrivers,
+        activeDrivers,
+        pendingDrivers
       }));
 
     } catch (error) {
@@ -1642,7 +1728,7 @@ export function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatsCard
             title="Total Usuarios"
             value={loading ? "..." : stats.totalUsers}
@@ -1659,6 +1745,14 @@ export function AdminDashboard() {
             trend="+5% este mes"
           />
           <StatsCard
+            title="Repartidores"
+            value={loading ? "..." : stats.totalDrivers}
+            icon={Truck}
+            color={TRATO_COLORS.orange[400]}
+            trend={stats.pendingDrivers > 0 ? `${stats.pendingDrivers} pendientes` : "Todos verificados"}
+            subtitle={`${stats.activeDrivers} activos`}
+          />
+          <StatsCard
             title="Órdenes Hoy"
             value={loading ? "..." : stats.totalOrders}
             icon={ShoppingCart}
@@ -1673,6 +1767,39 @@ export function AdminDashboard() {
             trend="+25% vs ayer"
           />
         </div>
+
+        {/* Pending Drivers Alert */}
+        {stats.pendingDrivers > 0 && (
+          <Card className="mb-6 border-orange-200 bg-orange-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium text-orange-800">
+                      {stats.pendingDrivers} Repartidor{stats.pendingDrivers > 1 ? 'es' : ''} Pendiente{stats.pendingDrivers > 1 ? 's' : ''} de Aprobación
+                    </h3>
+                    <p className="text-sm text-orange-600">
+                      Hay repartidores que necesitan tu aprobación para poder empezar a trabajar.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                  onClick={() => {
+                    // Cambiar a la pestaña de configuración donde están los repartidores
+                    const settingsTab = document.querySelector('[value="settings"]') as HTMLElement;
+                    settingsTab?.click();
+                  }}
+                >
+                  Ver Repartidores
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content */}
         <Tabs defaultValue="users" className="space-y-6">
