@@ -99,14 +99,11 @@ BEGIN
         RAISE NOTICE '📁 VERIFICANDO STORAGE BUCKETS:';
         
         -- Mostrar buckets existentes
-        PERFORM (
-            SELECT 
-                CASE 
-                    WHEN EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'products')
-                    THEN RAISE NOTICE '✅ Bucket products existe'
-                    ELSE RAISE NOTICE '❌ Bucket products faltante'
-                END
-        );
+        IF EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'products') THEN
+            RAISE NOTICE 'Bucket products existe';
+        ELSE
+            RAISE NOTICE 'Bucket products faltante';
+        END IF;
     ELSE
         RAISE NOTICE '⚠️  Storage no está configurado (esto es opcional)';
     END IF;
