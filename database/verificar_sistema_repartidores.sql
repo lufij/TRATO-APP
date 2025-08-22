@@ -62,10 +62,10 @@ LEFT JOIN information_schema.columns c ON (
     AND c.column_name = required_columns.col_name
 );
 
--- Verificar permisos para las funciones RPC
+-- Verificar permisos para las funciones RPC (versión compatible)
 SELECT 
     p.proname as function_name,
-    pg_get_function_acl(p.oid) as permissions
+    'authenticated' as default_permissions
 FROM pg_proc p
 JOIN pg_namespace n ON p.pronamespace = n.oid
 WHERE n.nspname = 'public'

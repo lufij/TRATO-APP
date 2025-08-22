@@ -176,17 +176,17 @@ CREATE INDEX IF NOT EXISTS order_items_product_id_idx ON public.order_items(prod
 DO $$
 DECLARE
     missing_tables TEXT[] := '{}';
-    table_name TEXT;
+    required_table TEXT;
 BEGIN
     -- Lista de tablas requeridas
-    FOR table_name IN 
+    FOR required_table IN 
         SELECT unnest(ARRAY['users', 'products', 'orders', 'order_items', 'cart_items', 'notifications'])
     LOOP
         IF NOT EXISTS (
             SELECT 1 FROM information_schema.tables 
-            WHERE table_schema = 'public' AND table_name = table_name
+            WHERE table_schema = 'public' AND table_name = required_table
         ) THEN
-            missing_tables := array_append(missing_tables, table_name);
+            missing_tables := array_append(missing_tables, required_table);
         END IF;
     END LOOP;
 
