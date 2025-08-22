@@ -1,7 +1,7 @@
 -- =====================================================
--- TRATO - SCRIPT PARA HABILITAR SISTEMA DE ENTREGAS PARA REPARTIDORES
+-- TRATO - SCRIPT LIMPIO PARA SISTEMA DE ENTREGAS REPARTIDORES
 -- =====================================================
--- Este script asegura que todas las funciones necesarias estén implementadas
+-- Version sin caracteres especiales para evitar errores
 
 BEGIN;
 
@@ -28,12 +28,12 @@ BEGIN
     SELECT 
         o.id,
         COALESCE(s.business_name, s.name) as seller_name,
-        COALESCE(s.address, 'Dirección no disponible') as seller_address,
+        COALESCE(s.address, 'Direccion no disponible') as seller_address,
         o.delivery_address,
         o.total,
         COALESCE(o.estimated_time, 30) as estimated_time,
         o.created_at,
-        NULL::DECIMAL(5,2) as distance_km -- Placeholder para distancia
+        NULL::DECIMAL(5,2) as distance_km
     FROM public.orders o
     LEFT JOIN public.users s ON o.seller_id = s.id
     WHERE o.status = 'ready' 
@@ -68,29 +68,29 @@ BEGIN
         SELECT 1 FROM public.users 
         WHERE id = p_driver_id 
         AND role = 'repartidor' 
-        AND is_active = true 
-        AND is_verified = true
+        AND COALESCE(is_active, false) = true 
+        AND COALESCE(is_verified, false) = true
     ) THEN
         RETURN QUERY SELECT false, 'Usuario no es repartidor activo'::TEXT;
         RETURN;
     END IF;
 
-    -- Verificar que la orden existe y está disponible
+    -- Verificar que la orden existe y esta disponible
     SELECT o.*, s.name AS seller_name, s.business_name 
     INTO v_order
     FROM public.orders o
     LEFT JOIN public.users s ON o.seller_id = s.id
     WHERE o.id = p_order_id 
     AND o.status = 'ready' 
-    AND o.delivery_type = 'delivery'
+    AND COALESCE(o.delivery_type, 'delivery') = 'delivery'
     AND o.driver_id IS NULL;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT false, 'Orden no disponible para asignación'::TEXT;
+        RETURN QUERY SELECT false, 'Orden no disponible para asignacion'::TEXT;
         RETURN;
     END IF;
 
-    -- Obtener información del repartidor
+    -- Obtener informacion del repartidor
     SELECT name INTO v_driver_name FROM public.users WHERE id = p_driver_id;
     v_seller_name := COALESCE(v_order.business_name, v_order.seller_name);
 
@@ -101,34 +101,6 @@ BEGIN
         status = 'assigned',
         updated_at = NOW()
     WHERE id = p_order_id;
-
-    -- Crear notificación para el vendedor (opcional)
-    INSERT INTO public.notifications (recipient_id, type, title, message, data)
-    VALUES (
-        v_order.seller_id,
-        'driver_assigned',
-        'Repartidor asignado',
-        v_driver_name || ' se encargará de la entrega.',
-        jsonb_build_object(
-            'order_id', p_order_id,
-            'driver_id', p_driver_id,
-            'driver_name', v_driver_name
-        )
-    ) ON CONFLICT DO NOTHING; -- Evitar errores si la tabla no existe
-
-    -- Crear notificación para el comprador (opcional)
-    INSERT INTO public.notifications (recipient_id, type, title, message, data)
-    VALUES (
-        v_order.buyer_id,
-        'driver_assigned',
-        'Repartidor asignado',
-        v_driver_name || ' entregará tu pedido.',
-        jsonb_build_object(
-            'order_id', p_order_id,
-            'driver_id', p_driver_id,
-            'driver_name', v_driver_name
-        )
-    ) ON CONFLICT DO NOTHING; -- Evitar errores si la tabla no existe
 
     RETURN QUERY SELECT true, 'Entrega asignada exitosamente'::TEXT;
 END;
@@ -156,7 +128,7 @@ DECLARE
     v_order RECORD;
     v_can_update BOOLEAN := false;
 BEGIN
-    -- Obtener información de la orden
+    -- Obtener informacion de la orden
     SELECT o.*, 
            bu.name AS buyer_name,
            se.name AS seller_name,
@@ -172,7 +144,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Verificar permisos según el nuevo estado
+    -- Verificar permisos segun el nuevo estado
     IF p_new_status IN ('picked-up', 'in-transit', 'delivered') THEN
         -- Solo el repartidor asignado puede cambiar estos estados
         IF v_order.driver_id != p_user_id THEN
@@ -200,30 +172,8 @@ BEGIN
         status = p_new_status,
         updated_at = NOW(),
         picked_up_at = CASE WHEN p_new_status = 'picked-up' THEN NOW() ELSE picked_up_at END,
-        delivered_at = CASE WHEN p_new_status = 'delivered' THEN NOW() ELSE delivered_at END,
-        rejection_reason = CASE WHEN p_new_status = 'rejected' THEN p_notes ELSE rejection_reason END
+        delivered_at = CASE WHEN p_new_status = 'delivered' THEN NOW() ELSE delivered_at END
     WHERE id = p_order_id;
-
-    -- Crear notificación según el estado (opcional)
-    IF p_new_status = 'picked-up' THEN
-        INSERT INTO public.notifications (recipient_id, type, title, message, data)
-        VALUES (
-            v_order.buyer_id,
-            'order_picked_up',
-            'Pedido recogido',
-            'Tu pedido ha sido recogido y va en camino.',
-            jsonb_build_object('order_id', p_order_id, 'status', p_new_status)
-        ) ON CONFLICT DO NOTHING;
-    ELSIF p_new_status = 'delivered' THEN
-        INSERT INTO public.notifications (recipient_id, type, title, message, data)
-        VALUES (
-            v_order.buyer_id,
-            'order_delivered',
-            'Pedido entregado',
-            'Tu pedido ha sido entregado exitosamente.',
-            jsonb_build_object('order_id', p_order_id, 'status', p_new_status)
-        ) ON CONFLICT DO NOTHING;
-    END IF;
 
     -- Retornar resultado exitoso
     RETURN QUERY SELECT 
@@ -245,7 +195,7 @@ GRANT EXECUTE ON FUNCTION public.assign_driver_to_order(UUID, UUID) TO authentic
 GRANT EXECUTE ON FUNCTION public.update_order_status(UUID, TEXT, UUID, TEXT) TO authenticated;
 
 -- =====================================================
--- 5. VERIFICAR ESTRUCTURA DE ÓRDENES
+-- 5. VERIFICAR Y AGREGAR COLUMNAS NECESARIAS
 -- =====================================================
 
 -- Agregar columnas necesarias si no existen
@@ -255,68 +205,71 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'driver_id') THEN
         ALTER TABLE public.orders ADD COLUMN driver_id UUID;
-        RAISE NOTICE 'Columna driver_id agregada a orders';
     END IF;
 
     -- Columna delivery_type
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'delivery_type') THEN
         ALTER TABLE public.orders ADD COLUMN delivery_type TEXT DEFAULT 'delivery';
-        RAISE NOTICE 'Columna delivery_type agregada a orders';
     END IF;
 
     -- Columna delivery_address
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'delivery_address') THEN
         ALTER TABLE public.orders ADD COLUMN delivery_address TEXT;
-        RAISE NOTICE 'Columna delivery_address agregada a orders';
     END IF;
 
     -- Columna estimated_time
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'estimated_time') THEN
         ALTER TABLE public.orders ADD COLUMN estimated_time INTEGER DEFAULT 30;
-        RAISE NOTICE 'Columna estimated_time agregada a orders';
     END IF;
 
     -- Columna picked_up_at
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'picked_up_at') THEN
         ALTER TABLE public.orders ADD COLUMN picked_up_at TIMESTAMP WITH TIME ZONE;
-        RAISE NOTICE 'Columna picked_up_at agregada a orders';
     END IF;
 
     -- Columna delivered_at
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
                    WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'delivered_at') THEN
         ALTER TABLE public.orders ADD COLUMN delivered_at TIMESTAMP WITH TIME ZONE;
-        RAISE NOTICE 'Columna delivered_at agregada a orders';
     END IF;
 END $$;
 
 -- =====================================================
--- 6. VERIFICAR ESTADO ACTUAL
+-- 6. AGREGAR COLUMNAS PARA REPARTIDORES SI NO EXISTEN
 -- =====================================================
 
--- Verificar órdenes disponibles para entrega
-SELECT 
-    'Órdenes disponibles para entrega' as info,
-    COUNT(*) as cantidad
-FROM public.orders 
-WHERE status = 'ready' 
-AND delivery_type = 'delivery' 
-AND driver_id IS NULL;
+DO $$ 
+BEGIN
+    -- Columna is_active
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'is_active') THEN
+        ALTER TABLE public.users ADD COLUMN is_active BOOLEAN DEFAULT false;
+    END IF;
 
--- Verificar repartidores activos
-SELECT 
-    'Repartidores activos' as info,
-    COUNT(*) as cantidad
-FROM public.users 
-WHERE role = 'repartidor' 
-AND is_active = true 
-AND is_verified = true;
+    -- Columna is_verified
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'is_verified') THEN
+        ALTER TABLE public.users ADD COLUMN is_verified BOOLEAN DEFAULT false;
+    END IF;
+
+    -- Columna vehicle_type
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'vehicle_type') THEN
+        ALTER TABLE public.users ADD COLUMN vehicle_type TEXT;
+    END IF;
+
+    -- Columna license_number
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'license_number') THEN
+        ALTER TABLE public.users ADD COLUMN license_number TEXT;
+    END IF;
+END $$;
 
 COMMIT;
 
--- Mensaje de confirmación
-SELECT 'Sistema de entregas configurado exitosamente' as status;
+-- Verificacion final
+SELECT 'Sistema de entregas para repartidores configurado exitosamente' as status;
