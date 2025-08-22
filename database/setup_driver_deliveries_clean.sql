@@ -6,7 +6,15 @@
 BEGIN;
 
 -- =====================================================
--- 1. FUNCIÓN PARA OBTENER ENTREGAS DISPONIBLES
+-- 1. ELIMINAR FUNCIONES EXISTENTES SI EXISTEN
+-- =====================================================
+
+DROP FUNCTION IF EXISTS public.get_available_deliveries();
+DROP FUNCTION IF EXISTS public.assign_driver_to_order(UUID, UUID);
+DROP FUNCTION IF EXISTS public.update_order_status(UUID, TEXT, UUID, TEXT);
+
+-- =====================================================
+-- 2. FUNCIÓN PARA OBTENER ENTREGAS DISPONIBLES
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION public.get_available_deliveries()
@@ -44,7 +52,7 @@ END;
 $$;
 
 -- =====================================================
--- 2. FUNCIÓN PARA ASIGNAR REPARTIDOR A ORDEN
+-- 3. FUNCIÓN PARA ASIGNAR REPARTIDOR A ORDEN
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION public.assign_driver_to_order(
@@ -107,7 +115,7 @@ END;
 $$;
 
 -- =====================================================
--- 3. FUNCIÓN PARA ACTUALIZAR ESTADO DE ORDEN
+-- 4. FUNCIÓN PARA ACTUALIZAR ESTADO DE ORDEN
 -- =====================================================
 
 CREATE OR REPLACE FUNCTION public.update_order_status(
@@ -187,7 +195,7 @@ END;
 $$;
 
 -- =====================================================
--- 4. PERMISOS
+-- 5. PERMISOS
 -- =====================================================
 
 GRANT EXECUTE ON FUNCTION public.get_available_deliveries() TO authenticated;
@@ -195,7 +203,7 @@ GRANT EXECUTE ON FUNCTION public.assign_driver_to_order(UUID, UUID) TO authentic
 GRANT EXECUTE ON FUNCTION public.update_order_status(UUID, TEXT, UUID, TEXT) TO authenticated;
 
 -- =====================================================
--- 5. VERIFICAR Y AGREGAR COLUMNAS NECESARIAS
+-- 6. VERIFICAR Y AGREGAR COLUMNAS NECESARIAS
 -- =====================================================
 
 -- Agregar columnas necesarias si no existen
@@ -239,7 +247,7 @@ BEGIN
 END $$;
 
 -- =====================================================
--- 6. AGREGAR COLUMNAS PARA REPARTIDORES SI NO EXISTEN
+-- 7. AGREGAR COLUMNAS PARA REPARTIDORES SI NO EXISTEN
 -- =====================================================
 
 DO $$ 
