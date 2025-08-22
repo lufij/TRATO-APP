@@ -5,6 +5,10 @@ import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase, User, UserRole, Seller, Driver } from '../utils/supabase/client';
 import { supabaseEnvDiagnostics } from '../utils/supabase/config';
 
+// Variables de control para prevenir bucles infinitos
+const AUTH_RETRY_LIMIT = 3;
+const AUTH_COOLDOWN_TIME = 5000; // 5 segundos
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -35,6 +39,7 @@ interface AuthContextType {
     vehicleType?: string;
     licenseNumber?: string;
   }) => Promise<{ success: boolean; error?: string }>;
+  resetAuthRetries: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const profileReqIdRef = React.useRef(0);
   const lastUserIdRef = React.useRef<string | null>(null);
   const isRegisteringRef = React.useRef<boolean>(isRegistering);
+
+  // Refs para prevenir bucles infinitos
+  const authRetryCountRef = React.useRef(0);
+  const lastAuthAttemptRef = React.useRef(0);
+  const authCooldownTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     isRegisteringRef.current = isRegistering;
@@ -714,10 +724,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     console.log('Iniciando efecto de autenticación');
     
-    // Función para manejar cambios de autenticación
+    // Función para manejar cambios de autenticación con protección contra bucles
     const handleAuthChange = async (event: string, session: Session | null) => {
+      const now = Date.now();
+      
+      // Verificar cooldown
+      if (now - lastAuthAttemptRef.current < AUTH_COOLDOWN_TIME) {
+        console.log('En período de cooldown, ignorando cambio de autenticación');
+        return;
+      }
+      
+      // Verificar límite de reintentos
+      if (authRetryCountRef.current >= AUTH_RETRY_LIMIT) {
+        console.log('Límite de reintentos alcanzado, pausando autenticación');
+        pushAuthLog('Límite de reintentos alcanzado, pausando...');
+        
+        // Resetear después del cooldown
+        if (authCooldownTimerRef.current) {
+          clearTimeout(authCooldownTimerRef.current);
+        }
+        authCooldownTimerRef.current = setTimeout(() => {
+          authRetryCountRef.current = 0;
+          console.log('Cooldown terminado, reintentos reseteados');
+        }, AUTH_COOLDOWN_TIME * 2);
+        
+        setLoading(false);
+        return;
+      }
+
       console.log('Cambio de autenticación:', event, session?.user?.id);
-      pushAuthLog(`Cambio de autenticación: ${event}`);
+      pushAuthLog(`Cambio de autenticación: ${event} (intento ${authRetryCountRef.current + 1})`);
+      
+      lastAuthAttemptRef.current = now;
+      authRetryCountRef.current++;
 
       // Actualizar estado de sesión
       setSession(session);
@@ -729,6 +768,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setOrphanedUser(null);
         lastUserIdRef.current = null;
         setLoading(false);
+        authRetryCountRef.current = 0; // Resetear contador en logout
         return;
       }
 
@@ -739,65 +779,118 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Evitar cargas duplicadas del mismo usuario
-      if (session.user.id === lastUserIdRef.current && user) {
-        console.log('Usuario ya cargado:', session.user.id);
+      const currentUser = session.user;
+      
+      // Prevenir procesamiento duplicado del mismo usuario
+      if (lastUserIdRef.current === currentUser.id && user) {
+        console.log('Usuario ya procesado, saltando');
         setLoading(false);
+        authRetryCountRef.current--; // No contar como intento fallido
         return;
       }
 
-      // Actualizar referencia de último usuario
-      lastUserIdRef.current = session.user.id;
+      lastUserIdRef.current = currentUser.id;
 
       try {
-        console.log('Buscando perfil para:', session.user.id);
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        // Solo fetch profile si es un sign in exitoso
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          console.log('Obteniendo perfil para usuario autenticado');
+          
+          const { data: profile, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', currentUser.id)
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error al buscar perfil:', error);
-          pushAuthLog(`Error al buscar perfil: ${error.message}`);
-          setLoading(false);
-          return;
-        }
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error al buscar perfil:', error);
+            pushAuthLog(`Error al buscar perfil: ${error.message}`);
+            setLoading(false);
+            return;
+          }
 
-        if (profile) {
-          console.log('Perfil encontrado:', profile);
-          pushAuthLog('Perfil cargado exitosamente');
-          setUser(profile);
-          setOrphanedUser(null);
-        } else {
-          console.log('No se encontró perfil, marcando como huérfano');
-          pushAuthLog('Usuario sin perfil detectado');
-          setOrphanedUser(session.user);
-          setUser(null);
+          if (profile) {
+            console.log('Perfil encontrado:', profile);
+            pushAuthLog('Perfil cargado exitosamente');
+            setUser(profile);
+            setOrphanedUser(null);
+            authRetryCountRef.current = 0; // Resetear en éxito
+          } else {
+            console.log('No se encontró perfil, marcando como huérfano');
+            pushAuthLog('Usuario sin perfil detectado');
+            setOrphanedUser(currentUser);
+            setUser(null);
+          }
         }
       } catch (error) {
-        console.error('Error inesperado:', error);
-        pushAuthLog(`Error inesperado: ${error}`);
+        console.error('Error en handleAuthChange:', error);
+        pushAuthLog(`Error en cambio de autenticación: ${error}`);
       } finally {
         setLoading(false);
       }
     };
 
-    // Suscribirse a cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+    // Obtener sesión inicial con protección contra bucles
+    const getInitialSession = async () => {
+      try {
+        console.log('Obteniendo sesión inicial...');
+        setLoading(true);
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error obteniendo sesión inicial:', error);
+          pushAuthLog(`Error en sesión inicial: ${error.message}`);
+          setLoading(false);
+          return;
+        }
 
-    // Obtener y manejar sesión inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Sesión inicial:', session?.user?.id);
-      handleAuthChange('INITIAL_SESSION', session);
+        console.log('Sesión inicial obtenida:', session?.user?.id || 'sin sesión');
+        
+        if (session?.user) {
+          await handleAuthChange('INITIAL_SESSION', session);
+        } else {
+          setLoading(false);
+        }
+        
+      } catch (error) {
+        console.error('Error inesperado obteniendo sesión inicial:', error);
+        pushAuthLog(`Error inesperado en sesión inicial: ${error}`);
+        setLoading(false);
+      }
+    };
+
+    // Inicializar sesión
+    getInitialSession();
+
+    // Configurar listener de cambios de autenticación con debounce
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Debounce para evitar llamadas múltiples rápidas
+      setTimeout(() => {
+        handleAuthChange(event, session);
+      }, 100);
     });
 
-    // Limpieza al desmontar
+    // Cleanup
     return () => {
-      console.log('Limpiando suscripción de autenticación');
+      if (authCooldownTimerRef.current) {
+        clearTimeout(authCooldownTimerRef.current);
+      }
       subscription.unsubscribe();
     };
   }, []);
+
+  // Función para resetear manualmente los contadores de reintento
+  const resetAuthRetries = () => {
+    authRetryCountRef.current = 0;
+    lastAuthAttemptRef.current = 0;
+    if (authCooldownTimerRef.current) {
+      clearTimeout(authCooldownTimerRef.current);
+      authCooldownTimerRef.current = null;
+    }
+    console.log('Contadores de autenticación reseteados manualmente');
+    pushAuthLog('Contadores de autenticación reseteados');
+  };
 
   const value = {
     user,
@@ -813,6 +906,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     updateProfile,
     createMissingProfile,
+    resetAuthRetries,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
