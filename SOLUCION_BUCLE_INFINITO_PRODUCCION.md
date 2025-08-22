@@ -5,25 +5,25 @@ La aplicación en producción está experimentando un bucle infinito porque:
 1. Las variables de entorno están configuradas correctamente en Vercel ✅
 2. Pero la base de datos de Supabase no tiene las tablas/políticas configuradas correctamente ❌
 
-## Solución Inmediata (15 minutos)
+## Solución Inmediata (10 minutos)
 
-### Paso 1: Ejecutar Script Principal de Base de Datos
+### Paso 1: Ejecutar Script Básico de Base de Datos
 1. Ve a tu **Supabase Dashboard** → **SQL Editor**
-2. Ejecuta el contenido completo del archivo `database/fix_setup.sql`
-3. Este script configurará todas las tablas, políticas y funciones necesarias
+2. Ejecuta el contenido completo del archivo `database/fix_setup_basic.sql`
+3. Este script configurará las tablas esenciales sin errores
 
 ### Paso 2: Verificar Configuración
-1. En Supabase SQL Editor, ejecuta el archivo `database/diagnose_setup.sql`
+1. En Supabase SQL Editor, ejecuta el archivo `database/diagnose_basic.sql`
 2. Verifica que todas las tablas muestren ✅
 
-### Paso 3: Ejecutar Fix de Políticas de Productos
-1. Ejecuta el archivo `database/fix_product_policies.sql` (el que tienes abierto)
+### Paso 3: Ejecutar Fix de Políticas de Productos (opcional)
+1. Si todo está bien en el paso 2, ejecuta `database/fix_product_policies.sql`
 2. Esto arreglará específicamente los problemas de carga de productos
 
 ### Paso 4: Redeplegar en Vercel
 1. Ve a tu proyecto en Vercel
 2. Haz click en "Redeploy" para forzar un nuevo despliegue
-3. O haz un commit dummy y push al repositorio
+3. O los cambios ya se desplegaron automáticamente
 
 ## Verificación Local
 
