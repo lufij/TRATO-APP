@@ -29,6 +29,7 @@ interface BusinessProfile {
   business_name: string;
   business_description?: string;
   business_logo?: string;
+  cover_image_url?: string;
   business_category: string;
   phone?: string;
   email?: string;
@@ -42,6 +43,8 @@ interface BusinessProfile {
   is_verified: boolean;
   is_active: boolean;
   is_open_now: boolean;
+  is_accepting_orders: boolean;
+  location_verified: boolean;
   social_media?: {
     facebook?: string;
     instagram?: string;
@@ -89,6 +92,8 @@ export function SellerBusinessProfile() {
   const [formData, setFormData] = useState({
     business_name: '',
     business_description: '',
+    business_logo: '',
+    cover_image_url: '',
     business_category: '',
     phone: '',
     email: '',
@@ -100,6 +105,8 @@ export function SellerBusinessProfile() {
     minimum_order: 50,
     is_active: true,
     is_open_now: false,
+    is_accepting_orders: true,
+    location_verified: false,
     social_media: {
       facebook: '',
       instagram: '',
@@ -173,6 +180,8 @@ export function SellerBusinessProfile() {
         setFormData({
           business_name: data.business_name || '',
           business_description: data.business_description || '',
+          business_logo: data.business_logo || '',
+          cover_image_url: data.cover_image_url || '',
           business_category: data.business_category || '',
           phone: data.phone || '',
           email: data.email || '',
@@ -184,6 +193,8 @@ export function SellerBusinessProfile() {
           minimum_order: data.minimum_order || 50,
           is_active: data.is_active !== false,
           is_open_now: data.is_open_now || false,
+          is_accepting_orders: data.is_accepting_orders !== false,
+          location_verified: data.location_verified || false,
           social_media: data.social_media || {
             facebook: '',
             instagram: '',
@@ -228,6 +239,8 @@ export function SellerBusinessProfile() {
       const minimal = {
         business_name: formData.business_name?.trim() || 'Mi Negocio',
         business_description: formData.business_description?.trim() || '',
+        business_logo: formData.business_logo || '',
+        cover_image_url: formData.cover_image_url || '',
         business_category: formData.business_category || '',
         phone: formData.phone?.trim() || '',
         email: formData.email?.trim() || '',
@@ -240,6 +253,8 @@ export function SellerBusinessProfile() {
         minimum_order: formData.minimum_order || 0,
         is_active: true,
         is_open_now: false,
+        is_accepting_orders: true,
+        location_verified: false,
         social_media: formData.social_media,
         is_verified: false,
         created_at: new Date().toISOString(),
@@ -549,6 +564,161 @@ export function SellerBusinessProfile() {
           <AlertDescription className="text-green-800 whitespace-pre-line">{success}</AlertDescription>
         </Alert>
       )}
+
+      {/* Cover Image Upload */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <div className="relative">
+              {formData.cover_image_url ? (
+                <div className="relative h-48 rounded-lg overflow-hidden">
+                  <ImageWithFallback
+                    src={formData.cover_image_url}
+                    alt="Portada del negocio"
+                    className="w-full h-full object-cover"
+                    width={800}
+                    height={200}
+                  />
+                  {isEditing && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !user) return;
+                          
+                          try {
+                            setUploadingImage(true);
+                            setError('');
+
+                            if (file.size > 5 * 1024 * 1024) {
+                              setError('La imagen debe ser menor a 5MB');
+                              return;
+                            }
+
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
+
+                            const { error: uploadError } = await supabase.storage
+                              .from('business-covers')
+                              .upload(fileName, file, { upsert: true });
+
+                            if (uploadError) throw uploadError;
+
+                            const { data: urlData } = supabase.storage
+                              .from('business-covers')
+                              .getPublicUrl(fileName);
+
+                            const { error: updateError } = await supabase
+                              .from('sellers')
+                              .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+                              .eq('id', user.id);
+
+                            if (updateError) throw updateError;
+
+                            setSuccess('✅ Imagen de portada actualizada');
+                            setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
+
+                          } catch (error) {
+                            console.error('Error uploading cover image:', error);
+                            setError('Error al subir la imagen de portada');
+                          } finally {
+                            setUploadingImage(false);
+                          }
+                        }}
+                        ref={fileInputRef}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        className="text-white" 
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4 mr-2" />
+                        )}
+                        Cambiar imagen
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : isEditing ? (
+                <div className="h-48 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !user) return;
+                      
+                      try {
+                        setUploadingImage(true);
+                        setError('');
+
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError('La imagen debe ser menor a 5MB');
+                          return;
+                        }
+
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
+
+                        const { error: uploadError } = await supabase.storage
+                          .from('business-covers')
+                          .upload(fileName, file, { upsert: true });
+
+                        if (uploadError) throw uploadError;
+
+                        const { data: urlData } = supabase.storage
+                          .from('business-covers')
+                          .getPublicUrl(fileName);
+
+                        const { error: updateError } = await supabase
+                          .from('sellers')
+                          .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+                          .eq('id', user.id);
+
+                        if (updateError) throw updateError;
+
+                        setSuccess('✅ Imagen de portada agregada');
+                        setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
+
+                      } catch (error) {
+                        console.error('Error uploading cover image:', error);
+                        setError('Error al subir la imagen de portada');
+                      } finally {
+                        setUploadingImage(false);
+                      }
+                    }}
+                    ref={fileInputRef}
+                  />
+                  <Button 
+                    variant="ghost" 
+                    className="text-gray-600" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4 mr-2" />
+                    )}
+                    Agregar imagen de portada
+                  </Button>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Tamaño recomendado: 800x200px. Máximo 5MB.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Google Maps API Info */}
       {!googleMapsConfigured && (

@@ -107,28 +107,52 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const uploadImage = async (file: File): Promise<string> => {
     setUploadingImage(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-      const filePath = `products/${fileName}`;
-
-      // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('products')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('No autorizado - sesión inválida');
       }
 
-      // Get public URL
-      const { data } = supabase.storage
-        .from('products')
-        .getPublicUrl(filePath);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
 
-      return data.publicUrl;
+      // Intentar subir 3 veces
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          // Upload file to Supabase Storage
+          const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: true
+            });
+
+          if (uploadError) {
+            // Si es error de autenticación, intentar refrescar
+            if (uploadError.message.includes('JWT') || uploadError.message.includes('token')) {
+              await supabase.auth.refreshSession();
+              continue;
+            }
+            throw uploadError;
+          }
+
+          // Get public URL
+          const { data } = supabase.storage
+            .from('products')
+            .getPublicUrl(filePath);
+
+          if (!data.publicUrl) {
+            throw new Error('No se pudo obtener la URL pública');
+          }
+
+          return data.publicUrl;
+        } catch (err) {
+          if (attempt === 2) throw err; // En el último intento, propagar el error
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar antes de reintentar
+          continue;
+        }
+      }
+      throw new Error('No se pudo subir la imagen después de 3 intentos');      return data.publicUrl;
     } catch (error: any) {
       console.error('Error uploading image:', error);
       throw new Error('Error al subir la imagen: ' + error.message);

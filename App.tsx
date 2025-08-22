@@ -196,6 +196,97 @@ function AppContent() {
   const [registrationTimeout, setRegistrationTimeout] = useState(false);
   const [appError, setAppError] = useState<Error | null>(null);
 
+  // Check if Supabase is properly configured
+  if (!supabaseEnvDiagnostics.hasEnv) {
+    return (
+      <div>
+        <PWABanner />
+        <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl border-yellow-200">
+            <CardHeader className="text-center">
+              <div className="bg-yellow-100 p-3 rounded-full w-16 h-16 mx-auto mb-4">
+                <AlertCircle className="w-10 h-10 text-yellow-600" />
+              </div>
+              <CardTitle className="flex items-center justify-center gap-2 text-yellow-800">
+                <AlertCircle className="w-5 h-5" />
+                Configuración de Supabase Requerida
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800 font-medium mb-2">
+                  Variables de entorno no configuradas
+                </p>
+                <p className="text-yellow-700 text-sm">
+                  La aplicación necesita que configures las credenciales de Supabase para funcionar correctamente.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-900">Para desarrollo local:</h4>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm space-y-2">
+                  <div className="flex items-start gap-3">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">1</span>
+                    <p>Edita el archivo <code className="bg-gray-100 px-1 rounded">.env.local</code> en la raíz del proyecto</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">2</span>
+                    <p>Agrega tus credenciales de Supabase (URL y ANON_KEY)</p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">3</span>
+                    <p>Reinicia el servidor de desarrollo</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-900">Para producción (Vercel):</h4>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm space-y-2">
+                  <div className="flex items-start gap-3">
+                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">1</span>
+                    <p>Ve a <strong>Vercel Dashboard</strong> → <strong>Project Settings</strong> → <strong>Environment Variables</strong></p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">2</span>
+                    <p>Agrega <code className="bg-gray-100 px-1 rounded">VITE_SUPABASE_URL</code> y <code className="bg-gray-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code></p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded">3</span>
+                    <p>Redespliega la aplicación</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => window.location.reload()}
+                  className="flex-1"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Recargar Aplicación
+                </Button>
+                <Button 
+                  onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Abrir Supabase
+                </Button>
+              </div>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Consulta <code className="bg-gray-100 px-1 rounded">.env.example</code> para más detalles
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   // Database error codes that indicate configuration issues
   const DB_ERROR_CODES = useMemo(() => [
     'PGRST205', // table not found

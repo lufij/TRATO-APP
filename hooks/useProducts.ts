@@ -3,14 +3,68 @@ import { supabase, Product } from '../utils/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
 export function useProducts() {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const ensureSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      await supabase.auth.refreshSession();
+    }
+    return session;
+  };
+
+  const retryOperation = async <T>(
+    operation: () => Promise<T>,
+    errorHandler?: (error: any) => boolean // Devuelve true si debe reintentar
+  ): Promise<T> => {
+    let lastError;
+    
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          console.log(`Reintento ${attempt + 1}/${MAX_RETRIES}...`);
+        }
+
+        // Asegurar sesión antes de cada intento
+        await ensureSession();
+        
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Si hay un manejador de errores personalizado
+        if (errorHandler && !errorHandler(error)) {
+          throw error; // No reintentar si el manejador devuelve false
+        }
+        
+        // Reintentar por defecto en errores de red o autenticación
+        const msg = error.message?.toLowerCase() || '';
+        if (!msg.includes('network') && !msg.includes('jwt') && !msg.includes('auth')) {
+          throw error;
+        }
+      }
+    }
+    throw lastError;
+  };
+
   const fetchProducts = async (sellerId?: string) => {
     try {
       setLoading(true);
+
+      // Verificar sesión primero
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        await supabase.auth.refreshSession();
+      }
+
       // First attempt: include related seller info (may fail if relationship is not configured)
       let query = supabase
         .from('products')
@@ -24,17 +78,29 @@ export function useProducts() {
         query = query.eq('seller_id', sellerId);
       }
 
-      let { data, error } = await query.order('created_at', { ascending: false });
+      // Intentar hasta 3 veces con delay entre intentos
+      let data = null;
+      let error = null;
+      
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          console.log('Reintentando obtener productos...');
+        }
 
-      if (error) {
-        // Known cases: relationship not found, column not found, table not found
-        const code = (error as any)?.code || '';
-        const msg = (error as any)?.message?.toLowerCase?.() || '';
-        const isRelIssue =
-          code === 'PGRST200' || // relationship not found
-          code === '42P01' || // relation does not exist
-          code === '42703' || // column does not exist
-          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
+        const result = await query.order('created_at', { ascending: false });
+        error = result.error;
+        data = result.data;
+
+        if (error) {
+          // Known cases: relationship not found, column not found, table not found
+          const code = (error as any)?.code || '';
+          const msg = (error as any)?.message?.toLowerCase?.() || '';
+          const isRelIssue =
+            code === 'PGRST200' || // relationship not found
+            code === '42P01' || // relation does not exist
+            code === '42703' || // column does not exist
+            msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
 
         if (isRelIssue) {
           console.warn('[products] Relationship select failed, falling back to plain select(*)');

@@ -2,14 +2,22 @@
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
 const envAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// Valores de fallback para desarrollo local cuando no hay .env.local
+const fallbackUrl = 'https://placeholder.supabase.co';
+const fallbackAnon = 'placeholder_anon_key';
+
+const hasValidEnv = Boolean(envUrl && envAnon && envUrl !== fallbackUrl && envAnon !== fallbackAnon);
+
 if (!envUrl || !envAnon) {
-  console.error('[ERROR] VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are not set.');
-  throw new Error('Supabase configuration is required.');
+  console.warn('[WARNING] VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY are not set. Using fallback values.');
+  console.log('Para configurar correctamente:');
+  console.log('1. Copia .env.example a .env.local');
+  console.log('2. Agrega tus credenciales de Supabase');
 }
 
 export const supabaseConfig = {
-  url: envUrl,
-  anonKey: envAnon,
+  url: envUrl || fallbackUrl,
+  anonKey: envAnon || fallbackAnon,
 };
 
 // Service Role Key for admin operations (if needed)
@@ -34,7 +42,7 @@ export const environment = {
 // Diagnostics to detect when production is using repository fallback keys (misconfiguration on Vercel)
 export const supabaseEnvDiagnostics = (() => {
       const isProd = environment.isProduction;
-      const hasEnv = Boolean(envUrl && envAnon);
+      const hasEnv = hasValidEnv;
 
       if (isProd && !hasEnv) {
         // eslint-disable-next-line no-console
