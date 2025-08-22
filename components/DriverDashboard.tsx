@@ -179,83 +179,49 @@ export function DriverDashboard() {
 
   const loadAvailableOrders = async () => {
     try {
-      // Try to fetch real orders from Supabase
+      console.log('Loading available orders using RPC function...');
+      
+      // Use the RPC function to get real available deliveries
       const { data: ordersData, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          buyer:users!buyer_id (name, phone),
-          seller:users!seller_id (name),
-          sellers!seller_id (business_name)
-        `)
-        .eq('status', 'ready')
-        .is('driver_id', null)
-        .order('created_at', { ascending: true });
+        .rpc('get_available_deliveries');
 
       if (error) {
-        console.log('Orders table not available, using mock data');
-        // Fallback to mock data
-        const mockOrders: DeliveryOrder[] = [
-          {
-            id: '1',
-            order_id: 'ORD-001',
-            pickup_address: 'Restaurante El Buen Sabor, Calle Principal',
-            delivery_address: 'Barrio El Centro, Casa #123',
-            customer_name: 'María González',
-            customer_phone: '+502 1234-5678',
-            total_amount: 85,
-            delivery_fee: 15,
-            status: 'available',
-            created_at: new Date().toISOString(),
-            estimated_delivery: new Date(Date.now() + 30 * 60000).toISOString(),
-            items_count: 3,
-            business_name: 'El Buen Sabor',
-            distance: 2.5,
-            pickup_notes: 'Segundo piso, local 201'
-          },
-          {
-            id: '2',
-            order_id: 'ORD-002',
-            pickup_address: 'Pizza Express, Zona 2',
-            delivery_address: 'Colonia Las Flores, Avenida Principal',
-            customer_name: 'Carlos Mendoza',
-            customer_phone: '+502 9876-5432',
-            total_amount: 120,
-            delivery_fee: 12,
-            status: 'available',
-            created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-            estimated_delivery: new Date(Date.now() + 25 * 60000).toISOString(),
-            items_count: 2,
-            business_name: 'Pizza Express',
-            distance: 1.8
-          }
-        ];
-        setAvailableOrders(mockOrders);
+        console.error('RPC Error:', error);
+        // En caso de error, mostrar estado vacío (NO datos demo)
+        setAvailableOrders([]);
+        toast.error('Error al cargar pedidos disponibles. Verifica que el script SQL esté ejecutado.');
         return;
       }
 
-      // Transform real data
-      const transformedOrders: DeliveryOrder[] = (ordersData || []).map(order => ({
-        id: order.id,
-        order_id: order.id,
-        pickup_address: order.pickup_address || 'Dirección de recogida',
+      console.log('Available orders from RPC:', ordersData);
+      
+      // Transform RPC data to component format
+      const transformedOrders: DeliveryOrder[] = (ordersData || []).map((order: any) => ({
+        id: order.order_id,
+        order_id: order.order_id,
+        pickup_address: order.seller_address || 'Dirección de recogida',
         delivery_address: order.delivery_address || 'Dirección de entrega',
-        customer_name: order.buyer?.name || 'Cliente',
-        customer_phone: order.buyer?.phone || 'Sin teléfono',
+        customer_name: 'Cliente', // RPC doesn't return customer name for privacy
+        customer_phone: 'Sin teléfono',
         total_amount: order.total || 0,
-        delivery_fee: order.delivery_fee || 10,
+        delivery_fee: Math.round(order.total * 0.15) || 10, // 15% delivery fee
         status: 'available',
         created_at: order.created_at,
-        estimated_delivery: order.estimated_delivery || new Date(Date.now() + 30 * 60000).toISOString(),
-        items_count: 1, // TODO: Calculate from order_items
-        business_name: order.sellers?.business_name || order.seller?.name || 'Negocio',
-        pickup_notes: order.pickup_notes,
-        delivery_notes: order.delivery_notes
+        estimated_delivery: new Date(Date.now() + (order.estimated_time * 60000)).toISOString(),
+        items_count: 1,
+        business_name: order.seller_name || 'Negocio',
+        pickup_notes: undefined,
+        delivery_notes: undefined,
+        distance: order.distance_km
       }));
 
       setAvailableOrders(transformedOrders);
+      console.log('Transformed orders:', transformedOrders);
     } catch (error) {
       console.error('Error loading available orders:', error);
+      // En caso de error, mostrar estado vacío (NO datos demo)
+      setAvailableOrders([]);
+      toast.error('Error al cargar pedidos disponibles');
     }
   };
 
@@ -529,26 +495,37 @@ export function DriverDashboard() {
   };
 
   const acceptOrder = async (orderId: string) => {
+    if (!user?.id) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          driver_id: user?.id,
-          status: 'assigned',
-          assigned_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      console.log('Accepting order:', orderId, 'for driver:', user.id);
+      
+      // Use the RPC function to assign the driver
+      const { data, error } = await supabase
+        .rpc('assign_driver_to_order', {
+          p_order_id: orderId,
+          p_driver_id: user.id
+        });
 
       if (error) {
-        console.error('Error accepting order:', error);
+        console.error('RPC Error accepting order:', error);
         toast.error('Error al aceptar pedido');
         return;
       }
 
-      toast.success('Pedido aceptado exitosamente');
-      loadAvailableOrders();
-      loadActiveDeliveries();
-      setNewOrdersCount(prev => Math.max(0, prev - 1));
+      console.log('Accept order response:', data);
+
+      if (data?.[0]?.success) {
+        toast.success(data[0].message || 'Pedido aceptado exitosamente');
+        loadAvailableOrders();
+        loadActiveDeliveries();
+        setNewOrdersCount(prev => Math.max(0, prev - 1));
+      } else {
+        toast.error(data?.[0]?.message || 'Error al aceptar pedido');
+      }
     } catch (error) {
       console.error('Error accepting order:', error);
       toast.error('Error al aceptar pedido');
@@ -556,39 +533,43 @@ export function DriverDashboard() {
   };
 
   const updateDeliveryStatus = async (orderId: string, newStatus: string) => {
+    if (!user?.id) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
     try {
-      const updateData: any = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      // Add specific timestamps for certain statuses
-      if (newStatus === 'picked_up') {
-        updateData.picked_up_at = new Date().toISOString();
-      } else if (newStatus === 'delivered') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
+      
+      // Use the RPC function to update order status
+      const { data, error } = await supabase
+        .rpc('update_order_status', {
+          p_order_id: orderId,
+          p_new_status: newStatus,
+          p_user_id: user.id
+        });
 
       if (error) {
-        console.error('Error updating delivery status:', error);
+        console.error('RPC Error updating status:', error);
         toast.error('Error al actualizar estado');
         return;
       }
 
-      const statusMessages: Record<'picked_up' | 'in_transit' | 'delivered', string> = {
-        picked_up: 'Pedido recogido',
-        in_transit: 'En camino al destino',
-        delivered: 'Entrega completada'
-      };
+      console.log('Update status response:', data);
 
-      toast.success(statusMessages[newStatus as 'picked_up' | 'in_transit' | 'delivered'] || 'Estado actualizado');
-      loadActiveDeliveries();
-      loadDriverStats();
+      if (data?.[0]?.success) {
+        const statusMessages: Record<string, string> = {
+          'picked-up': 'Pedido recogido',
+          'in-transit': 'En camino al destino',
+          'delivered': 'Entrega completada'
+        };
+
+        toast.success(statusMessages[newStatus] || 'Estado actualizado');
+        loadActiveDeliveries();
+        loadDriverStats();
+      } else {
+        toast.error(data?.[0]?.message || 'Error al actualizar estado');
+      }
     } catch (error) {
       console.error('Error updating delivery status:', error);
       toast.error('Error al actualizar estado');
