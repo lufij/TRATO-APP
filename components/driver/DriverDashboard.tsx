@@ -63,14 +63,22 @@ export function DriverDashboard() {
 
   const fetchAvailableDeliveries = async () => {
     try {
+      console.log('Fetching available deliveries...');
       const { data, error } = await supabase
         .rpc('get_available_deliveries');
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      }
+      
+      console.log('Available deliveries data:', data);
       setAvailableDeliveries(data || []);
     } catch (error) {
       console.error('Error fetching available deliveries:', error);
       toast.error('Error al cargar entregas disponibles');
+      // En caso de error, asegurar que no hay entregas demo
+      setAvailableDeliveries([]);
     }
   };
 
@@ -78,6 +86,7 @@ export function DriverDashboard() {
     if (!user) return;
 
     try {
+      console.log('Fetching assigned orders for driver:', user.id);
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -85,6 +94,10 @@ export function DriverDashboard() {
           order_items (
             product_name,
             quantity
+          ),
+          buyer:users!buyer_id (
+            name,
+            phone
           ),
           seller:users!seller_id (
             name,
@@ -96,18 +109,27 @@ export function DriverDashboard() {
         .in('status', ['assigned', 'picked-up', 'in-transit'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Orders fetch error:', error);
+        throw error;
+      }
+      
+      console.log('Assigned orders data:', data);
       
       const formattedData = data?.map(order => ({
         ...order,
-        seller_name: order.seller?.[0]?.business_name || order.seller?.[0]?.name || 'Vendedor',
-        seller_address: order.seller?.[0]?.address || 'Dirección no disponible'
+        customer_name: order.buyer?.name || 'Cliente',
+        phone_number: order.buyer?.phone || 'No disponible',
+        seller_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
+        seller_address: order.seller?.address || 'Dirección no disponible'
       })) || [];
 
       setAssignedOrders(formattedData);
     } catch (error) {
       console.error('Error fetching assigned orders:', error);
       toast.error('Error al cargar órdenes asignadas');
+      // En caso de error, asegurar que no hay órdenes demo
+      setAssignedOrders([]);
     }
   };
 
@@ -141,43 +163,68 @@ export function DriverDashboard() {
   }, [user?.id]);
 
   const acceptDelivery = async (orderId: string) => {
+    if (!user) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
     setProcessingOrderId(orderId);
     
     try {
+      console.log('Accepting delivery:', orderId, 'for driver:', user.id);
+      
       const { data, error } = await supabase
         .rpc('assign_driver_to_order', {
           p_order_id: orderId,
-          p_driver_id: user?.id
+          p_driver_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error accepting delivery:', error);
+        throw error;
+      }
+
+      console.log('Accept delivery response:', data);
 
       if (data?.[0]?.success) {
-        toast.success('Entrega asignada exitosamente');
+        toast.success(data[0].message || 'Entrega asignada exitosamente');
+        // Refrescar datos inmediatamente
         await fetchData();
       } else {
         toast.error(data?.[0]?.message || 'Error al aceptar entrega');
       }
     } catch (error) {
       console.error('Error accepting delivery:', error);
-      toast.error('Error al aceptar la entrega');
+      toast.error('Error al aceptar la entrega. Verifica tu conexión.');
     } finally {
       setProcessingOrderId(null);
     }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    if (!user) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
     setProcessingOrderId(orderId);
     
     try {
+      console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
+      
       const { data, error } = await supabase
         .rpc('update_order_status', {
           p_order_id: orderId,
           p_new_status: newStatus,
-          p_user_id: user?.id
+          p_user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error updating status:', error);
+        throw error;
+      }
+
+      console.log('Update status response:', data);
 
       if (data?.[0]?.success) {
         const messages = {
@@ -185,14 +232,15 @@ export function DriverDashboard() {
           'in-transit': 'Pedido en camino al cliente',
           'delivered': 'Pedido entregado exitosamente'
         };
-        toast.success(messages[newStatus as keyof typeof messages]);
+        toast.success(messages[newStatus as keyof typeof messages] || 'Estado actualizado');
+        // Refrescar datos inmediatamente
         await fetchData();
       } else {
         toast.error(data?.[0]?.message || 'Error al actualizar estado');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
-      toast.error('Error al actualizar el estado');
+      toast.error('Error al actualizar el estado. Verifica tu conexión.');
     } finally {
       setProcessingOrderId(null);
     }
@@ -277,18 +325,38 @@ export function DriverDashboard() {
               )}
             </div>
 
-            <Button
-              onClick={() => acceptDelivery(delivery.order_id)}
-              disabled={isProcessing}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isProcessing ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Truck className="w-4 h-4 mr-2" />
-              )}
-              Aceptar entrega
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => acceptDelivery(delivery.order_id)}
+                disabled={isProcessing}
+                className="bg-green-600 hover:bg-green-700 flex-1"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Truck className="w-4 h-4 mr-2" />
+                    Aceptar entrega
+                  </>
+                )}
+              </Button>
+              
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Abrir en Google Maps para navegar
+                  const address = encodeURIComponent(delivery.seller_address || '');
+                  window.open(`https://www.google.com/maps/search/${address}`, '_blank');
+                }}
+                className="flex items-center gap-2"
+              >
+                <Navigation className="w-4 h-4" />
+                Ver ruta
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
