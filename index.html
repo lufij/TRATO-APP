@@ -10,6 +10,25 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Google Maps API -->
+    <script>
+      window.googleMapsConfig = {
+        apiKey: 'AIzaSyDngZFFpzkQxkXQ07YM8w2q2nTRyOPLrgs',
+        libraries: ['geometry', 'places']
+      };
+    </script>
+    <script async defer 
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDngZFFpzkQxkXQ07YM8w2q2nTRyOPLrgs&libraries=geometry,places&callback=initGoogleMaps">
+    </script>
+    <script>
+      window.initGoogleMaps = function() {
+        window.googleMapsLoaded = true;
+        // Dispatch event for React components
+        window.dispatchEvent(new Event('google-maps-loaded'));
+      };
+    </script>
+    
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Register SW only in production and only if the file exists to avoid cache issues

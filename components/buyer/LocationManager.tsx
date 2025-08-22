@@ -11,9 +11,13 @@ import { Alert, AlertDescription } from '../ui/alert';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGeolocation, useLocationAccuracy } from '../../hooks/useGeolocation';
 import { supabase } from '../../utils/supabase/client';
+import { ExactLocationPicker } from '../location/ExactLocationPicker';
+import { MapSelector } from '../location/MapSelector';
+import { AddressAutocomplete } from '../location/AddressAutocomplete';
 import {
   MapPin,
   Plus,
@@ -32,7 +36,8 @@ import {
   MapIcon,
   Shield,
   Users,
-  Calendar
+  Calendar,
+  Search
 } from 'lucide-react';
 
 interface UserAddress {
@@ -135,7 +140,14 @@ export function LocationManager({
     apartment_number: '',
     available_from: '',
     available_to: '',
-    available_days: [] as string[]
+    available_days: [] as string[],
+    latitude: null as number | null,
+    longitude: null as number | null,
+    accuracy_meters: null as number | null,
+    location_source: 'manual' as 'gps' | 'manual' | 'google_maps' | 'what3words',
+    verification_method: '',
+    verification_date: '',
+    is_verified: false
   });
 
   // Load user addresses
@@ -243,7 +255,14 @@ export function LocationManager({
       apartment_number: '',
       available_from: '',
       available_to: '',
-      available_days: []
+      available_days: [],
+      latitude: null,
+      longitude: null,
+      accuracy_meters: null,
+      location_source: 'manual',
+      verification_method: '',
+      verification_date: '',
+      is_verified: false
     });
   }, []);
 
@@ -437,7 +456,14 @@ export function LocationManager({
       apartment_number: address.apartment_number || '',
       available_from: address.available_from || '',
       available_to: address.available_to || '',
-      available_days: address.available_days || []
+      available_days: address.available_days || [],
+      latitude: address.latitude || null,
+      longitude: address.longitude || null,
+      accuracy_meters: address.accuracy_meters || null,
+      location_source: address.location_source || 'manual',
+      verification_method: address.verification_method || '',
+      verification_date: address.verification_date || '',
+      is_verified: address.is_verified || false
     });
   }, []);
 
@@ -847,6 +873,119 @@ export function LocationManager({
                   />
                 </div>
               </div>
+
+              {/* Ubicación Avanzada con Google Maps */}
+              <Tabs defaultValue="manual" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="manual" className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Manual
+                  </TabsTrigger>
+                  <TabsTrigger value="search" className="flex items-center gap-2">
+                    <Search className="w-4 h-4" />
+                    Buscar
+                  </TabsTrigger>
+                  <TabsTrigger value="gps" className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    GPS
+                  </TabsTrigger>
+                  <TabsTrigger value="map" className="flex items-center gap-2">
+                    <MapIcon className="w-4 h-4" />
+                    Mapa
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="manual" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="city">Ciudad</Label>
+                      <Input
+                        id="city"
+                        value={addressForm.city}
+                        onChange={(e) => handleFormChange('city', e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="state">Departamento</Label>
+                      <Input
+                        id="state"
+                        value={addressForm.state}
+                        onChange={(e) => handleFormChange('state', e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="postal_code">Código postal</Label>
+                      <Input
+                        id="postal_code"
+                        value={addressForm.postal_code}
+                        onChange={(e) => handleFormChange('postal_code', e.target.value)}
+                        placeholder="Opcional"
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="search" className="space-y-4">
+                  <AddressAutocomplete
+                    onAddressSelect={(address) => {
+                      handleFormChange('address_line1', address.formatted_address);
+                      handleFormChange('city', address.city);
+                      handleFormChange('state', address.state);
+                      handleFormChange('country', address.country);
+                      if (address.postal_code) {
+                        handleFormChange('postal_code', address.postal_code);
+                      }
+                      if (address.latitude && address.longitude) {
+                        handleFormChange('latitude', address.latitude);
+                        handleFormChange('longitude', address.longitude);
+                        handleFormChange('location_source', 'google_maps');
+                        handleFormChange('verification_method', 'google_places');
+                        handleFormChange('verification_date', new Date().toISOString());
+                        handleFormChange('is_verified', true);
+                      }
+                    }}
+                    placeholder="Buscar dirección con Google Maps..."
+                    label="Buscar tu dirección"
+                  />
+                </TabsContent>
+
+                <TabsContent value="gps" className="space-y-4">
+                  <ExactLocationPicker
+                    onLocationConfirm={(location) => {
+                      handleFormChange('latitude', location.latitude);
+                      handleFormChange('longitude', location.longitude);
+                      handleFormChange('location_source', location.source);
+                      handleFormChange('accuracy_meters', location.accuracy);
+                      handleFormChange('address_line1', location.address);
+                      handleFormChange('verification_method', 'gps_google_maps');
+                      handleFormChange('verification_date', new Date().toISOString());
+                      handleFormChange('is_verified', true);
+                    }}
+                  />
+                </TabsContent>
+
+                <TabsContent value="map" className="space-y-4">
+                  <MapSelector
+                    onLocationSelect={(location) => {
+                      handleFormChange('latitude', location.latitude);
+                      handleFormChange('longitude', location.longitude);
+                      handleFormChange('location_source', location.source);
+                      handleFormChange('accuracy_meters', location.accuracy);
+                      handleFormChange('address_line1', location.address);
+                      handleFormChange('verification_method', 'google_maps_interactive');
+                      handleFormChange('verification_date', new Date().toISOString());
+                      handleFormChange('is_verified', true);
+                    }}
+                    initialLocation={
+                      addressForm.latitude && addressForm.longitude 
+                        ? { latitude: addressForm.latitude, longitude: addressForm.longitude }
+                        : undefined
+                    }
+                  />
+                </TabsContent>
+              </Tabs>
 
               {/* Delivery Instructions */}
               <div>
