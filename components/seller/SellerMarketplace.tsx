@@ -113,17 +113,21 @@ function SellerMarketplaceContent() {
 
   const loadBusinesses = async () => {
     try {
+      console.log('🔍 Cargando solo negocios ABIERTOS...');
       const { data, error } = await supabase
-        .from('users')
+        .from('sellers')
         .select(`
           id, 
-          name, 
           business_name,
-          business_description
+          business_description,
+          business_logo,
+          business_category,
+          is_open_now,
+          is_active
         `)
-        .eq('role', 'vendedor')
-        .neq('id', user?.id) // Exclude current user's business
         .eq('is_active', true)
+        .eq('is_open_now', true) // SOLO NEGOCIOS ABIERTOS
+        .neq('id', user?.id) // Exclude current user's business
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -131,23 +135,23 @@ function SellerMarketplaceContent() {
         throw error;
       }
 
-      console.log('Raw businesses data:', data);
+      console.log('✅ Negocios abiertos encontrados:', data?.length || 0);
 
       const businessData: Business[] = (data || []).map(seller => ({
         id: seller.id,
-        name: seller.name || 'Comercio sin nombre',
+        name: seller.business_name || 'Comercio sin nombre',
         description: seller.business_description || 'Comercio local en Gualán',
-        business_type: seller.business_name || 'General',
+        business_type: seller.business_category || 'General',
         business_rating: 4.5, // Default value since column may not exist
         total_reviews: 0, // Default value since column may not exist
-        profile_image_url: '', // Default value since column may not exist
-        is_open: true // Default value since column may not exist
+        profile_image_url: seller.business_logo || '', // Logo del negocio
+        is_open: seller.is_open_now || false // Estado real del negocio
       }));
 
-      console.log('Processed businesses:', businessData);
+      console.log('📋 Negocios procesados:', businessData);
       setBusinesses(businessData);
     } catch (error) {
-      console.error('Error loading businesses:', error);
+      console.error('💥 Error loading businesses:', error);
       setError('Error al cargar los comercios: ' + (error as any).message);
     }
   };

@@ -315,22 +315,34 @@ export function SellerBusinessProfile() {
         return;
       }
 
-      const updateData = {
-        business_name: formData.business_name.trim(),
-        business_description: formData.business_description?.trim(),
-        business_category: formData.business_category,
-        phone: formData.phone?.trim(),
-        email: formData.email?.trim(),
-        address: formData.address?.trim(),
+      console.log('💾 Guardando perfil con datos:', {
+        business_name: formData.business_name,
+        address: formData.address,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        business_logo: formData.business_logo?.substring(0, 50) + '...',
+        cover_image_url: formData.cover_image_url?.substring(0, 50) + '...'
+      });
+
+      const updateData = {
+        business_name: formData.business_name.trim(),
+        business_description: formData.business_description?.trim() || null,
+        business_category: formData.business_category || null,
+        phone: formData.phone?.trim() || null,
+        email: formData.email?.trim() || null,
+        address: formData.address?.trim() || null,
+        latitude: formData.latitude || null,
+        longitude: formData.longitude || null,
         business_hours: getHoursAsJSON(),
-        delivery_time: formData.delivery_time,
-        delivery_radius: formData.delivery_radius,
-        minimum_order: formData.minimum_order,
+        delivery_time: formData.delivery_time || 30,
+        delivery_radius: formData.delivery_radius || 5,
+        minimum_order: formData.minimum_order || 0,
         is_active: formData.is_active,
         is_open_now: formData.is_open_now,
-        social_media: formData.social_media,
+        location_verified: formData.location_verified || false,
+        social_media: formData.social_media || {},
+        business_logo: formData.business_logo || null,
+        cover_image_url: formData.cover_image_url || null,
         updated_at: new Date().toISOString()
       };
 
@@ -341,16 +353,20 @@ export function SellerBusinessProfile() {
           ...updateData
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('💥 Error al guardar:', error);
+        throw error;
+      }
 
+      console.log('✅ Perfil guardado exitosamente');
       setSuccess('✅ Perfil guardado exitosamente');
       setIsEditing(false);
       await loadProfile();
 
       setTimeout(() => setSuccess(''), 4000);
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      setError('Error al guardar el perfil. Inténtalo de nuevo.');
+    } catch (error: any) {
+      console.error('💥 Error saving profile:', error);
+      setError(`Error al guardar el perfil: ${error.message || 'Error desconocido'}`);
     } finally {
       setSaving(false);
     }
@@ -627,9 +643,11 @@ export function SellerBusinessProfile() {
       if (error) throw error;
 
       setFormData(prev => ({ ...prev, is_open_now: newStatus }));
-      setSuccess(newStatus ? '🟢 ¡Negocio marcado como ABIERTO!' : '🔴 Negocio marcado como CERRADO');
+      setSuccess(newStatus 
+        ? '🟢 ¡Negocio ABIERTO! Ahora apareces en el listado de compradores' 
+        : '🔴 Negocio CERRADO. No aparecerás en el listado hasta que abras');
       
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(''), 4000);
     } catch (error) {
       console.error('Error updating business status:', error);
       setError('Error al actualizar el estado del negocio');
@@ -794,10 +812,10 @@ export function SellerBusinessProfile() {
               
               {/* Business Status Toggle */}
               <div className="mt-4 sm:mt-0 sm:ml-auto">
-                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
                   formData.is_open_now 
                     ? 'bg-green-500 text-white' 
-                    : 'bg-red-500 text-white'
+                    : 'bg-gray-400 text-white'
                 }`}>
                   <span>
                     {formData.is_open_now ? 'Abierto' : 'Cerrado'}
@@ -805,7 +823,7 @@ export function SellerBusinessProfile() {
                   <Switch 
                     checked={formData.is_open_now} 
                     onCheckedChange={toggleBusinessStatus}
-                    className="h-4 w-7 data-[state=checked]:bg-white data-[state=unchecked]:bg-white"
+                    className="h-3 w-5 scale-75"
                   />
                 </div>
               </div>
