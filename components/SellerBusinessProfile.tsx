@@ -18,7 +18,8 @@ import { Separator } from './ui/separator';
 import { 
   Store, Upload, MapPin, Phone, Mail, Clock, Camera, Save, Edit, Verified, Star, Globe,
   Instagram, Facebook, MessageCircle, AlertCircle, CheckCircle, Loader2, Eye, EyeOff,
-  BarChart3, Shield, PowerOff, Power, Settings
+  BarChart3, Shield, PowerOff, Power, Settings, Info, Truck, Share2, Navigation, Copy, 
+  ExternalLink, AlertTriangle, RotateCcw, XCircle
 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { BUSINESS_CATEGORIES, checkGoogleMapsConfig } from '../constants/business';
@@ -55,6 +56,26 @@ interface BusinessProfile {
   updated_at: string;
 }
 
+// Tab Button Component
+const TabButton = ({ active, onClick, children, icon: Icon }: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  icon: React.ElementType;
+}) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+      active
+        ? 'bg-blue-600 text-white'
+        : 'text-gray-600 hover:bg-gray-100'
+    }`}
+  >
+    <Icon className="w-4 h-4" />
+    <span className="hidden sm:inline">{children}</span>
+  </button>
+);
+
 export function SellerBusinessProfile() {
   const { user } = useAuth();
   const { 
@@ -78,7 +99,9 @@ export function SellerBusinessProfile() {
   const [googleMapsConfigured, setGoogleMapsConfigured] = useState(false);
   const [showGPSError, setShowGPSError] = useState(false);
   const [missingProfile, setMissingProfile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState('info');
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize weekly hours hook
   const {
@@ -408,6 +431,50 @@ export function SellerBusinessProfile() {
     }
   };
 
+  const handleCoverImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    try {
+      setUploadingImage(true);
+      setError('');
+
+      if (file.size > 5 * 1024 * 1024) {
+        setError('La imagen debe ser menor a 5MB');
+        return;
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('business-covers')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('business-covers')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('sellers')
+        .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setSuccess('✅ Imagen de portada actualizada');
+      setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
+
+    } catch (error) {
+      console.error('Error uploading cover image:', error);
+      setError('Error al subir la imagen de portada');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const detectLocationProfessional = async () => {
     try {
       setError('');
@@ -495,10 +562,10 @@ export function SellerBusinessProfile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando perfil del negocio...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-4" />
+          <p>Cargando tu perfil de negocio...</p>
         </div>
       </div>
     );
@@ -506,38 +573,22 @@ export function SellerBusinessProfile() {
 
   if (!loading && missingProfile) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Perfil del Negocio</h2>
-            <p className="text-gray-600">Aún no has configurado tu perfil de vendedor.</p>
-          </div>
-        </div>
-
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            Crea tu perfil para que los clientes puedan conocer tu negocio y realizar pedidos.
-          </AlertDescription>
-        </Alert>
-
-        <Card>
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-2xl">
+        <Card className="text-center shadow-lg border-none">
           <CardHeader>
-            <CardTitle>Crear perfil de vendedor</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-gray-600 text-sm">
-              Generaremos un perfil básico que podrás completar y actualizar. Puedes cambiar toda la información después.
+            <CardTitle>¡Bienvenido, Vendedor!</CardTitle>
+            <p className="text-gray-600">
+              Parece que aún no has configurado tu perfil. ¡Es el primer paso para empezar a vender!
             </p>
-            <div className="flex gap-3">
-              <Button onClick={createMinimalSellerProfile} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Crear perfil ahora
-              </Button>
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                Completar manualmente
-              </Button>
-            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-gray-600">
+              Crearemos un perfil básico para ti. Podrás editar y completar toda la información más adelante.
+            </p>
+            <Button onClick={createMinimalSellerProfile} disabled={saving} size="lg" className="w-full sm:w-auto">
+              {saving ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Store className="w-5 h-5 mr-2" />}
+              Crear Mi Perfil Ahora
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -545,737 +596,562 @@ export function SellerBusinessProfile() {
   }
 
   return (
-    <div className="seller-profile space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Perfil del Negocio</h2>
-          <p className="text-gray-600">
-            Esta información es lo que verán tus clientes. Manténla actualizada.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={() => setPreviewMode(!previewMode)}
-            className="flex items-center gap-2"
-          >
-            {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {previewMode ? 'Editar' : 'Vista Previa'}
-          </Button>
-          {isEditing ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Guardar
-              </Button>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header className="mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Mi Perfil de Negocio</h1>
+              <p className="text-gray-500 mt-1">Gestiona la información que ven tus clientes.</p>
             </div>
-          ) : (
-            <Button onClick={() => setIsEditing(true)}>
-              <Edit className="w-4 h-4 mr-2" />
-              Editar Perfil
-            </Button>
-          )}
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
+                {isEditing ? 'Cancelar' : <><Edit className="w-4 h-4 mr-2" /> Editar</>}
+              </Button>
+              {isEditing && (
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  Guardar Cambios
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
 
-      {/* Alerts */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="whitespace-pre-line">{error}</AlertDescription>
-        </Alert>
-      )}
+        {/* Alerts */}
+        {error && (
+          <Alert variant="destructive" className="mb-6 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="whitespace-pre-line">{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert className="mb-6 border-green-200 bg-green-50 text-green-800 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription className="text-green-800 whitespace-pre-line">{success}</AlertDescription>
+          </Alert>
+        )}
 
-      {success && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800 whitespace-pre-line">{success}</AlertDescription>
-        </Alert>
-      )}
+        {/* Google Maps API Info */}
+        {!googleMapsConfigured && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <Settings className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Sistema GPS:</strong> Funcionando con detección básica. 
+              Para direcciones más detalladas, puedes configurar Google Maps API (opcional).
+              <br />
+              <small>Ver: /GOOGLE_MAPS_SETUP_OPCIONAL.md</small>
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {/* Cover Image Upload */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="relative">
-              {formData.cover_image_url ? (
-                <div className="relative h-48 rounded-lg overflow-hidden">
-                  <ImageWithFallback
-                    src={formData.cover_image_url}
-                    alt="Portada del negocio"
-                    className="w-full h-full object-cover"
-                    width={800}
-                    height={200}
-                  />
+        <Card className="w-full overflow-hidden shadow-lg border-none">
+          {/* Cover Image */}
+          <div className="relative h-40 sm:h-56 bg-gradient-to-r from-blue-500 to-purple-600">
+            {formData.cover_image_url ? (
+              <ImageWithFallback
+                src={formData.cover_image_url}
+                alt="Portada del negocio"
+                className="w-full h-full object-cover"
+                width={800}
+                height={200}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="text-center text-white">
+                  <Camera className="w-12 h-12 mx-auto mb-2 opacity-70" />
+                  <p className="text-sm opacity-90">Imagen de portada</p>
                   {isEditing && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !user) return;
-                          
-                          try {
-                            setUploadingImage(true);
-                            setError('');
+                    <p className="text-xs opacity-70 mt-1">Haz clic para agregar</p>
+                  )}
+                </div>
+              </div>
+            )}
+            {isEditing && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => coverInputRef.current?.click()}>
+                <Button variant="secondary" disabled={uploadingImage}>
+                  {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />}
+                  {formData.cover_image_url ? 'Cambiar Portada' : 'Agregar Portada'}
+                </Button>
+                <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverImageUpload} />
+              </div>
+            )}
+          </div>
 
-                            if (file.size > 5 * 1024 * 1024) {
-                              setError('La imagen debe ser menor a 5MB');
-                              return;
-                            }
+          {/* Profile Header */}
+          <div className="relative px-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-12">
+              {/* Logo */}
+              <div className="relative h-32 w-32 rounded-full border-4 border-white bg-gradient-to-br from-green-400 to-blue-500 shadow-md flex items-center justify-center">
+                {formData.business_logo ? (
+                  <ImageWithFallback
+                    src={formData.business_logo}
+                    alt="Logo del negocio"
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <div className="text-center text-white">
+                    <Store className="w-12 h-12 mx-auto mb-1" />
+                    {isEditing && (
+                      <p className="text-xs opacity-80">Logo</p>
+                    )}
+                  </div>
+                )}
+                {isEditing && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => logoInputRef.current?.click()}>
+                    <div className="h-10 w-10 bg-white/90 rounded-full flex items-center justify-center">
+                      {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin text-slate-800" /> : <Camera className="w-5 h-5 text-slate-800" />}
+                    </div>
+                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </div>
+                )}
+              </div>
+              
+              {/* Business Info */}
+              <div className="mt-4 sm:ml-6 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <h2 className="text-xl font-bold text-gray-900">{formData.business_name}</h2>
+                  {profile?.is_verified && <Verified className="w-5 h-5 text-blue-500" />}
+                </div>
+                <p className="text-gray-500">{formData.business_category}</p>
+              </div>
+              
+              {/* Business Status Toggle */}
+              <div className="mt-4 sm:mt-0 sm:ml-auto flex items-center gap-2">
+                <Badge className={`${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                  {formData.is_open_now ? 'Abierto' : 'Cerrado'}
+                </Badge>
+                <Switch checked={formData.is_open_now} onCheckedChange={toggleBusinessStatus} />
+              </div>
+            </div>
+          </div>
 
-                            const fileExt = file.name.split('.').pop();
-                            const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
+          {/* Tabs Navigation */}
+          <div className="px-6 mt-6 border-b border-gray-200">
+            <div className="flex flex-wrap items-center gap-2 -mb-px overflow-x-auto">
+              <TabButton active={activeTab === 'info'} onClick={() => setActiveTab('info')} icon={Info}>Información</TabButton>
+              <TabButton active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={MapPin}>Ubicación</TabButton>
+              <TabButton active={activeTab === 'delivery'} onClick={() => setActiveTab('delivery')} icon={Truck}>Delivery</TabButton>
+            </div>
+          </div>
 
-                            const { error: uploadError } = await supabase.storage
-                              .from('business-covers')
-                              .upload(fileName, file, { upsert: true });
-
-                            if (uploadError) throw uploadError;
-
-                            const { data: urlData } = supabase.storage
-                              .from('business-covers')
-                              .getPublicUrl(fileName);
-
-                            const { error: updateError } = await supabase
-                              .from('sellers')
-                              .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
-                              .eq('id', user.id);
-
-                            if (updateError) throw updateError;
-
-                            setSuccess('✅ Imagen de portada actualizada');
-                            setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
-
-                          } catch (error) {
-                            console.error('Error uploading cover image:', error);
-                            setError('Error al subir la imagen de portada');
-                          } finally {
-                            setUploadingImage(false);
-                          }
-                        }}
-                        ref={fileInputRef}
-                      />
+          {/* Tab Content */}
+          <CardContent className="p-6">
+            {activeTab === 'info' && (
+              <div className="space-y-8">
+                {/* Basic Information */}
+                <div>
+                  <CardTitle className="flex items-center gap-2 mb-4">
+                    <Store className="w-5 h-5 text-green-500"/> Información Básica
+                  </CardTitle>
+                  
+                  {/* Update Location Section */}
+                  {isEditing && (
+                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Navigation className="w-5 h-5 text-blue-600" />
+                          <span className="font-medium text-blue-900">Actualizar Ubicación</span>
+                          {locationVerified && (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-blue-700 mb-3">
+                        Mantén tu ubicación actualizada para que los repartidores encuentren tu negocio fácilmente.
+                      </p>
                       <Button 
-                        variant="ghost" 
-                        className="text-white" 
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingImage}
+                        onClick={detectLocationProfessional}
+                        disabled={gpsLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
                       >
-                        {uploadingImage ? (
+                        {gpsLoading ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
-                          <Camera className="w-4 h-4 mr-2" />
+                          <Navigation className="w-4 h-4 mr-2" />
                         )}
-                        Cambiar imagen
+                        {gpsLoading ? 'Detectando ubicación...' : 'Actualizar Mi Ubicación GPS'}
                       </Button>
                     </div>
                   )}
-                </div>
-              ) : isEditing ? (
-                <div className="h-48 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center bg-gray-50">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file || !user) return;
-                      
-                      try {
-                        setUploadingImage(true);
-                        setError('');
 
-                        if (file.size > 5 * 1024 * 1024) {
-                          setError('La imagen debe ser menor a 5MB');
-                          return;
-                        }
-
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
-
-                        const { error: uploadError } = await supabase.storage
-                          .from('business-covers')
-                          .upload(fileName, file, { upsert: true });
-
-                        if (uploadError) throw uploadError;
-
-                        const { data: urlData } = supabase.storage
-                          .from('business-covers')
-                          .getPublicUrl(fileName);
-
-                        const { error: updateError } = await supabase
-                          .from('sellers')
-                          .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
-                          .eq('id', user.id);
-
-                        if (updateError) throw updateError;
-
-                        setSuccess('✅ Imagen de portada agregada');
-                        setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
-
-                      } catch (error) {
-                        console.error('Error uploading cover image:', error);
-                        setError('Error al subir la imagen de portada');
-                      } finally {
-                        setUploadingImage(false);
-                      }
-                    }}
-                    ref={fileInputRef}
-                  />
-                  <Button 
-                    variant="ghost" 
-                    className="text-gray-600" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingImage}
-                  >
-                    {uploadingImage ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Camera className="w-4 h-4 mr-2" />
-                    )}
-                    Agregar imagen de portada
-                  </Button>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Tamaño recomendado: 800x200px. Máximo 5MB.
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Google Maps API Info */}
-      {!googleMapsConfigured && (
-        <Alert className="border-blue-200 bg-blue-50">
-          <Settings className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            <strong>Sistema GPS:</strong> Funcionando con detección básica. 
-            Para direcciones más detalladas, puedes configurar Google Maps API (opcional).
-            <br />
-            <small>Ver: /GOOGLE_MAPS_SETUP_OPCIONAL.md</small>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Business Status Toggle */}
-      <Card className={`border-2 ${formData.is_open_now ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50'}`}>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {formData.is_open_now ? (
-                <div className="bg-green-500 p-3 rounded-full">
-                  <Power className="w-6 h-6 text-white" />
-                </div>
-              ) : (
-                <div className="bg-red-500 p-3 rounded-full">
-                  <PowerOff className="w-6 h-6 text-white" />
-                </div>
-              )}
-              <div>
-                <h3 className={`text-lg font-bold ${formData.is_open_now ? 'text-green-800' : 'text-red-800'}`}>
-                  Estado Actual: {formData.is_open_now ? 'ABIERTO' : 'CERRADO'}
-                </h3>
-                <p className={`text-sm ${formData.is_open_now ? 'text-green-700' : 'text-red-700'}`}>
-                  {formData.is_open_now 
-                    ? 'Los clientes pueden hacer pedidos ahora' 
-                    : 'Los clientes no pueden hacer pedidos'}
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={toggleBusinessStatus}
-              size="lg"
-              className={`${formData.is_open_now 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-green-600 hover:bg-green-700 text-white'
-              } font-semibold px-8`}
-            >
-              {formData.is_open_now ? (
-                <>
-                  <PowerOff className="w-5 h-5 mr-2" />
-                  CERRAR NEGOCIO
-                </>
-              ) : (
-                <>
-                  <Power className="w-5 h-5 mr-2" />
-                  ABRIR NEGOCIO
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Preview Mode */}
-      {previewMode && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-blue-800">
-              <Eye className="w-5 h-5" />
-              Vista Previa del Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                  {profile?.business_logo ? (
-                    <ImageWithFallback
-                      src={profile.business_logo}
-                      alt="Logo del negocio"
-                      className="w-full h-full object-cover"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="business_name">Nombre del Negocio *</Label>
+                      <Input 
+                        id="business_name" 
+                        value={formData.business_name} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))} 
+                        disabled={!isEditing} 
+                        placeholder="Restaurante El Buen Sabor"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="business_category">Categoría *</Label>
+                      <Select 
+                        value={formData.business_category} 
+                        onValueChange={(value: string) => setFormData(prev => ({ ...prev, business_category: value }))} 
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger>
+                        <SelectContent>
+                          {BUSINESS_CATEGORIES.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="mt-6">
+                    <Label htmlFor="business_description">Descripción del Negocio</Label>
+                    <Textarea 
+                      id="business_description" 
+                      value={formData.business_description} 
+                      onChange={(e) => setFormData(prev => ({ ...prev, business_description: e.target.value }))} 
+                      disabled={!isEditing} 
+                      rows={4} 
+                      placeholder="Describe tu negocio, especialidades, años de experiencia..."
                     />
-                  ) : (
-                    <Store className="w-10 h-10 text-white" />
-                  )}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {formData.business_name || 'Nombre del Negocio'}
-                    </h3>
-                    {profile?.is_verified && (
-                      <Verified className="w-5 h-5 text-blue-500" />
+
+                {/* Contact Information */}
+                <div>
+                  <CardTitle className="flex items-center gap-2 mb-4">
+                    <Phone className="w-5 h-5 text-blue-500"/> Información de Contacto
+                  </CardTitle>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="phone">Teléfono *</Label>
+                      <Input 
+                        id="phone" 
+                        value={formData.phone} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))} 
+                        disabled={!isEditing} 
+                        placeholder="+502 1234-5678"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Correo Electrónico</Label>
+                      <Input 
+                        id="email" 
+                        type="email" 
+                        value={formData.email} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} 
+                        disabled={!isEditing} 
+                        placeholder="contacto@minegocios.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Social Media */}
+                <div>
+                  <CardTitle className="flex items-center gap-2 mb-4">
+                    <Globe className="w-5 h-5 text-purple-500"/> Redes Sociales y Web
+                  </CardTitle>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="facebook" className="flex items-center gap-2">
+                        <Facebook className="w-4 h-4 text-blue-600" /> Facebook
+                      </Label>
+                      <Input 
+                        id="facebook" 
+                        value={formData.social_media.facebook} 
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          social_media: { ...prev.social_media, facebook: e.target.value }
+                        }))} 
+                        disabled={!isEditing} 
+                        placeholder="https://facebook.com/minegocios"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="instagram" className="flex items-center gap-2">
+                        <Instagram className="w-4 h-4 text-pink-500" /> Instagram
+                      </Label>
+                      <Input 
+                        id="instagram" 
+                        value={formData.social_media.instagram} 
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          social_media: { ...prev.social_media, instagram: e.target.value }
+                        }))} 
+                        disabled={!isEditing} 
+                        placeholder="https://instagram.com/minegocios"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="whatsapp" className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
+                      </Label>
+                      <Input 
+                        id="whatsapp" 
+                        value={formData.social_media.whatsapp} 
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          social_media: { ...prev.social_media, whatsapp: e.target.value }
+                        }))} 
+                        disabled={!isEditing} 
+                        placeholder="+502 1234-5678"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="website" className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-gray-500" /> Sitio Web
+                      </Label>
+                      <Input 
+                        id="website" 
+                        value={formData.social_media.website} 
+                        onChange={(e) => setFormData(prev => ({ 
+                          ...prev, 
+                          social_media: { ...prev.social_media, website: e.target.value }
+                        }))} 
+                        disabled={!isEditing} 
+                        placeholder="https://minegocios.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'location' && (
+              <div className="space-y-8">
+                {/* Location Section */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-red-500" />
+                    <h3 className="text-lg font-semibold">Ubicación del Negocio</h3>
+                    {locationVerified && (
+                      <CheckCircle className="w-5 h-5 text-green-500" />
                     )}
-                    <Badge className={formData.is_open_now ? 'bg-green-500' : 'bg-red-500'}>
-                      {formData.is_open_now ? 'ABIERTO' : 'CERRADO'}
-                    </Badge>
                   </div>
-                  <p className="text-gray-600 mb-2">
-                    {formData.business_description || 'Descripción del negocio'}
-                  </p>
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                      4.5
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {formData.delivery_time} min
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-4 h-4" />
-                      {formData.delivery_radius} km
-                    </span>
+
+                  {/* GPS Error Alert */}
+                  {showGPSError && gpsError && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription className="flex flex-col gap-3">
+                        <span>{gpsError}</span>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={handleGPSErrorRetry}
+                            className="bg-white hover:bg-gray-50"
+                          >
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                            Reintentar
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={handleGPSErrorDismiss}
+                            className="text-red-800 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Cerrar
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="address">Dirección del Negocio *</Label>
+                      <Input
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        disabled={!isEditing}
+                        placeholder="Dirección completa de tu negocio"
+                      />
+                    </div>
+
+                    {/* GPS Detection Section */}
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Navigation className="w-5 h-5 text-blue-500" />
+                          <span>Detección GPS Automática</span>
+                        </div>
+                        {locationVerified && (
+                          <CheckCircle className="w-5 h-5 text-green-500" />
+                        )}
+                      </div>
+
+                      {locationVerified ? (
+                        <div className="space-y-3">
+                          <div className="text-sm text-green-700 bg-green-100 p-3 rounded-md">
+                            ✅ <strong>Ubicación GPS verificada exitosamente</strong>
+                            <br />
+                            📍 Coordenadas: {locationDetails}
+                            <br />
+                            🎯 Los repartidores podrán encontrar tu negocio fácilmente
+                          </div>
+                          
+                          {isEditing && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={detectLocationProfessional}
+                                disabled={gpsLoading}
+                                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                              >
+                                {gpsLoading ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Navigation className="w-4 h-4 mr-2" />
+                                )}
+                                {gpsLoading ? 'Detectando ubicación...' : 'Actualizar Ubicación'}
+                              </Button>
+                              <Button
+                                onClick={() => openMapsForLocation(formData.latitude, formData.longitude)}
+                                variant="outline"
+                                disabled={!formData.latitude || !formData.longitude}
+                              >
+                                <ExternalLink className="w-4 h-4 mr-2" />
+                                Ver en Mapa
+                              </Button>
+                              <Button
+                                onClick={handleCopyLocationForDrivers}
+                                variant="outline"
+                                disabled={!formData.latitude || !formData.longitude}
+                              >
+                                <Copy className="w-4 h-4 mr-2" />
+                                Copiar Info
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600">
+                            Permite el acceso a tu ubicación para que los repartidores encuentren tu negocio fácilmente.
+                          </p>
+                          
+                          {isEditing && (
+                            <Button
+                              onClick={detectLocationProfessional}
+                              disabled={gpsLoading}
+                              className="w-full bg-blue-600 hover:bg-blue-700"
+                            >
+                              {gpsLoading ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Navigation className="w-4 h-4 mr-2" />
+                              )}
+                              {gpsLoading ? 'Detectando ubicación...' : 'Detectar Mi Ubicación GPS'}
+                            </Button>
+                          )}
+
+                          {permissionState === 'denied' && (
+                            <Alert className="border-yellow-200 bg-yellow-50">
+                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                              <AlertDescription className="text-yellow-800">
+                                <strong>Permiso GPS denegado.</strong> Para habilitar:
+                                <br />
+                                1. Haz clic en el ícono 🔒 en la barra de direcciones
+                                <br />
+                                2. Permite el acceso a la ubicación
+                                <br />
+                                3. Recarga la página e intenta de nuevo
+                              </AlertDescription>
+                            </Alert>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Manual Coordinates */}
+                    {isEditing && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="latitude">Latitud (opcional)</Label>
+                          <Input
+                            id="latitude"
+                            type="number"
+                            step="any"
+                            value={formData.latitude}
+                            onChange={(e) => setFormData(prev => ({ ...prev, latitude: parseFloat(e.target.value) || 0 }))}
+                            placeholder="14.6349"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="longitude">Longitud (opcional)</Label>
+                          <Input
+                            id="longitude"
+                            type="number"
+                            step="any"
+                            value={formData.longitude}
+                            onChange={(e) => setFormData(prev => ({ ...prev, longitude: parseFloat(e.target.value) || 0 }))}
+                            placeholder="-90.5069"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Weekly Hours Section */}
+                <div>
+                  <WeeklyHoursPreview
+                    weeklyHours={weeklyHours}
+                    updateWeeklyHours={updateWeeklyHours}
+                    generateWeeklyHoursText={generateWeeklyHoursText}
+                  />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'delivery' && (
+              <div className="space-y-6">
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-orange-500"/> Configuración de Delivery
+                </CardTitle>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div>
+                    <Label htmlFor="delivery_time">Tiempo de Preparación (min)</Label>
+                    <Input 
+                      id="delivery_time" 
+                      type="number" 
+                      value={formData.delivery_time} 
+                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: parseInt(e.target.value) || 0 }))} 
+                      disabled={!isEditing} 
+                      min="5"
+                      max="120"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="delivery_radius">Radio de Entrega (km)</Label>
+                    <Input 
+                      id="delivery_radius" 
+                      type="number" 
+                      value={formData.delivery_radius} 
+                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))} 
+                      disabled={!isEditing} 
+                      min="1"
+                      max="20"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="minimum_order">Pedido Mínimo (Q)</Label>
+                    <Input 
+                      id="minimum_order" 
+                      type="number" 
+                      value={formData.minimum_order} 
+                      onChange={(e) => setFormData(prev => ({ ...prev, minimum_order: parseInt(e.target.value) || 0 }))} 
+                      disabled={!isEditing} 
+                      min="0"
+                    />
                   </div>
                 </div>
               </div>
-              <div className="text-sm text-gray-600">
-                <strong>Horarios:</strong> {generateWeeklyHoursText()}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Information */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Info */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Store className="w-5 h-5 text-green-500" />
-                Información Básica
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <Label htmlFor="business_name">Nombre del Negocio *</Label>
-                  <Input
-                    id="business_name"
-                    value={formData.business_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="Restaurante El Buen Sabor"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="business_category">Categoría *</Label>
-                  <Select 
-                    value={formData.business_category} 
-                    onValueChange={(value: string) => setFormData(prev => ({ ...prev, business_category: value }))}
-                    disabled={!isEditing}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BUSINESS_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <Label htmlFor="business_description">Descripción del Negocio</Label>
-                <Textarea
-                  id="business_description"
-                  value={formData.business_description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, business_description: e.target.value }))}
-                  disabled={!isEditing}
-                  placeholder="Describe tu negocio, especialidades, años de experiencia..."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Contact Information */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="w-5 h-5 text-blue-500" />
-                Información de Contacto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <Label htmlFor="phone">Teléfono *</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="+502 1234-5678"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="email">Correo Electrónico</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    disabled={!isEditing}
-                    placeholder="contacto@minegocios.com"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Location Section */}
-          <LocationSection
-            locationVerified={locationVerified}
-            locationDetails={locationDetails}
-            formData={formData}
-            setFormData={setFormData}
-            isEditing={isEditing}
-            showGPSError={showGPSError}
-            gpsError={gpsError}
-            gpsLoading={gpsLoading}
-            permissionState={permissionState}
-            detectLocationProfessional={detectLocationProfessional}
-            handleGPSErrorRetry={handleGPSErrorRetry}
-            handleGPSErrorDismiss={handleGPSErrorDismiss}
-            openMapsForLocation={() => openMapsForLocation(formData.latitude, formData.longitude)}
-            copyLocationForDrivers={handleCopyLocationForDrivers}
-          />
-
-          {/* Weekly Hours Section */}
-          <WeeklyHoursPreview
-            weeklyHours={weeklyHours}
-            updateWeeklyHours={updateWeeklyHours}
-            generateWeeklyHoursText={generateWeeklyHoursText}
-          />
-
-          {/* Delivery Configuration */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5 text-orange-500" />
-                Configuración de Delivery
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="form-group">
-                  <Label htmlFor="delivery_time">Tiempo de Preparación (min)</Label>
-                  <Input
-                    id="delivery_time"
-                    type="number"
-                    value={formData.delivery_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: parseInt(e.target.value) || 0 }))}
-                    disabled={!isEditing}
-                    min="5"
-                    max="120"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="delivery_radius">Radio de Entrega (km)</Label>
-                  <Input
-                    id="delivery_radius"
-                    type="number"
-                    value={formData.delivery_radius}
-                    onChange={(e) => setFormData(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))}
-                    disabled={!isEditing}
-                    min="1"
-                    max="20"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="minimum_order">Pedido Mínimo (Q)</Label>
-                  <Input
-                    id="minimum_order"
-                    type="number"
-                    value={formData.minimum_order}
-                    onChange={(e) => setFormData(prev => ({ ...prev, minimum_order: parseInt(e.target.value) || 0 }))}
-                    disabled={!isEditing}
-                    min="0"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Social Media */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-purple-500" />
-                Redes Sociales y Web
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-group">
-                  <Label htmlFor="facebook" className="flex items-center gap-2">
-                    <Facebook className="w-4 h-4 text-blue-600" />
-                    Facebook
-                  </Label>
-                  <Input
-                    id="facebook"
-                    value={formData.social_media.facebook}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      social_media: { ...prev.social_media, facebook: e.target.value }
-                    }))}
-                    disabled={!isEditing}
-                    placeholder="https://facebook.com/minegocios"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="instagram" className="flex items-center gap-2">
-                    <Instagram className="w-4 h-4 text-pink-600" />
-                    Instagram
-                  </Label>
-                  <Input
-                    id="instagram"
-                    value={formData.social_media.instagram}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      social_media: { ...prev.social_media, instagram: e.target.value }
-                    }))}
-                    disabled={!isEditing}
-                    placeholder="https://instagram.com/minegocios"
-                  />
-                </div>
-                <div className="form-group">
-                  <Label htmlFor="whatsapp" className="flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4 text-green-600" />
-                    WhatsApp
-                  </Label>
-                  <Input
-                    id="whatsapp"
-                    value={formData.social_media.whatsapp}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      social_media: { ...prev.social_media, whatsapp: e.target.value }
-                    }))}
-                    disabled={!isEditing}
-                    placeholder="+502 1234-5678"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="website" className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-gray-600" />
-                    Sitio Web
-                  </Label>
-                  <Input
-                    id="website"
-                    value={formData.social_media.website}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      social_media: { ...prev.social_media, website: e.target.value }
-                    }))}
-                    disabled={!isEditing}
-                    placeholder="https://minegocios.com"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Business Logo */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5 text-indigo-500" />
-                Logo del Negocio
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="upload-section">
-                <div className="w-32 h-32 mx-auto bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                  {profile?.business_logo ? (
-                    <ImageWithFallback
-                      src={profile.business_logo}
-                      alt="Logo del negocio"
-                      className="w-full h-full object-cover image-preview"
-                    />
-                  ) : (
-                    <Store className="w-16 h-16 text-white" />
-                  )}
-                </div>
-                
-                <p className="text-sm text-gray-600">
-                  Esta imagen será visible para todos los clientes
-                </p>
-
-                {isEditing && (
-                  <div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingImage}
-                      className="w-full"
-                    >
-                      {uploadingImage ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      {uploadingImage ? 'Subiendo...' : 'Cambiar Logo'}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Business Status */}
-          <Card className="seller-profile">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                Estado del Negocio
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${formData.is_active ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className="text-sm font-medium">
-                    {formData.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-                {isEditing && (
-                  <Switch
-                    checked={formData.is_active}
-                    onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                  />
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center gap-2">
-                {profile?.is_verified ? (
-                  <>
-                    <Verified className="w-5 h-5 text-blue-500" />
-                    <span className="text-sm text-blue-600 font-medium">Negocio Verificado</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="w-5 h-5 text-yellow-500" />
-                    <span className="text-sm text-yellow-600">Pendiente de Verificación</span>
-                  </>
-                )}
-              </div>
-
-              <p className="text-xs text-gray-500">
-                Los negocios verificados aparecen primero en las búsquedas
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-500" />
-                Estado de Configuración
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Perfil completado:</span>
-                <span className="font-medium">
-                  {profile && formData.business_name && formData.business_category ? '85%' : '30%'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Ubicación GPS:</span>
-                <span className={`font-medium ${locationVerified ? 'text-green-600' : 'text-red-600'}`}>
-                  {locationVerified ? '✓ Verificada' : '✗ Pendiente'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Sistema GPS:</span>
-                <span className="font-medium text-green-600">
-                  ✓ Funcionando
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Calificación promedio:</span>
-                <span className="font-medium flex items-center gap-1">
-                  <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                  4.5
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
-      
-      {/* Error and Success Messages */}
-      {error && (
-        <Alert className="error-message">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {success && (
-        <Alert className="success-message">
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }
