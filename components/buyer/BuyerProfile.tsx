@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { LocationManager } from './LocationManager';
+import { LocationManagerTest } from '../location/LocationManagerTest';
 
 interface UserProfile {
   id: string;
@@ -373,7 +374,7 @@ export function BuyerProfile() {
               </p>
             </div>
             
-            <LocationManager />
+            <LocationManagerTest />
           </CardContent>
         </Card>
       </div>
