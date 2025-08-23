@@ -444,6 +444,7 @@ export function SellerBusinessProfile() {
       }
 
       setSuccess('✅ Logo actualizado exitosamente');
+      setFormData(prev => ({ ...prev, business_logo: urlData.publicUrl }));
       await loadProfile();
     } catch (error: any) {
       console.error('Error uploading image:', error);
@@ -807,13 +808,13 @@ export function SellerBusinessProfile() {
                         </div>
                         <span className="font-medium">Foto de perfil</span>
                       </div>
-                      {!formData.business_logo && isEditing && (
+                      {isEditing && (
                         <Button 
                           size="sm" 
                           onClick={() => logoInputRef.current?.click()}
                           disabled={uploadingImage}
                         >
-                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Subir'}
+                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : formData.business_logo ? 'Cambiar' : 'Subir'}
                         </Button>
                       )}
                     </div>
@@ -830,13 +831,13 @@ export function SellerBusinessProfile() {
                         </div>
                         <span className="font-medium">Ubicación GPS</span>
                       </div>
-                      {!locationVerified && isEditing && (
+                      {isEditing && (
                         <Button 
                           size="sm" 
                           onClick={detectLocationProfessional}
                           disabled={gpsLoading}
                         >
-                          {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Detectar'}
+                          {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : locationVerified ? 'Actualizar' : 'Detectar'}
                         </Button>
                       )}
                     </div>
