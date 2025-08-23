@@ -262,8 +262,8 @@ export function SellerBusinessProfile() {
       const minimal = {
         business_name: formData.business_name?.trim() || 'Mi Negocio',
         business_description: formData.business_description?.trim() || '',
-        business_logo: formData.business_logo || '',
-        cover_image_url: formData.cover_image_url || '',
+        business_logo: '',
+        cover_image_url: '',
         business_category: formData.business_category || '',
         phone: formData.phone?.trim() || '',
         email: formData.email?.trim() || '',
@@ -403,6 +403,8 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
+      console.log('📷 Iniciando subida de logo:', file.name, file.size, 'bytes');
+
       // Validar que sea una imagen
       if (!file.type.startsWith('image/')) {
         setError('❌ Por favor selecciona un archivo de imagen válido');
@@ -416,38 +418,55 @@ export function SellerBusinessProfile() {
       }
 
       // Redimensionar imagen automáticamente para logo (400x400 máximo)
+      console.log('🔄 Redimensionando imagen...');
       const resizedBlob = await resizeImage(file, 400, 400, 0.9);
+      console.log('✅ Imagen redimensionada:', resizedBlob.size, 'bytes');
       
       const fileName = `${user.id}/business-logo-${Date.now()}.jpg`;
+      console.log('📤 Subiendo a bucket business-logos:', fileName);
 
       const { error: uploadError } = await supabase.storage
         .from('business-logos')
         .upload(fileName, resizedBlob, { upsert: true });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error('❌ Error al subir archivo: ' + uploadError.message);
+        console.error('❌ Error en upload:', uploadError);
+        throw new Error('Error al subir archivo: ' + uploadError.message);
       }
+
+      console.log('✅ Archivo subido exitosamente');
 
       const { data: urlData } = supabase.storage
         .from('business-logos')
         .getPublicUrl(fileName);
 
+      console.log('🔗 URL pública generada:', urlData.publicUrl);
+
       const { error: updateError } = await supabase
         .from('sellers')
-        .update({ business_logo: urlData.publicUrl, updated_at: new Date().toISOString() })
+        .update({ 
+          business_logo: urlData.publicUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('Update error:', updateError);
-        throw new Error('❌ Error al actualizar perfil: ' + updateError.message);
+        console.error('❌ Error al actualizar BD:', updateError);
+        throw new Error('Error al actualizar perfil: ' + updateError.message);
       }
 
-      setSuccess('✅ Logo actualizado exitosamente');
+      console.log('✅ Base de datos actualizada');
+
+      // Actualizar el estado local inmediatamente
       setFormData(prev => ({ ...prev, business_logo: urlData.publicUrl }));
+      
+      // Recargar el perfil para confirmar cambios
       await loadProfile();
+      
+      setSuccess('✅ Logo guardado en Supabase exitosamente');
+      
     } catch (error: any) {
-      console.error('Error uploading image:', error);
+      console.error('💥 Error completo:', error);
       setError(error.message || '❌ Error al subir la imagen. Intenta de nuevo.');
     } finally {
       setUploadingImage(false);
@@ -462,6 +481,8 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
+      console.log('📷 Iniciando subida de portada:', file.name, file.size, 'bytes');
+
       // Validar que sea una imagen
       if (!file.type.startsWith('image/')) {
         setError('❌ Por favor selecciona un archivo de imagen válido');
@@ -475,32 +496,55 @@ export function SellerBusinessProfile() {
       }
 
       // Redimensionar imagen automáticamente para portada (1200x400 máximo)
+      console.log('🔄 Redimensionando portada...');
       const resizedBlob = await resizeImage(file, 1200, 400, 0.9);
+      console.log('✅ Portada redimensionada:', resizedBlob.size, 'bytes');
 
       const fileName = `${user.id}/cover-${Date.now()}.jpg`;
+      console.log('📤 Subiendo a bucket business-covers:', fileName);
 
       const { error: uploadError } = await supabase.storage
         .from('business-covers')
         .upload(fileName, resizedBlob, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('❌ Error en upload portada:', uploadError);
+        throw new Error('Error al subir portada: ' + uploadError.message);
+      }
+
+      console.log('✅ Portada subida exitosamente');
 
       const { data: urlData } = supabase.storage
         .from('business-covers')
         .getPublicUrl(fileName);
 
+      console.log('🔗 URL pública portada:', urlData.publicUrl);
+
       const { error: updateError } = await supabase
         .from('sellers')
-        .update({ cover_image_url: urlData.publicUrl, updated_at: new Date().toISOString() })
+        .update({ 
+          cover_image_url: urlData.publicUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Error al actualizar BD portada:', updateError);
+        throw new Error('Error al actualizar portada: ' + updateError.message);
+      }
 
-      setSuccess('✅ Imagen de portada actualizada y optimizada');
+      console.log('✅ Base de datos actualizada con portada');
+
+      // Actualizar el estado local inmediatamente  
       setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
+      
+      // Recargar el perfil para confirmar cambios
+      await loadProfile();
+
+      setSuccess('✅ Foto de portada guardada en Supabase exitosamente');
 
     } catch (error: any) {
-      console.error('Error uploading cover image:', error);
+      console.error('💥 Error completo portada:', error);
       setError(error.message || '❌ Error al subir la imagen de portada. Intenta de nuevo.');
     } finally {
       setUploadingImage(false);
@@ -750,20 +794,16 @@ export function SellerBusinessProfile() {
               
               {/* Business Status Toggle */}
               <div className="mt-4 sm:mt-0 sm:ml-auto">
-                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    <span className={`text-sm font-medium ${formData.is_open_now ? 'text-green-700' : 'text-red-700'}`}>
-                      {formData.is_open_now ? 'Abierto' : 'Cerrado'}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Switch 
-                      checked={formData.is_open_now} 
-                      onCheckedChange={toggleBusinessStatus}
-                      className="data-[state=checked]:bg-green-500"
-                    />
-                  </div>
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className={`w-3 h-3 rounded-full ${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className={`text-sm font-medium ${formData.is_open_now ? 'text-green-700' : 'text-red-700'}`}>
+                    {formData.is_open_now ? 'Abierto' : 'Cerrado'}
+                  </span>
+                  <Switch 
+                    checked={formData.is_open_now} 
+                    onCheckedChange={toggleBusinessStatus}
+                    className="h-5 w-9"
+                  />
                 </div>
               </div>
             </div>
@@ -787,76 +827,6 @@ export function SellerBusinessProfile() {
                   <CardTitle className="flex items-center gap-2 mb-4">
                     <Store className="w-5 h-5 text-green-500"/> Información Básica
                   </CardTitle>
-                  
-                  {/* Completion Requirements */}
-                <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertCircle className="w-5 h-5 text-orange-600" />
-                    <span className="font-semibold text-orange-900">Completa tu perfil</span>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {/* Photo Requirement */}
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.business_logo ? 'bg-green-100' : 'bg-gray-100'}`}>
-                          {formData.business_logo ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <Camera className="w-5 h-5 text-gray-400" />
-                          )}
-                        </div>
-                        <span className="font-medium">Foto de perfil</span>
-                      </div>
-                      {isEditing && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => logoInputRef.current?.click()}
-                          disabled={uploadingImage}
-                        >
-                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : formData.business_logo ? 'Cambiar' : 'Subir'}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Location Requirement */}
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${locationVerified ? 'bg-green-100' : 'bg-gray-100'}`}>
-                          {locationVerified ? (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          ) : (
-                            <MapPin className="w-5 h-5 text-gray-400" />
-                          )}
-                        </div>
-                        <span className="font-medium">Ubicación GPS</span>
-                      </div>
-                      {isEditing && (
-                        <Button 
-                          size="sm" 
-                          onClick={detectLocationProfessional}
-                          disabled={gpsLoading}
-                        >
-                          {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : locationVerified ? 'Actualizar' : 'Detectar'}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Progress Indicator */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                        <span>Progreso</span>
-                        <span>{((formData.business_logo ? 1 : 0) + (locationVerified ? 1 : 0))}/2 completado</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300" 
-                          style={{ width: `${((formData.business_logo ? 1 : 0) + (locationVerified ? 1 : 0)) * 50}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">

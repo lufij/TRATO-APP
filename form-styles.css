@@ -1,0 +1,273 @@
+/* ============================================
+   ESTILOS ESPECÍFICOS PARA FORMULARIOS
+   ============================================ */
+
+/* Mejoras específicas para el formulario de completar perfil */
+.profile-form-container {
+  padding: 1rem;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.profile-form-card {
+  background: white !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+.profile-form-header {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 1rem 1rem 0 0;
+  margin: -1px -1px 0 -1px;
+}
+
+.profile-form-content {
+  padding: 1.5rem;
+  background: white !important;
+}
+
+.form-field-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151 !important;
+  margin-bottom: 0.5rem;
+  background: transparent !important;
+}
+
+.form-input-enhanced {
+  width: 100% !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 0.5rem;
+  padding: 0.75rem !important;
+  font-size: 1rem !important;
+  min-height: 44px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.form-input-enhanced:focus {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #f97316 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+}
+
+.form-input-enhanced::placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+.form-textarea-enhanced {
+  width: 100% !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 0.5rem;
+  padding: 0.75rem !important;
+  font-size: 1rem !important;
+  min-height: 88px;
+  resize: vertical;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.form-textarea-enhanced:focus {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #f97316 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+}
+
+.form-select-enhanced {
+  width: 100% !important;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 0.5rem;
+  padding: 0.75rem !important;
+  font-size: 1rem !important;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.form-select-enhanced:focus {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #f97316 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+}
+
+.form-button-primary {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+  font-weight: 600;
+  min-height: 48px;
+  width: 100%;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.form-button-primary:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.form-button-secondary {
+  background: white !important;
+  color: #374151 !important;
+  border: 2px solid #d1d5db !important;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+  font-weight: 600;
+  min-height: 48px;
+  width: 100%;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.form-button-secondary:hover {
+  background: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+.progress-indicator {
+  background: #e5e7eb;
+  border-radius: 9999px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.requirements-list {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #92400e;
+  margin-bottom: 0.25rem;
+}
+
+.requirement-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Específico para mobile */
+@media (max-width: 768px) {
+  .profile-form-container {
+    padding: 0.5rem;
+  }
+  
+  .profile-form-header {
+    padding: 1rem;
+  }
+  
+  .profile-form-content {
+    padding: 1rem;
+  }
+  
+  .form-field-group {
+    margin-bottom: 1rem;
+  }
+  
+  .form-input-enhanced,
+  .form-textarea-enhanced,
+  .form-select-enhanced {
+    font-size: 16px !important; /* Previene zoom en iOS */
+  }
+}
+
+/* Mejoras específicas para el alert de requisitos */
+.profile-alert-warning {
+  background: #fef3c7 !important;
+  border: 2px solid #f59e0b !important;
+  color: #92400e !important;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.profile-alert-success {
+  background: #dcfce7 !important;
+  border: 2px solid #16a34a !important;
+  color: #166534 !important;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Mejoras para la navegación inferior en móvil */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 2px solid #e5e7eb;
+  padding: 0.75rem;
+  z-index: 50;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-nav-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-height: 60px;
+  text-align: center;
+}
+
+.mobile-nav-button.active {
+  background: #fef3c7;
+  color: #f97316;
+}
+
+.mobile-nav-button:not(.active) {
+  color: #6b7280;
+}
+
+.mobile-nav-button:not(.active):hover {
+  background: #f9fafb;
+  color: #374151;
+}

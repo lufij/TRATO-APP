@@ -19,6 +19,9 @@ export function VerificationAlert({ userRole, onOpenVerification, showIfComplete
   const missingRequirements = getMissingRequirements();
   const completionPercentage = getCompletionPercentage();
 
+  // No mostrar para vendedores - que manejen su perfil directamente
+  if (userRole === 'vendedor') return null;
+
   // No mostrar si está completo y showIfComplete es false
   if (canDoAction && !showIfComplete) return null;
 
