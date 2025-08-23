@@ -43,6 +43,7 @@ interface BusinessData {
   business_address?: string;
   business_phone?: string;
   logo_url?: string;
+  cover_image_url?: string; // ✅ NUEVA PROPIEDAD PARA PORTADA
   is_verified: boolean;
   rating: number;
   products_count: number;
@@ -165,25 +166,29 @@ export function BusinessProfile({ businessId, onBack }: BusinessProfileProps) {
     );
   }
 
-  // Usar la imagen real del negocio sin fallback genérico
-  const businessImage = business.logo_url || business.user?.avatar_url;
+  // ✅ USAR PORTADA PARA EL HEADER, LOGO PARA EL AVATAR
+  const businessCoverImage = business.cover_image_url || business.cover_image;
+  const businessLogoImage = business.logo_url || business.user?.avatar_url;
   
-  // Debug log para verificar qué imagen se está usando
-  console.log('BusinessProfile image data:', {
+  // Debug log para verificar qué imágenes se están usando
+  console.log('🔥 BusinessProfile image data:', {
     business_name: business.business_name,
+    cover_image_url: business.cover_image_url,
+    cover_image: business.cover_image,
     logo_url: business.logo_url,
     avatar_url: business.user?.avatar_url,
-    final_image: businessImage
+    final_cover: businessCoverImage,
+    final_logo: businessLogoImage
   });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
       {/* Header con imagen de portada */}
       <div className="relative">
-        {businessImage ? (
+        {businessCoverImage ? (
           <ImageWithFallback
-            src={businessImage}
-            alt={business.business_name}
+            src={businessCoverImage}
+            alt={`Portada de ${business.business_name}`}
             className="w-full h-64 object-cover"
           />
         ) : (
@@ -221,14 +226,29 @@ export function BusinessProfile({ businessId, onBack }: BusinessProfileProps) {
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h1 className="text-2xl font-bold">{business.business_name}</h1>
-                {business.is_verified && (
-                  <Badge className="bg-blue-500 text-white">
-                    <Verified className="w-3 h-3 mr-1" />
-                    Verificado
-                  </Badge>
+              <div className="flex items-center gap-3 mb-2">
+                {/* Logo del negocio como avatar circular */}
+                {businessLogoImage && (
+                  <div className="w-16 h-16 rounded-full bg-white shadow-lg p-2 flex-shrink-0">
+                    <ImageWithFallback
+                      src={businessLogoImage}
+                      alt={`Logo de ${business.business_name}`}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  </div>
                 )}
+                
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold">{business.business_name}</h1>
+                  <div className="flex items-center gap-2 mt-1">
+                    {business.is_verified && (
+                      <Badge className="bg-blue-500 text-white text-xs">
+                        <Verified className="w-3 h-3 mr-1" />
+                        Verificado
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
               
               <div className="flex items-center gap-4 text-sm mb-2">

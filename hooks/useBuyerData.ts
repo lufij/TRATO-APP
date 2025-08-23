@@ -497,6 +497,8 @@ export function useBuyerData() {
           business_description,
           business_address,
           business_phone,
+          business_logo,
+          cover_image_url,
           logo_url,
           is_verified,
           rating_avg,
@@ -514,7 +516,7 @@ export function useBuyerData() {
         if (isRelIssue) {
           const r = await supabase
             .from('sellers')
-            .select('id,business_name,business_description,business_address,business_phone,logo_url,is_verified,rating_avg')
+            .select('id,business_name,business_description,business_address,business_phone,business_logo,cover_image_url,logo_url,is_verified,rating_avg')
             .eq('id', businessId)
             .single();
           data = r.data as any;
@@ -534,10 +536,23 @@ export function useBuyerData() {
         .eq('seller_id', businessId)
         .eq('is_public', true);
 
-      // Generar la URL completa de la imagen del negocio
-  const businessImageUrl = getBusinessImageUrl({
-        logo_url: (data as any)?.logo_url ?? undefined,
+      // Generar URLs de imágenes separadas para portada y logo
+      const coverImageUrl = (data as any)?.cover_image_url || (data as any)?.business_logo || (data as any)?.logo_url;
+      const logoImageUrl = (data as any)?.business_logo || (data as any)?.logo_url;
+      
+      const businessImageUrl = getBusinessImageUrl({
+        logo_url: logoImageUrl ?? undefined,
         user: (data as any)?.user ? { avatar_url: (data as any).user.avatar_url } : undefined,
+      });
+      
+      console.log('🔥 getBusinessById DATA:', {
+        id: (data as any)?.id,
+        name: (data as any)?.business_name,
+        cover_image_url: (data as any)?.cover_image_url,
+        business_logo: (data as any)?.business_logo,
+        logo_url: (data as any)?.logo_url,
+        final_cover: coverImageUrl,
+        final_logo: logoImageUrl
       });
       
       const row: any = data as any;
@@ -547,7 +562,8 @@ export function useBuyerData() {
         business_description: row.business_description ?? undefined,
         business_address: row.business_address ?? undefined,
         business_phone: row.business_phone ?? undefined,
-        logo_url: businessImageUrl ?? undefined, // Usar la URL completa procesada
+        logo_url: logoImageUrl ?? undefined, // Logo del negocio
+        cover_image_url: coverImageUrl ?? undefined, // ✅ NUEVA PROPIEDAD PARA PORTADA
         is_verified: row.is_verified,
         products_count: count || 0,
         rating: row.rating_avg || 4.2 + Math.random() * 0.8,
@@ -557,7 +573,7 @@ export function useBuyerData() {
           avatar_url: row.user?.avatar_url ?? undefined,
         },
         // Campos adicionales para compatibilidad
-        cover_image: businessImageUrl ?? undefined, // Usar la misma URL procesada
+        cover_image: coverImageUrl ?? undefined, // Usar la URL de portada
         category: 'General',
         address: (row.business_address ?? undefined) || 'Gualán, Zacapa',
         phone_number: (row.business_phone ?? undefined) || (row.user?.phone ?? undefined),
