@@ -419,71 +419,61 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
-      console.log('📷 Iniciando subida de logo:', file.name, file.size, 'bytes');
+      console.log('� SUBIENDO LOGO:', file.name);
 
-      // Validar que sea una imagen
+      // Validación mínima
       if (!file.type.startsWith('image/')) {
-        setError('❌ Por favor selecciona un archivo de imagen válido');
+        setError('Solo imágenes permitidas');
         return;
       }
 
-      // Validar tamaño del archivo original (máximo 50MB - muy generoso)
-      if (file.size > 50 * 1024 * 1024) {
-        setError('❌ La imagen es demasiado grande. Máximo 50MB permitido.');
-        return;
-      }
-
-      // Redimensionar imagen automáticamente para logo (400x400 máximo)
-      console.log('🔄 Redimensionando imagen...');
+      // Redimensionar
       const resizedBlob = await resizeImage(file, 400, 400, 0.9);
-      console.log('✅ Imagen redimensionada:', resizedBlob.size, 'bytes');
-      
-      const fileName = `${user.id}/business-logo-${Date.now()}.jpg`;
-      console.log('📤 Subiendo a bucket business-logos:', fileName);
+      const fileName = `${user.id}/logo-${Date.now()}.jpg`;
 
+      console.log('📤 Subiendo a business-logos...');
+
+      // Subir archivo
       const { error: uploadError } = await supabase.storage
         .from('business-logos')
         .upload(fileName, resizedBlob, { upsert: true });
 
       if (uploadError) {
-        console.error('❌ Error en upload:', uploadError);
-        throw new Error('Error al subir archivo: ' + uploadError.message);
+        console.error('❌ Error upload:', uploadError);
+        setError(`Error subiendo: ${uploadError.message}`);
+        return;
       }
 
-      console.log('✅ Archivo subido exitosamente');
-
+      // Obtener URL
       const { data: urlData } = supabase.storage
         .from('business-logos')
         .getPublicUrl(fileName);
 
-      console.log('🔗 URL pública generada:', urlData.publicUrl);
+      console.log('🔗 URL generada:', urlData.publicUrl);
 
+      // GUARDAR EN BASE DE DATOS CON UPSERT SIMPLE
       const { error: updateError } = await supabase
         .from('sellers')
-        .update({ 
+        .upsert({ 
+          id: user.id,
           business_logo: urlData.publicUrl,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
+        }, { onConflict: 'id' });
 
       if (updateError) {
-        console.error('❌ Error al actualizar BD:', updateError);
-        throw new Error('Error al actualizar perfil: ' + updateError.message);
+        console.error('❌ Error BD:', updateError);
+        setError(`Error guardando: ${updateError.message}`);
+        return;
       }
 
-      console.log('✅ Base de datos actualizada');
-
-      // Actualizar el estado local inmediatamente
+      console.log('✅ LOGO GUARDADO EXITOSAMENTE');
       setFormData(prev => ({ ...prev, business_logo: urlData.publicUrl }));
+      setSuccess('✅ Logo guardado correctamente');
       
-      // Recargar el perfil para confirmar cambios
-      await loadProfile();
-      
-      setSuccess('✅ Logo guardado en Supabase exitosamente');
-      
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      console.error('💥 Error completo:', error);
-      setError(error.message || '❌ Error al subir la imagen. Intenta de nuevo.');
+      console.error('💥 ERROR COMPLETO:', error);
+      setError(`Error: ${error.message}`);
     } finally {
       setUploadingImage(false);
     }
@@ -497,71 +487,61 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
-      console.log('📷 Iniciando subida de portada:', file.name, file.size, 'bytes');
+      console.log('� SUBIENDO PORTADA:', file.name);
 
-      // Validar que sea una imagen
+      // Validación mínima
       if (!file.type.startsWith('image/')) {
-        setError('❌ Por favor selecciona un archivo de imagen válido');
+        setError('Solo imágenes permitidas');
         return;
       }
 
-      // Validar tamaño del archivo original (máximo 50MB - muy generoso)
-      if (file.size > 50 * 1024 * 1024) {
-        setError('❌ La imagen es demasiado grande. Máximo 50MB permitido.');
-        return;
-      }
-
-      // Redimensionar imagen automáticamente para portada (1200x400 máximo)
-      console.log('🔄 Redimensionando portada...');
+      // Redimensionar
       const resizedBlob = await resizeImage(file, 1200, 400, 0.9);
-      console.log('✅ Portada redimensionada:', resizedBlob.size, 'bytes');
-
       const fileName = `${user.id}/cover-${Date.now()}.jpg`;
-      console.log('📤 Subiendo a bucket business-covers:', fileName);
 
+      console.log('📤 Subiendo a business-covers...');
+
+      // Subir archivo
       const { error: uploadError } = await supabase.storage
         .from('business-covers')
         .upload(fileName, resizedBlob, { upsert: true });
 
       if (uploadError) {
-        console.error('❌ Error en upload portada:', uploadError);
-        throw new Error('Error al subir portada: ' + uploadError.message);
+        console.error('❌ Error upload:', uploadError);
+        setError(`Error subiendo: ${uploadError.message}`);
+        return;
       }
 
-      console.log('✅ Portada subida exitosamente');
-
+      // Obtener URL
       const { data: urlData } = supabase.storage
         .from('business-covers')
         .getPublicUrl(fileName);
 
-      console.log('🔗 URL pública portada:', urlData.publicUrl);
+      console.log('🔗 URL generada:', urlData.publicUrl);
 
+      // GUARDAR EN BASE DE DATOS CON UPSERT SIMPLE
       const { error: updateError } = await supabase
         .from('sellers')
-        .update({ 
+        .upsert({ 
+          id: user.id,
           cover_image_url: urlData.publicUrl,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
+        }, { onConflict: 'id' });
 
       if (updateError) {
-        console.error('❌ Error al actualizar BD portada:', updateError);
-        throw new Error('Error al actualizar portada: ' + updateError.message);
+        console.error('❌ Error BD:', updateError);
+        setError(`Error guardando: ${updateError.message}`);
+        return;
       }
 
-      console.log('✅ Base de datos actualizada con portada');
-
-      // Actualizar el estado local inmediatamente  
+      console.log('✅ PORTADA GUARDADA EXITOSAMENTE');
       setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
+      setSuccess('✅ Portada guardada correctamente');
       
-      // Recargar el perfil para confirmar cambios
-      await loadProfile();
-
-      setSuccess('✅ Foto de portada guardada en Supabase exitosamente');
-
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error: any) {
-      console.error('💥 Error completo portada:', error);
-      setError(error.message || '❌ Error al subir la imagen de portada. Intenta de nuevo.');
+      console.error('💥 ERROR COMPLETO:', error);
+      setError(`Error: ${error.message}`);
     } finally {
       setUploadingImage(false);
     }
