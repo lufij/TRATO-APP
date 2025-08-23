@@ -22,6 +22,7 @@ export interface BusinessListing {
   business_address?: string;
   business_phone?: string;
   logo_url?: string;
+  cover_image_url?: string; // ✅ NUEVA PROPIEDAD PARA PORTADA
   is_verified: boolean;
   products_count: number;
   rating: number;
@@ -242,6 +243,8 @@ export function useBuyerData() {
           business_description,
           business_address,
           business_phone,
+          business_logo,
+          cover_image_url,
           logo_url,
           is_verified,
           user:users(name, phone, avatar_url)
@@ -258,7 +261,7 @@ export function useBuyerData() {
         if (isRelIssue) {
           const r = await supabase
             .from('sellers')
-            .select('id,business_name,business_description,business_address,business_phone,logo_url,is_verified')
+            .select('id,business_name,business_description,business_address,business_phone,business_logo,cover_image_url,logo_url,is_verified')
             .not('business_name', 'is', null)
             .order('is_verified', { ascending: false });
           data = r.data as any[] | null;
@@ -279,6 +282,8 @@ export function useBuyerData() {
         business_description?: string | null;
         business_address?: string | null;
         business_phone?: string | null;
+        business_logo?: string | null;
+        cover_image_url?: string | null;
         logo_url?: string | null;
         is_verified: boolean;
         user?: { name: string; phone?: string; avatar_url?: string } | null;
@@ -311,10 +316,26 @@ export function useBuyerData() {
 
       // Compose final businesses list with counts and normalized images
       const businessesWithStats = sellers.map((business) => {
+        // Usar cover_image_url para la portada, fallback a business_logo o logo_url
+        const coverImageUrl = business.cover_image_url || business.business_logo || business.logo_url;
+        // Para el logo, usar business_logo, fallback a logo_url
+        const logoImageUrl = business.business_logo || business.logo_url;
+        
         const businessImageUrl = getBusinessImageUrl({
-          logo_url: business.logo_url ?? undefined,
+          logo_url: logoImageUrl ?? undefined,
           user: business.user ? { avatar_url: business.user.avatar_url } : undefined,
         });
+        
+        console.log('🔥 BUSINESS DATA:', {
+          id: business.id,
+          name: business.business_name,
+          cover_image_url: business.cover_image_url,
+          business_logo: business.business_logo,
+          logo_url: business.logo_url,
+          final_cover: coverImageUrl,
+          final_logo: logoImageUrl
+        });
+        
         const productCount = productsBySeller.get(business.id) || 0;
         return {
           id: business.id,
@@ -322,7 +343,8 @@ export function useBuyerData() {
           business_description: business.business_description ?? undefined,
           business_address: business.business_address ?? undefined,
           business_phone: business.business_phone ?? undefined,
-          logo_url: businessImageUrl ?? undefined,
+          logo_url: logoImageUrl ?? undefined,
+          cover_image_url: coverImageUrl ?? undefined, // ✅ NUEVA PROPIEDAD PARA PORTADA
           is_verified: business.is_verified,
           products_count: productCount,
           rating: 4.2 + Math.random() * 0.8, // Mock rating between 4.2 and 5.0
@@ -332,7 +354,7 @@ export function useBuyerData() {
             avatar_url: business.user?.avatar_url ?? undefined,
           },
           // Campos adicionales para compatibilidad
-          cover_image: businessImageUrl ?? undefined,
+          cover_image: coverImageUrl ?? undefined,
           category: 'General',
           address: (business.business_address ?? undefined) || 'Gualán, Zacapa',
           phone_number: (business.business_phone ?? undefined) || (business.user?.phone ?? undefined),

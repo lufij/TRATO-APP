@@ -585,13 +585,18 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                   </div>
                 ) : (
                   businesses.map((business) => {
-                    const businessImageUrl = business.logo_url;
+                    // ✅ USAR PORTADA EN LUGAR DE LOGO
+                    const businessCoverUrl = business.cover_image_url || business.cover_image;
+                    const businessLogoUrl = business.logo_url;
                     
-                    console.log('Business render data:', {
+                    console.log('🔥 BUSINESS RENDER:', {
                       id: business.id,
                       name: business.business_name,
-                      processed_logo_url: business.logo_url,
-                      final_image_url: businessImageUrl
+                      cover_image_url: business.cover_image_url,
+                      cover_image: business.cover_image,
+                      logo_url: business.logo_url,
+                      final_cover: businessCoverUrl,
+                      final_logo: businessLogoUrl
                     });
 
                     return (
@@ -601,10 +606,10 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                         onClick={() => handleBusinessClick(business.id)}
                       >
                         <div className="relative">
-                          {businessImageUrl ? (
+                          {businessCoverUrl ? (
                             <ImageWithFallback
-                              src={businessImageUrl}
-                              alt={business.business_name}
+                              src={businessCoverUrl}
+                              alt={`Portada de ${business.business_name}`}
                               className="w-full h-32 object-cover rounded-t-lg"
                             />
                           ) : (
@@ -620,6 +625,19 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               <Verified className="w-3 h-3 mr-1" />
                               Verificado
                             </Badge>
+                          )}
+                          
+                          {/* Logo del negocio en la esquina inferior izquierda de la portada */}
+                          {businessLogoUrl && (
+                            <div className="absolute bottom-2 left-2">
+                              <div className="w-12 h-12 rounded-full bg-white shadow-lg p-1">
+                                <ImageWithFallback
+                                  src={businessLogoUrl}
+                                  alt={`Logo de ${business.business_name}`}
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              </div>
+                            </div>
                           )}
                         </div>
                         <CardContent className="p-4">
