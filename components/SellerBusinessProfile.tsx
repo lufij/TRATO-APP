@@ -4,7 +4,7 @@ import { supabase } from '../utils/supabase/client';
 import { useGoogleMaps } from '../hooks/useGoogleMaps';
 import { useWeeklyHours } from '../hooks/useWeeklyHours';
 import { LocationSection } from './LocationSection';
-import { WeeklyHoursSection } from './WeeklyHoursSection';
+import { WeeklyHoursPreview } from './WeeklyHoursPreview';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -545,7 +545,7 @@ export function SellerBusinessProfile() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="seller-profile space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -880,7 +880,7 @@ export function SellerBusinessProfile() {
         {/* Main Information */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Info */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Store className="w-5 h-5 text-green-500" />
@@ -889,7 +889,7 @@ export function SellerBusinessProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="form-group">
                   <Label htmlFor="business_name">Nombre del Negocio *</Label>
                   <Input
                     id="business_name"
@@ -899,7 +899,7 @@ export function SellerBusinessProfile() {
                     placeholder="Restaurante El Buen Sabor"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="business_category">Categoría *</Label>
                   <Select 
                     value={formData.business_category} 
@@ -920,7 +920,7 @@ export function SellerBusinessProfile() {
                 </div>
               </div>
 
-              <div>
+              <div className="form-group">
                 <Label htmlFor="business_description">Descripción del Negocio</Label>
                 <Textarea
                   id="business_description"
@@ -935,7 +935,7 @@ export function SellerBusinessProfile() {
           </Card>
 
           {/* Contact Information */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Phone className="w-5 h-5 text-blue-500" />
@@ -944,7 +944,7 @@ export function SellerBusinessProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="form-group">
                   <Label htmlFor="phone">Teléfono *</Label>
                   <Input
                     id="phone"
@@ -954,7 +954,7 @@ export function SellerBusinessProfile() {
                     placeholder="+502 1234-5678"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="email">Correo Electrónico</Label>
                   <Input
                     id="email"
@@ -988,15 +988,14 @@ export function SellerBusinessProfile() {
           />
 
           {/* Weekly Hours Section */}
-          <WeeklyHoursSection
+          <WeeklyHoursPreview
             weeklyHours={weeklyHours}
             updateWeeklyHours={updateWeeklyHours}
             generateWeeklyHoursText={generateWeeklyHoursText}
-            isEditing={isEditing}
           />
 
           {/* Delivery Configuration */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-orange-500" />
@@ -1005,7 +1004,7 @@ export function SellerBusinessProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
+                <div className="form-group">
                   <Label htmlFor="delivery_time">Tiempo de Preparación (min)</Label>
                   <Input
                     id="delivery_time"
@@ -1017,7 +1016,7 @@ export function SellerBusinessProfile() {
                     max="120"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="delivery_radius">Radio de Entrega (km)</Label>
                   <Input
                     id="delivery_radius"
@@ -1029,7 +1028,7 @@ export function SellerBusinessProfile() {
                     max="20"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="minimum_order">Pedido Mínimo (Q)</Label>
                   <Input
                     id="minimum_order"
@@ -1045,7 +1044,7 @@ export function SellerBusinessProfile() {
           </Card>
 
           {/* Social Media */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Globe className="w-5 h-5 text-purple-500" />
@@ -1054,7 +1053,7 @@ export function SellerBusinessProfile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="form-group">
                   <Label htmlFor="facebook" className="flex items-center gap-2">
                     <Facebook className="w-4 h-4 text-blue-600" />
                     Facebook
@@ -1070,7 +1069,7 @@ export function SellerBusinessProfile() {
                     placeholder="https://facebook.com/minegocios"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="instagram" className="flex items-center gap-2">
                     <Instagram className="w-4 h-4 text-pink-600" />
                     Instagram
@@ -1086,7 +1085,7 @@ export function SellerBusinessProfile() {
                     placeholder="https://instagram.com/minegocios"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <Label htmlFor="whatsapp" className="flex items-center gap-2">
                     <MessageCircle className="w-4 h-4 text-green-600" />
                     WhatsApp
@@ -1126,7 +1125,7 @@ export function SellerBusinessProfile() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Business Logo */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-indigo-500" />
@@ -1134,50 +1133,52 @@ export function SellerBusinessProfile() {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-center space-y-4">
-              <div className="w-32 h-32 mx-auto bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-                {profile?.business_logo ? (
-                  <ImageWithFallback
-                    src={profile.business_logo}
-                    alt="Logo del negocio"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Store className="w-16 h-16 text-white" />
+              <div className="upload-section">
+                <div className="w-32 h-32 mx-auto bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                  {profile?.business_logo ? (
+                    <ImageWithFallback
+                      src={profile.business_logo}
+                      alt="Logo del negocio"
+                      className="w-full h-full object-cover image-preview"
+                    />
+                  ) : (
+                    <Store className="w-16 h-16 text-white" />
+                  )}
+                </div>
+                
+                <p className="text-sm text-gray-600">
+                  Esta imagen será visible para todos los clientes
+                </p>
+
+                {isEditing && (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="w-full"
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {uploadingImage ? 'Subiendo...' : 'Cambiar Logo'}
+                    </Button>
+                  </div>
                 )}
               </div>
-              
-              <p className="text-sm text-gray-600">
-                Esta imagen será visible para todos los clientes
-              </p>
-
-              {isEditing && (
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    className="w-full"
-                  >
-                    {uploadingImage ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
-                    {uploadingImage ? 'Subiendo...' : 'Cambiar Logo'}
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
 
           {/* Business Status */}
-          <Card>
+          <Card className="seller-profile">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-500" />
@@ -1192,10 +1193,10 @@ export function SellerBusinessProfile() {
                     {formData.is_active ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
-        {isEditing && (
+                {isEditing && (
                   <Switch
-          checked={formData.is_active}
-          onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, is_active: checked }))}
+                    checked={formData.is_active}
+                    onCheckedChange={(checked: boolean) => setFormData(prev => ({ ...prev, is_active: checked }))}
                   />
                 )}
               </div>
@@ -1260,6 +1261,21 @@ export function SellerBusinessProfile() {
           </Card>
         </div>
       </div>
+      
+      {/* Error and Success Messages */}
+      {error && (
+        <Alert className="error-message">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert className="success-message">
+          <CheckCircle className="h-4 w-4" />
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
