@@ -54,6 +54,8 @@ interface DeliveryOrder {
   items_count: number;
   business_name: string;
   distance?: number;
+  picked_up_at?: string;
+  delivered_at?: string;
 }
 
 interface DriverStats {
@@ -99,6 +101,7 @@ export function DriverDashboard() {
     completionRate: 95
   });
   const [loading, setLoading] = useState(true);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string>('');
   const [watchId, setWatchId] = useState<number | null>(null);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
@@ -108,6 +111,7 @@ export function DriverDashboard() {
       loadDriverData();
       loadAvailableOrders();
       loadActiveDeliveries();
+      loadCompletedDeliveries();
       loadDriverStats();
       setupOrderNotifications();
     }
@@ -538,41 +542,94 @@ export function DriverDashboard() {
       return;
     }
 
+    setProcessingOrderId(orderId);
+
     try {
       console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
       
-      // Use the RPC function to update order status
+      // Use the new RPC function with unique name
       const { data, error } = await supabase
-        .rpc('update_order_status', {
+        .rpc('driver_update_order_status', {
           p_order_id: orderId,
-          p_new_status: newStatus,
-          p_user_id: user.id
+          p_status: newStatus
         });
 
       if (error) {
         console.error('RPC Error updating status:', error);
-        toast.error('Error al actualizar estado');
+        toast.error('Error al actualizar estado: ' + error.message);
         return;
       }
 
       console.log('Update status response:', data);
 
-      if (data?.[0]?.success) {
+      if (data?.success) {
         const statusMessages: Record<string, string> = {
-          'picked-up': 'Pedido recogido',
-          'in-transit': 'En camino al destino',
-          'delivered': 'Entrega completada'
+          'picked-up': '📦 Pedido marcado como recogido',
+          'picked_up': '📦 Pedido marcado como recogido',
+          'in-transit': '🚚 En camino al destino',
+          'in_transit': '🚚 En camino al destino',
+          'delivered': '✅ Entrega completada exitosamente'
         };
 
         toast.success(statusMessages[newStatus] || 'Estado actualizado');
-        loadActiveDeliveries();
-        loadDriverStats();
+        
+        // Refresh data immediately
+        await Promise.all([
+          loadActiveDeliveries(),
+          loadDriverStats(),
+          loadCompletedDeliveries()
+        ]);
       } else {
         toast.error(data?.[0]?.message || 'Error al actualizar estado');
       }
     } catch (error) {
       console.error('Error updating delivery status:', error);
       toast.error('Error al actualizar estado');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const loadCompletedDeliveries = async () => {
+    try {
+      console.log('Loading completed deliveries for driver:', user?.id);
+      
+      const { data, error } = await supabase
+        .rpc('driver_get_completed_orders', {
+          p_driver_id: user?.id
+        });
+
+      if (error) {
+        console.error('Error loading delivery history:', error);
+        setCompletedDeliveries([]);
+        return;
+      }
+
+      console.log('Delivery history data:', data);
+      
+      // Transform to component format
+      const transformedHistory: DeliveryOrder[] = (data || []).map((delivery: any) => ({
+        id: delivery.order_id,
+        order_id: delivery.order_id,
+        pickup_address: 'Recogido',
+        delivery_address: 'Entregado',
+        customer_name: delivery.customer_name,
+        customer_phone: 'Completado',
+        total_amount: delivery.total_amount || 0,
+        delivery_fee: delivery.delivery_fee || 0,
+        status: delivery.status,
+        created_at: delivery.created_at,
+        estimated_delivery: delivery.delivered_at || delivery.created_at,
+        items_count: 1,
+        business_name: delivery.business_name,
+        pickup_notes: undefined,
+        delivery_notes: undefined
+      }));
+
+      setCompletedDeliveries(transformedHistory);
+    } catch (error) {
+      console.error('Error loading completed deliveries:', error);
+      setCompletedDeliveries([]);
     }
   };
 
@@ -1131,17 +1188,105 @@ export function DriverDashboard() {
               <p className="text-gray-600">Revisa tus entregas completadas y ganancias</p>
             </div>
 
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Historial próximamente
-                </h3>
-                <p className="text-gray-600">
-                  Aquí podrás ver todas tus entregas completadas, ganancias detalladas y estadísticas de rendimiento
-                </p>
-              </CardContent>
-            </Card>
+            {completedDeliveries.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Sin entregas completadas
+                  </h3>
+                  <p className="text-gray-600">
+                    Aquí aparecerán todas tus entregas completadas
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">Entregas Hoy</p>
+                          <p className="text-2xl font-bold">
+                            {completedDeliveries.filter(d => 
+                              d.delivered_at && new Date(d.delivered_at).toDateString() === new Date().toDateString()
+                            ).length}
+                          </p>
+                        </div>
+                        <CheckCircle className="w-8 h-8 text-green-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">Ganancias Hoy</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            Q{completedDeliveries
+                              .filter(d => d.delivered_at && new Date(d.delivered_at).toDateString() === new Date().toDateString())
+                              .reduce((sum, d) => sum + d.delivery_fee, 0)
+                              .toFixed(2)}
+                          </p>
+                        </div>
+                        <DollarSign className="w-8 h-8 text-green-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-gray-600">Total Entregas</p>
+                          <p className="text-2xl font-bold">{completedDeliveries.length}</p>
+                        </div>
+                        <Package className="w-8 h-8 text-blue-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Delivery History List */}
+                <div className="space-y-3">
+                  {completedDeliveries.map((delivery) => (
+                    <Card key={delivery.id} className="border-green-200 bg-green-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="font-semibold">Pedido #{delivery.order_id.slice(0, 8)}</h3>
+                              <Badge className="bg-green-100 text-green-800">Entregado</Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">{delivery.business_name}</p>
+                            <p className="text-sm text-gray-600">
+                              Entregado: {delivery.delivered_at ? new Date(delivery.delivered_at).toLocaleString('es-GT', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'Fecha no disponible'}
+                            </p>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-2">
+                              <span>{delivery.items_count} productos</span>
+                              <span>Total: Q{delivery.total_amount}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-green-600">Q{delivery.delivery_fee}</div>
+                            <p className="text-sm text-gray-600">Ganancia</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Profile Tab */}
