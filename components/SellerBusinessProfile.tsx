@@ -411,9 +411,9 @@ export function SellerBusinessProfile() {
         return;
       }
 
-      // Validar tamaño del archivo original (máximo 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('❌ La imagen es demasiado grande. Máximo 10MB permitido.');
+      // Validar tamaño del archivo original (máximo 50MB - muy generoso)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('❌ La imagen es demasiado grande. Máximo 50MB permitido.');
         return;
       }
 
@@ -489,9 +489,9 @@ export function SellerBusinessProfile() {
         return;
       }
 
-      // Validar tamaño del archivo original (máximo 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('❌ La imagen es demasiado grande. Máximo 10MB permitido.');
+      // Validar tamaño del archivo original (máximo 50MB - muy generoso)
+      if (file.size > 50 * 1024 * 1024) {
+        setError('❌ La imagen es demasiado grande. Máximo 50MB permitido.');
         return;
       }
 
@@ -794,15 +794,18 @@ export function SellerBusinessProfile() {
               
               {/* Business Status Toggle */}
               <div className="mt-4 sm:mt-0 sm:ml-auto">
-                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className={`w-3 h-3 rounded-full ${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className={`text-sm font-medium ${formData.is_open_now ? 'text-green-700' : 'text-red-700'}`}>
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                  formData.is_open_now 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-red-500 text-white'
+                }`}>
+                  <span>
                     {formData.is_open_now ? 'Abierto' : 'Cerrado'}
                   </span>
                   <Switch 
                     checked={formData.is_open_now} 
                     onCheckedChange={toggleBusinessStatus}
-                    className="h-5 w-9"
+                    className="h-4 w-7 data-[state=checked]:bg-white data-[state=unchecked]:bg-white"
                   />
                 </div>
               </div>

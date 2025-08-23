@@ -7,8 +7,8 @@ VALUES (
   'business-logos',
   'business-logos', 
   true,
-  10485760, -- 10MB
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  52428800, -- 50MB para permitir cualquier imagen
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif', 'image/bmp']
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -18,8 +18,8 @@ VALUES (
   'business-covers',
   'business-covers',
   true, 
-  10485760, -- 10MB
-  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  52428800, -- 50MB para permitir cualquier imagen
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif', 'image/bmp']
 )
 ON CONFLICT (id) DO NOTHING;
 
