@@ -457,6 +457,7 @@ export function SellerBusinessProfile() {
         .upsert({ 
           id: user.id,
           business_logo: urlData.publicUrl,
+          business_name: formData.business_name || 'Mi Negocio',
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
@@ -525,6 +526,7 @@ export function SellerBusinessProfile() {
         .upsert({ 
           id: user.id,
           cover_image_url: urlData.publicUrl,
+          business_name: formData.business_name || 'Mi Negocio',
           updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 

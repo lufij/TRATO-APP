@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -27,7 +27,8 @@ import {
   Heart,
   ShoppingBag,
   CreditCard,
-  Lock
+  Lock,
+  Upload
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { LocationManager } from './LocationManager';
@@ -54,6 +55,10 @@ export function BuyerProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [orderStats, setOrderStats] = useState({
     total_orders: 0,
     completed_orders: 0,
@@ -90,6 +95,114 @@ export function BuyerProfile() {
       });
     } catch (error) {
       console.error('Error loading profile:', error);
+    }
+  };
+
+  // 🎯 FUNCIÓN PARA REDIMENSIONAR IMAGEN
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number, quality: number = 0.9): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo proporción
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Dibujar imagen redimensionada
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(resolve as BlobCallback, 'image/jpeg', quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  // 🚀 FUNCIÓN PARA SUBIR AVATAR
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    try {
+      setUploadingAvatar(true);
+      setError('');
+      setSuccess('');
+
+      console.log('🚀 SUBIENDO AVATAR:', file.name);
+
+      // Validación básica
+      if (!file.type.startsWith('image/')) {
+        setError('Solo se permiten imágenes');
+        return;
+      }
+
+      // Redimensionar a 400x400 para avatars
+      const resizedBlob = await resizeImage(file, 400, 400, 0.9);
+      const fileName = `${user.id}/avatar-${Date.now()}.jpg`;
+
+      console.log('📤 Subiendo a user-avatars...');
+
+      // Subir archivo
+      const { error: uploadError } = await supabase.storage
+        .from('user-avatars')
+        .upload(fileName, resizedBlob, { upsert: true });
+
+      if (uploadError) {
+        console.error('❌ Error upload:', uploadError);
+        setError(`Error subiendo: ${uploadError.message}`);
+        return;
+      }
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('user-avatars')
+        .getPublicUrl(fileName);
+
+      console.log('🔗 URL generada:', urlData.publicUrl);
+
+      // Actualizar en base de datos
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          avatar_url: urlData.publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('❌ Error BD:', updateError);
+        setError(`Error guardando: ${updateError.message}`);
+        return;
+      }
+
+      console.log('✅ AVATAR GUARDADO EXITOSAMENTE');
+      
+      // Actualizar estado local
+      setProfile(prev => prev ? { ...prev, avatar_url: urlData.publicUrl } : null);
+      setSuccess('✅ Foto de perfil actualizada correctamente');
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      console.error('💥 ERROR COMPLETO:', error);
+      setError(`Error: ${error.message}`);
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -207,23 +320,51 @@ export function BuyerProfile() {
 
   return (
     <div className="space-y-6">
+      {/* Mostrar mensajes de éxito/error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          {success}
+        </div>
+      )}
+
       {/* Profile Header */}
       <Card className="border-orange-200 shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-center gap-6">
             <div className="relative">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={profile.avatar_url} />
+              <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
+                <AvatarImage src={profile.avatar_url} className="object-cover" />
                 <AvatarFallback className="text-2xl bg-gradient-to-r from-orange-500 to-green-500 text-white">
                   {profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
+              
+              {/* Input oculto para subir archivo */}
+              <input 
+                ref={avatarInputRef} 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleAvatarUpload} 
+              />
+              
               <Button 
                 size="sm" 
                 variant="outline" 
-                className="absolute -bottom-2 -right-2 h-8 w-8 p-0 rounded-full bg-white shadow-lg"
+                className="absolute -bottom-2 -right-2 h-8 w-8 p-0 rounded-full bg-white shadow-lg hover:bg-orange-50 transition-colors"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
               >
-                <Camera className="w-4 h-4" />
+                {uploadingAvatar ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                ) : (
+                  <Camera className="w-4 h-4 text-orange-600" />
+                )}
               </Button>
             </div>
             
