@@ -205,7 +205,8 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         product_id: item.product_id,
         product_name: item.product?.name || '',
         product_image: item.product?.image_url || '',
-        price: item.product?.price || 0, // Usar 'price' en lugar de 'price_per_unit'
+        price: item.product?.price || 0,
+        unit_price: item.product?.price || 0, // Agregar unit_price también
         quantity: item.quantity,
         notes: ''
       }));

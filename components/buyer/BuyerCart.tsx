@@ -166,6 +166,7 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
         product_name: item.product?.name || '',
         product_image: item.product?.image_url || '',
         price: item.product?.price || 0,
+        unit_price: item.product?.price || 0, // Agregar unit_price también
         quantity: item.quantity,
         notes: ''
       }));
