@@ -356,6 +356,45 @@ export function SellerBusinessProfile() {
     }
   };
 
+  // Función para redimensionar imagen
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number, quality: number = 0.8): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calcular nuevas dimensiones manteniendo proporción
+        let { width, height } = img;
+        
+        if (width > height) {
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = (width * maxHeight) / height;
+            height = maxHeight;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Dibujar imagen redimensionada
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convertir a blob
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+        }, 'image/jpeg', quality);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -364,43 +403,26 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
-      // Validar tamaño del archivo (máximo 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('❌ La imagen debe ser menor a 5MB. Tamaño actual: ' + (file.size / (1024 * 1024)).toFixed(1) + 'MB');
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        setError('❌ Por favor selecciona un archivo de imagen válido');
         return;
       }
 
-      // Validar tipo de archivo
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        setError('❌ Formato no válido. Solo se permiten: JPG, JPEG, PNG, WEBP');
+      // Validar tamaño del archivo original (máximo 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('❌ La imagen es demasiado grande. Máximo 10MB permitido.');
         return;
       }
 
-      // Validar dimensiones de la imagen
-      const img = new Image();
-      const imageCheckPromise = new Promise((resolve, reject) => {
-        img.onload = () => {
-          if (img.width < 200 || img.height < 200) {
-            reject(new Error('❌ La imagen debe tener al menos 200x200 píxeles'));
-          } else if (img.width > 2000 || img.height > 2000) {
-            reject(new Error('❌ La imagen debe tener máximo 2000x2000 píxeles'));
-          } else {
-            resolve(true);
-          }
-        };
-        img.onerror = () => reject(new Error('❌ Error al leer la imagen'));
-      });
+      // Redimensionar imagen automáticamente para logo (400x400 máximo)
+      const resizedBlob = await resizeImage(file, 400, 400, 0.9);
       
-      img.src = URL.createObjectURL(file);
-      await imageCheckPromise;
-
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
-      const fileName = `${user.id}/business-logo-${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/business-logo-${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('business-logos')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, resizedBlob, { upsert: true });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
@@ -425,7 +447,7 @@ export function SellerBusinessProfile() {
       await loadProfile();
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      setError(error.message || '❌ Error al subir la imagen. Verifica el formato y tamaño.');
+      setError(error.message || '❌ Error al subir la imagen. Intenta de nuevo.');
     } finally {
       setUploadingImage(false);
     }
@@ -439,17 +461,26 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
-      if (file.size > 5 * 1024 * 1024) {
-        setError('La imagen debe ser menor a 5MB');
+      // Validar que sea una imagen
+      if (!file.type.startsWith('image/')) {
+        setError('❌ Por favor selecciona un archivo de imagen válido');
         return;
       }
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/cover-${Date.now()}.${fileExt}`;
+      // Validar tamaño del archivo original (máximo 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('❌ La imagen es demasiado grande. Máximo 10MB permitido.');
+        return;
+      }
+
+      // Redimensionar imagen automáticamente para portada (1200x400 máximo)
+      const resizedBlob = await resizeImage(file, 1200, 400, 0.9);
+
+      const fileName = `${user.id}/cover-${Date.now()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('business-covers')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, resizedBlob, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -464,12 +495,12 @@ export function SellerBusinessProfile() {
 
       if (updateError) throw updateError;
 
-      setSuccess('✅ Imagen de portada actualizada');
+      setSuccess('✅ Imagen de portada actualizada y optimizada');
       setFormData(prev => ({ ...prev, cover_image_url: urlData.publicUrl }));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading cover image:', error);
-      setError('Error al subir la imagen de portada');
+      setError(error.message || '❌ Error al subir la imagen de portada. Intenta de nuevo.');
     } finally {
       setUploadingImage(false);
     }
@@ -662,7 +693,7 @@ export function SellerBusinessProfile() {
                   <Camera className="w-12 h-12 mx-auto mb-2 opacity-70" />
                   <p className="text-sm opacity-90">Imagen de portada</p>
                   {isEditing && (
-                    <p className="text-xs opacity-70 mt-1">Haz clic para agregar</p>
+                    <p className="text-xs opacity-70 mt-1">Cualquier imagen se optimizará automáticamente</p>
                   )}
                 </div>
               </div>
@@ -693,7 +724,7 @@ export function SellerBusinessProfile() {
                   <div className="text-center text-white">
                     <Store className="w-12 h-12 mx-auto mb-1" />
                     {isEditing && (
-                      <p className="text-xs opacity-80">Logo</p>
+                      <p className="text-xs opacity-80">Logo - Auto-optimizado</p>
                     )}
                   </div>
                 )}
@@ -717,11 +748,22 @@ export function SellerBusinessProfile() {
               </div>
               
               {/* Business Status Toggle */}
-              <div className="mt-4 sm:mt-0 sm:ml-auto flex items-center gap-2">
-                <Badge className={`${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'} text-white`}>
-                  {formData.is_open_now ? 'Abierto' : 'Cerrado'}
-                </Badge>
-                <Switch checked={formData.is_open_now} onCheckedChange={toggleBusinessStatus} />
+              <div className="mt-4 sm:mt-0 sm:ml-auto">
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${formData.is_open_now ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className={`text-sm font-medium ${formData.is_open_now ? 'text-green-700' : 'text-red-700'}`}>
+                      {formData.is_open_now ? 'Abierto' : 'Cerrado'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <Switch 
+                      checked={formData.is_open_now} 
+                      onCheckedChange={toggleBusinessStatus}
+                      className="data-[state=checked]:bg-green-500"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -745,55 +787,104 @@ export function SellerBusinessProfile() {
                     <Store className="w-5 h-5 text-green-500"/> Información Básica
                   </CardTitle>
                   
-                  {/* Update Location Section */}
-                  {isEditing && (
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Navigation className="w-5 h-5 text-blue-600" />
-                          <span className="font-medium text-blue-900">Actualizar Ubicación</span>
-                          {locationVerified && (
-                            <CheckCircle className="w-4 h-4 text-green-600" />
+                  {/* Completion Requirements */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertCircle className="w-5 h-5 text-orange-600" />
+                    <span className="font-semibold text-orange-900">Completa tu perfil</span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {/* Photo Requirement */}
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${formData.business_logo ? 'bg-green-100' : 'bg-gray-100'}`}>
+                          {formData.business_logo ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <Camera className="w-5 h-5 text-gray-400" />
                           )}
                         </div>
+                        <span className="font-medium">Foto de perfil</span>
                       </div>
-                      <p className="text-sm text-blue-700 mb-3">
-                        Mantén tu ubicación actualizada para que los repartidores encuentren tu negocio fácilmente.
-                      </p>
-                      <Button 
-                        onClick={detectLocationProfessional}
-                        disabled={gpsLoading}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                      >
-                        {gpsLoading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Navigation className="w-4 h-4 mr-2" />
-                        )}
-                        {gpsLoading ? 'Detectando ubicación...' : 'Actualizar Mi Ubicación GPS'}
-                      </Button>
+                      {!formData.business_logo && isEditing && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingImage}
+                        >
+                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Subir'}
+                        </Button>
+                      )}
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="business_name">Nombre del Negocio *</Label>
+                    {/* Location Requirement */}
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${locationVerified ? 'bg-green-100' : 'bg-gray-100'}`}>
+                          {locationVerified ? (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <MapPin className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+                        <span className="font-medium">Ubicación GPS</span>
+                      </div>
+                      {!locationVerified && isEditing && (
+                        <Button 
+                          size="sm" 
+                          onClick={detectLocationProfessional}
+                          disabled={gpsLoading}
+                        >
+                          {gpsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Detectar'}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Progress Indicator */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                        <span>Progreso</span>
+                        <span>{((formData.business_logo ? 1 : 0) + (locationVerified ? 1 : 0))}/2 completado</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-green-500 to-blue-500 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${((formData.business_logo ? 1 : 0) + (locationVerified ? 1 : 0)) * 50}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="business_name" className="flex items-center gap-2 text-sm font-medium">
+                        <Store className="w-4 h-4 text-green-500" />
+                        Nombre del Negocio
+                      </Label>
                       <Input 
                         id="business_name" 
                         value={formData.business_name} 
                         onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))} 
                         disabled={!isEditing} 
-                        placeholder="Restaurante El Buen Sabor"
+                        placeholder="Mi Negocio"
+                        className="border-gray-200 focus:border-green-500"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="business_category">Categoría *</Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="business_category" className="flex items-center gap-2 text-sm font-medium">
+                        <Badge className="w-4 h-4 text-blue-500" />
+                        Categoría
+                      </Label>
                       <Select 
                         value={formData.business_category} 
                         onValueChange={(value: string) => setFormData(prev => ({ ...prev, business_category: value }))} 
                         disabled={!isEditing}
                       >
-                        <SelectTrigger><SelectValue placeholder="Selecciona una categoría" /></SelectTrigger>
+                        <SelectTrigger className="border-gray-200 focus:border-blue-500">
+                          <SelectValue placeholder="Selecciona categoría" />
+                        </SelectTrigger>
                         <SelectContent>
                           {BUSINESS_CATEGORIES.map(category => (
                             <SelectItem key={category} value={category}>{category}</SelectItem>
@@ -802,15 +893,20 @@ export function SellerBusinessProfile() {
                       </Select>
                     </div>
                   </div>
-                  <div className="mt-6">
-                    <Label htmlFor="business_description">Descripción del Negocio</Label>
+                  
+                  <div className="mt-4 space-y-1">
+                    <Label htmlFor="business_description" className="flex items-center gap-2 text-sm font-medium">
+                      <Info className="w-4 h-4 text-purple-500" />
+                      Descripción (opcional)
+                    </Label>
                     <Textarea 
                       id="business_description" 
                       value={formData.business_description} 
                       onChange={(e) => setFormData(prev => ({ ...prev, business_description: e.target.value }))} 
                       disabled={!isEditing} 
-                      rows={4} 
-                      placeholder="Describe tu negocio, especialidades, años de experiencia..."
+                      rows={3} 
+                      placeholder="Cuéntales a tus clientes sobre tu negocio..."
+                      className="border-gray-200 focus:border-purple-500 resize-none"
                     />
                   </div>
                 </div>
@@ -818,28 +914,36 @@ export function SellerBusinessProfile() {
                 {/* Contact Information */}
                 <div>
                   <CardTitle className="flex items-center gap-2 mb-4">
-                    <Phone className="w-5 h-5 text-blue-500"/> Información de Contacto
+                    <Phone className="w-5 h-5 text-blue-500"/> Contacto
                   </CardTitle>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="phone">Teléfono *</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="phone" className="flex items-center gap-2 text-sm font-medium">
+                        <Phone className="w-4 h-4 text-green-500" />
+                        Teléfono
+                      </Label>
                       <Input 
                         id="phone" 
                         value={formData.phone} 
                         onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))} 
                         disabled={!isEditing} 
                         placeholder="+502 1234-5678"
+                        className="border-gray-200 focus:border-green-500"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="email">Correo Electrónico</Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="email" className="flex items-center gap-2 text-sm font-medium">
+                        <Mail className="w-4 h-4 text-blue-500" />
+                        Email (opcional)
+                      </Label>
                       <Input 
                         id="email" 
                         type="email" 
                         value={formData.email} 
                         onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} 
                         disabled={!isEditing} 
-                        placeholder="contacto@minegocios.com"
+                        placeholder="contacto@negocio.com"
+                        className="border-gray-200 focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -848,41 +952,11 @@ export function SellerBusinessProfile() {
                 {/* Social Media */}
                 <div>
                   <CardTitle className="flex items-center gap-2 mb-4">
-                    <Globe className="w-5 h-5 text-purple-500"/> Redes Sociales y Web
+                    <Globe className="w-5 h-5 text-purple-500"/> Redes Sociales
                   </CardTitle>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="facebook" className="flex items-center gap-2">
-                        <Facebook className="w-4 h-4 text-blue-600" /> Facebook
-                      </Label>
-                      <Input 
-                        id="facebook" 
-                        value={formData.social_media.facebook} 
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          social_media: { ...prev.social_media, facebook: e.target.value }
-                        }))} 
-                        disabled={!isEditing} 
-                        placeholder="https://facebook.com/minegocios"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="instagram" className="flex items-center gap-2">
-                        <Instagram className="w-4 h-4 text-pink-500" /> Instagram
-                      </Label>
-                      <Input 
-                        id="instagram" 
-                        value={formData.social_media.instagram} 
-                        onChange={(e) => setFormData(prev => ({ 
-                          ...prev, 
-                          social_media: { ...prev.social_media, instagram: e.target.value }
-                        }))} 
-                        disabled={!isEditing} 
-                        placeholder="https://instagram.com/minegocios"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="whatsapp" className="flex items-center gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="whatsapp" className="flex items-center gap-2 text-sm font-medium">
                         <MessageCircle className="w-4 h-4 text-green-500" /> WhatsApp
                       </Label>
                       <Input 
@@ -894,32 +968,74 @@ export function SellerBusinessProfile() {
                         }))} 
                         disabled={!isEditing} 
                         placeholder="+502 1234-5678"
+                        className="border-gray-200 focus:border-green-500"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="website" className="flex items-center gap-2">
-                        <Globe className="w-4 h-4 text-gray-500" /> Sitio Web
+                    <div className="space-y-1">
+                      <Label htmlFor="facebook" className="flex items-center gap-2 text-sm font-medium">
+                        <Facebook className="w-4 h-4 text-blue-600" /> Facebook
                       </Label>
                       <Input 
-                        id="website" 
-                        value={formData.social_media.website} 
+                        id="facebook" 
+                        value={formData.social_media.facebook} 
                         onChange={(e) => setFormData(prev => ({ 
                           ...prev, 
-                          social_media: { ...prev.social_media, website: e.target.value }
+                          social_media: { ...prev.social_media, facebook: e.target.value }
                         }))} 
                         disabled={!isEditing} 
-                        placeholder="https://minegocios.com"
+                        placeholder="@mi_negocio"
+                        className="border-gray-200 focus:border-blue-500"
                       />
                     </div>
                   </div>
+                  
+                  {isEditing && (
+                    <details className="mt-4">
+                      <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                        + Más redes sociales (opcional)
+                      </summary>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="instagram" className="flex items-center gap-2 text-sm font-medium">
+                            <Instagram className="w-4 h-4 text-pink-500" /> Instagram
+                          </Label>
+                          <Input 
+                            id="instagram" 
+                            value={formData.social_media.instagram} 
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              social_media: { ...prev.social_media, instagram: e.target.value }
+                            }))} 
+                            placeholder="@mi_negocio"
+                            className="border-gray-200 focus:border-pink-500"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="website" className="flex items-center gap-2 text-sm font-medium">
+                            <Globe className="w-4 h-4 text-gray-500" /> Sitio Web
+                          </Label>
+                          <Input 
+                            id="website" 
+                            value={formData.social_media.website} 
+                            onChange={(e) => setFormData(prev => ({ 
+                              ...prev, 
+                              social_media: { ...prev.social_media, website: e.target.value }
+                            }))} 
+                            placeholder="www.mi-negocio.com"
+                            className="border-gray-200 focus:border-gray-500"
+                          />
+                        </div>
+                      </div>
+                    </details>
+                  )}
                 </div>
               </div>
             )}
             
             {activeTab === 'location' && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {/* Location Section */}
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-5 h-5 text-red-500" />
                     <h3 className="text-lg font-semibold">Ubicación del Negocio</h3>
@@ -959,23 +1075,27 @@ export function SellerBusinessProfile() {
                   )}
 
                   <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="address">Dirección del Negocio *</Label>
+                    <div className="space-y-1">
+                      <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium">
+                        <MapPin className="w-4 h-4 text-red-500" />
+                        Dirección
+                      </Label>
                       <Input
                         id="address"
                         value={formData.address}
                         onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                         disabled={!isEditing}
-                        placeholder="Dirección completa de tu negocio"
+                        placeholder="Dirección de tu negocio"
+                        className="border-gray-200 focus:border-red-500"
                       />
                     </div>
 
-                    {/* GPS Detection Section */}
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    {/* GPS Detection Card */}
+                    <div className="border border-gray-200 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Navigation className="w-5 h-5 text-blue-500" />
-                          <span>Detección GPS Automática</span>
+                          <span className="font-medium">GPS Automático</span>
                         </div>
                         {locationVerified && (
                           <CheckCircle className="w-5 h-5 text-green-500" />
@@ -985,11 +1105,9 @@ export function SellerBusinessProfile() {
                       {locationVerified ? (
                         <div className="space-y-3">
                           <div className="text-sm text-green-700 bg-green-100 p-3 rounded-md">
-                            ✅ <strong>Ubicación GPS verificada exitosamente</strong>
+                            ✅ <strong>Ubicación verificada</strong>
                             <br />
-                            📍 Coordenadas: {locationDetails}
-                            <br />
-                            🎯 Los repartidores podrán encontrar tu negocio fácilmente
+                            📍 {locationDetails}
                           </div>
                           
                           {isEditing && (
@@ -997,30 +1115,24 @@ export function SellerBusinessProfile() {
                               <Button
                                 onClick={detectLocationProfessional}
                                 disabled={gpsLoading}
-                                className="flex-1 bg-blue-600 hover:bg-blue-700"
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700"
                               >
                                 {gpsLoading ? (
                                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                 ) : (
                                   <Navigation className="w-4 h-4 mr-2" />
                                 )}
-                                {gpsLoading ? 'Detectando ubicación...' : 'Actualizar Ubicación'}
+                                Actualizar
                               </Button>
                               <Button
                                 onClick={() => openMapsForLocation(formData.latitude, formData.longitude)}
                                 variant="outline"
+                                size="sm"
                                 disabled={!formData.latitude || !formData.longitude}
                               >
                                 <ExternalLink className="w-4 h-4 mr-2" />
-                                Ver en Mapa
-                              </Button>
-                              <Button
-                                onClick={handleCopyLocationForDrivers}
-                                variant="outline"
-                                disabled={!formData.latitude || !formData.longitude}
-                              >
-                                <Copy className="w-4 h-4 mr-2" />
-                                Copiar Info
+                                Ver Mapa
                               </Button>
                             </div>
                           )}
@@ -1028,69 +1140,35 @@ export function SellerBusinessProfile() {
                       ) : (
                         <div className="space-y-3">
                           <p className="text-sm text-gray-600">
-                            Permite el acceso a tu ubicación para que los repartidores encuentren tu negocio fácilmente.
+                            Detecta tu ubicación para que los repartidores te encuentren fácilmente
                           </p>
                           
                           {isEditing && (
                             <Button
                               onClick={detectLocationProfessional}
                               disabled={gpsLoading}
-                              className="w-full bg-blue-600 hover:bg-blue-700"
+                              className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
                             >
                               {gpsLoading ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               ) : (
                                 <Navigation className="w-4 h-4 mr-2" />
                               )}
-                              {gpsLoading ? 'Detectando ubicación...' : 'Detectar Mi Ubicación GPS'}
+                              {gpsLoading ? 'Detectando...' : 'Detectar Mi Ubicación'}
                             </Button>
                           )}
 
                           {permissionState === 'denied' && (
                             <Alert className="border-yellow-200 bg-yellow-50">
                               <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                              <AlertDescription className="text-yellow-800">
-                                <strong>Permiso GPS denegado.</strong> Para habilitar:
-                                <br />
-                                1. Haz clic en el ícono 🔒 en la barra de direcciones
-                                <br />
-                                2. Permite el acceso a la ubicación
-                                <br />
-                                3. Recarga la página e intenta de nuevo
+                              <AlertDescription className="text-yellow-800 text-sm">
+                                <strong>GPS bloqueado.</strong> Haz clic en 🔒 en la barra del navegador para permitir ubicación.
                               </AlertDescription>
                             </Alert>
                           )}
                         </div>
                       )}
                     </div>
-
-                    {/* Manual Coordinates */}
-                    {isEditing && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="latitude">Latitud (opcional)</Label>
-                          <Input
-                            id="latitude"
-                            type="number"
-                            step="any"
-                            value={formData.latitude}
-                            onChange={(e) => setFormData(prev => ({ ...prev, latitude: parseFloat(e.target.value) || 0 }))}
-                            placeholder="14.6349"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="longitude">Longitud (opcional)</Label>
-                          <Input
-                            id="longitude"
-                            type="number"
-                            step="any"
-                            value={formData.longitude}
-                            onChange={(e) => setFormData(prev => ({ ...prev, longitude: parseFloat(e.target.value) || 0 }))}
-                            placeholder="-90.5069"
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1110,42 +1188,70 @@ export function SellerBusinessProfile() {
                 <CardTitle className="flex items-center gap-2">
                   <Truck className="w-5 h-5 text-orange-500"/> Configuración de Delivery
                 </CardTitle>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div>
-                    <Label htmlFor="delivery_time">Tiempo de Preparación (min)</Label>
-                    <Input 
-                      id="delivery_time" 
-                      type="number" 
-                      value={formData.delivery_time} 
-                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: parseInt(e.target.value) || 0 }))} 
-                      disabled={!isEditing} 
-                      min="5"
-                      max="120"
-                    />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-orange-50 to-yellow-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-5 h-5 text-orange-500" />
+                      <Label htmlFor="delivery_time" className="text-sm font-medium">Tiempo de Preparación</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        id="delivery_time" 
+                        type="number" 
+                        value={formData.delivery_time} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: parseInt(e.target.value) || 0 }))} 
+                        disabled={!isEditing} 
+                        min="5"
+                        max="120"
+                        className="border-gray-200 focus:border-orange-500"
+                      />
+                      <span className="text-sm text-gray-500">min</span>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="delivery_radius">Radio de Entrega (km)</Label>
-                    <Input 
-                      id="delivery_radius" 
-                      type="number" 
-                      value={formData.delivery_radius} 
-                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))} 
-                      disabled={!isEditing} 
-                      min="1"
-                      max="20"
-                    />
+                  
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-blue-50 to-cyan-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="w-5 h-5 text-blue-500" />
+                      <Label htmlFor="delivery_radius" className="text-sm font-medium">Radio de Entrega</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        id="delivery_radius" 
+                        type="number" 
+                        value={formData.delivery_radius} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, delivery_radius: parseInt(e.target.value) || 0 }))} 
+                        disabled={!isEditing} 
+                        min="1"
+                        max="20"
+                        className="border-gray-200 focus:border-blue-500"
+                      />
+                      <span className="text-sm text-gray-500">km</span>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="minimum_order">Pedido Mínimo (Q)</Label>
-                    <Input 
-                      id="minimum_order" 
-                      type="number" 
-                      value={formData.minimum_order} 
-                      onChange={(e) => setFormData(prev => ({ ...prev, minimum_order: parseInt(e.target.value) || 0 }))} 
-                      disabled={!isEditing} 
-                      min="0"
-                    />
+                  
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge className="w-5 h-5 text-green-500" />
+                      <Label htmlFor="minimum_order" className="text-sm font-medium">Pedido Mínimo</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">Q</span>
+                      <Input 
+                        id="minimum_order" 
+                        type="number" 
+                        value={formData.minimum_order} 
+                        onChange={(e) => setFormData(prev => ({ ...prev, minimum_order: parseInt(e.target.value) || 0 }))} 
+                        disabled={!isEditing} 
+                        min="0"
+                        className="border-gray-200 focus:border-green-500"
+                      />
+                    </div>
                   </div>
+                </div>
+                
+                <div className="text-center text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
+                  💡 Estos valores ayudan a los clientes a saber qué esperar de tu servicio
                 </div>
               </div>
             )}
