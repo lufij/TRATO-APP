@@ -576,17 +576,23 @@ export function SellerDashboard() {
   const renderDashboard = () => (
     <div className="space-y-4 md:space-y-6">
       {/* Welcome Section - Mobile Optimized */}
-      <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dashboard-welcome">
+      <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dashboard-welcome" style={{
+        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+        color: 'white',
+        padding: '24px',
+        borderRadius: '16px',
+        marginBottom: '16px'
+      }}>
         <CardHeader className="p-4 md:p-6">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 md:p-3 rounded-xl">
               <Store className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
             <div className="flex-1">
-              <CardTitle className="text-lg md:text-2xl text-green-800 leading-tight">
+              <CardTitle className="text-lg md:text-2xl text-white leading-tight" style={{ color: 'white', fontSize: '20px' }}>
                 ¡Bienvenido, Interlano Fernando Interiano! 👋
               </CardTitle>
-              <p className="text-sm md:text-base text-green-700 mt-1">
+              <p className="text-sm md:text-base text-white mt-1" style={{ color: 'white', fontSize: '16px' }}>
                 Gestiona tu negocio y conecta con más clientes en Gualán
               </p>
             </div>
@@ -595,49 +601,82 @@ export function SellerDashboard() {
       </Card>
 
       {/* Quick Stats - Mobile Grid */}
-      <div className="dashboard-stats">
-        <Card className="stat-card">
+      <div className="dashboard-stats" style={{
+        display: 'grid',
+        gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: '12px',
+        marginBottom: '16px'
+      }}>
+        <Card className="stat-card" style={{
+          background: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          border: '1px solid #e5e7eb'
+        }}>
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="stat-label">Productos</p>
-                <p className="stat-number">{stats.totalProducts}</p>
+                <p className="stat-label" style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase' }}>Productos</p>
+                <p className="stat-number" style={{ fontSize: '24px', fontWeight: 'bold', color: '#f97316', marginBottom: '8px' }}>{stats.totalProducts}</p>
               </div>
               <Package className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card" style={{
+          background: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          border: '1px solid #e5e7eb'
+        }}>
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="stat-label">Ventas del Día</p>
-                <p className="stat-number">{stats.dailyProducts}</p>
+                <p className="stat-label" style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase' }}>Ventas del Día</p>
+                <p className="stat-number" style={{ fontSize: '24px', fontWeight: 'bold', color: '#f97316', marginBottom: '8px' }}>{stats.dailyProducts}</p>
               </div>
               <Clock className="w-6 h-6 md:w-8 md:h-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card" style={{
+          background: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          border: '1px solid #e5e7eb'
+        }}>
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="stat-label">Ventas Totales</p>
-                <p className="stat-number">{stats.totalSales}</p>
+                <p className="stat-label" style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase' }}>Ventas Totales</p>
+                <p className="stat-number" style={{ fontSize: '24px', fontWeight: 'bold', color: '#f97316', marginBottom: '8px' }}>{stats.totalSales}</p>
               </div>
               <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card" style={{
+          background: 'white',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          border: '1px solid #e5e7eb'
+        }}>
           <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="stat-label">Calificación</p>
-                <p className="stat-number">{stats.avgRating.toFixed(1)}</p>
+                <p className="stat-label" style={{ fontSize: '12px', color: '#6b7280', textTransform: 'uppercase' }}>Calificación</p>
+                <p className="stat-number" style={{ fontSize: '24px', fontWeight: 'bold', color: '#f97316', marginBottom: '8px' }}>{stats.avgRating.toFixed(1)}</p>
               </div>
               <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" />
             </div>
@@ -982,7 +1021,9 @@ export function SellerDashboard() {
       </div>
 
       {/* Main Content with bottom padding for mobile nav */}
-      <div className="main-content container mx-auto px-4 py-4 md:py-6">
+      <div className="main-content container mx-auto px-4 py-4 md:py-6" style={{
+        paddingBottom: window.innerWidth <= 768 ? '80px' : '24px'
+      }}>
         {error && (
           <Alert variant="destructive" className="mb-4 md:mb-6">
             <AlertCircle className="h-4 w-4" />
@@ -998,7 +1039,17 @@ export function SellerDashboard() {
 
         {/* Mobile Navigation */}
         <div className="block md:hidden">
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-50 bottom-nav">
+          <div className="mobile-bottom-nav" style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'white',
+            borderTop: '2px solid #e5e7eb',
+            padding: '12px',
+            zIndex: 50,
+            boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }}>
             <div className="grid grid-cols-5 gap-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
@@ -1012,21 +1063,47 @@ export function SellerDashboard() {
                         setNewOrdersCount(0);
                       }
                     }}
-                    className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-colors touch-target ${
-                      isActive 
-                        ? 'text-green-600 bg-green-50' 
-                        : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-                    }`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      minHeight: '60px',
+                      fontSize: '10px',
+                      fontWeight: '500',
+                      backgroundColor: isActive ? '#fef3c7' : 'transparent',
+                      color: isActive ? '#f97316' : '#6b7280',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
                   >
                     <div className="relative">
                       <Icon className="w-5 h-5" />
                       {item.hasNotification && item.notificationCount && item.notificationCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center animate-pulse text-[10px]">
+                        <span style={{
+                          position: 'absolute',
+                          top: '-4px',
+                          right: '-4px',
+                          background: '#ef4444',
+                          color: 'white',
+                          fontSize: '10px',
+                          borderRadius: '50%',
+                          width: '16px',
+                          height: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          animation: 'pulse 2s infinite'
+                        }}>
                           {item.notificationCount > 9 ? '9+' : item.notificationCount}
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+                    <span style={{ fontSize: '10px', fontWeight: '500', lineHeight: '1.2' }}>{item.label}</span>
                   </button>
                 );
               })}
