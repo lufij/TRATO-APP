@@ -882,6 +882,273 @@ export default function App() {
           .main-content {
             padding-bottom: 80px !important;
           }
+          
+          /* Estilos específicos para VerificationAlert */
+          @media (max-width: 768px) {
+            .verification-alert {
+              margin: 16px !important;
+              padding: 16px !important;
+              border-radius: 12px !important;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            .verification-alert h4 {
+              font-size: 18px !important;
+              font-weight: 600 !important;
+              line-height: 1.3 !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .verification-alert .alert-description {
+              font-size: 14px !important;
+              line-height: 1.4 !important;
+              margin-bottom: 12px !important;
+            }
+            
+            .verification-progress {
+              margin-top: 12px !important;
+            }
+            
+            .verification-progress-label {
+              font-size: 12px !important;
+              font-weight: 500 !important;
+              margin-bottom: 6px !important;
+            }
+            
+            .verification-progress-bar {
+              height: 8px !important;
+              border-radius: 4px !important;
+              overflow: hidden !important;
+            }
+            
+            .verification-button {
+              width: 100% !important;
+              min-height: 48px !important;
+              font-size: 16px !important;
+              font-weight: 600 !important;
+              border-radius: 8px !important;
+              margin-top: 16px !important;
+            }
+            
+            /* Estilos específicos para Gestión de Productos */
+            .products-section {
+              padding: 16px !important;
+            }
+            
+            .products-header h2 {
+              font-size: 20px !important;
+              line-height: 1.2 !important;
+              text-align: center !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .products-header p {
+              font-size: 14px !important;
+              text-align: center !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .products-tabs [role="tablist"] {
+              height: auto !important;
+              padding: 4px !important;
+            }
+            
+            .products-tabs [role="tab"] {
+              min-height: 44px !important;
+              font-size: 14px !important;
+              padding: 8px 4px !important;
+              white-space: nowrap !important;
+            }
+            
+            .products-grid {
+              grid-template-columns: 1fr !important;
+              gap: 16px !important;
+              padding: 0 8px !important;
+            }
+            
+            /* Estilos específicos para Gestión de Pedidos */
+            .orders-section {
+              padding: 16px !important;
+            }
+            
+            .orders-header h2 {
+              font-size: 20px !important;
+              line-height: 1.2 !important;
+              text-align: center !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .orders-header p {
+              font-size: 14px !important;
+              text-align: center !important;
+              margin-bottom: 16px !important;
+            }
+            
+            .orders-filters select {
+              min-height: 44px !important;
+              font-size: 14px !important;
+              background-color: white !important;
+              border: 2px solid #d1d5db !important;
+            }
+            
+            .order-card {
+              margin-bottom: 16px !important;
+              border-radius: 12px !important;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+            }
+            
+            .order-card h3 {
+              font-size: 16px !important;
+              line-height: 1.3 !important;
+            }
+            
+            .order-card .customer-info {
+              background-color: #f9fafb !important;
+              border: 1px solid #e5e7eb !important;
+              border-radius: 8px !important;
+              padding: 12px !important;
+            }
+            
+            .order-actions button {
+              min-height: 40px !important;
+              font-size: 12px !important;
+              font-weight: 600 !important;
+              width: 100% !important;
+              margin-bottom: 8px !important;
+            }
+            
+            /* Estilos específicos para Perfil del Vendedor */
+            .seller-profile {
+              padding: 16px !important;
+            }
+            
+            .seller-profile h2,
+            .seller-profile h3 {
+              font-size: 20px !important;
+              line-height: 1.2 !important;
+              text-align: center !important;
+              margin-bottom: 16px !important;
+              color: #1f2937 !important;
+              font-weight: 700 !important;
+            }
+            
+            .seller-profile .form-group {
+              margin-bottom: 16px !important;
+            }
+            
+            .seller-profile label {
+              font-size: 14px !important;
+              font-weight: 600 !important;
+              color: #374151 !important;
+              margin-bottom: 8px !important;
+              display: block !important;
+              line-height: 1.3 !important;
+            }
+            
+            .seller-profile input,
+            .seller-profile textarea,
+            .seller-profile select {
+              font-size: 16px !important;
+              padding: 12px !important;
+              border-radius: 8px !important;
+              width: 100% !important;
+              min-height: 48px !important;
+              line-height: 1.4 !important;
+              border: 2px solid #d1d5db !important;
+            }
+            
+            .seller-profile button {
+              font-size: 14px !important;
+              padding: 12px 16px !important;
+              border-radius: 8px !important;
+              min-height: 48px !important;
+              font-weight: 600 !important;
+              width: 100% !important;
+              margin-top: 12px !important;
+            }
+            
+            .seller-profile .upload-section {
+              text-align: center !important;
+              padding: 20px !important;
+              border: 2px dashed #d1d5db !important;
+              border-radius: 12px !important;
+              background: #f9fafb !important;
+              margin: 16px 0 !important;
+            }
+            
+            .seller-profile .image-preview {
+              max-width: 100% !important;
+              max-height: 250px !important;
+              border-radius: 8px !important;
+              margin: 12px auto !important;
+              display: block !important;
+            }
+            
+            .seller-profile .error-message {
+              font-size: 13px !important;
+              color: #dc2626 !important;
+              background: #fef2f2 !important;
+              padding: 10px 12px !important;
+              border-radius: 8px !important;
+              border: 1px solid #fecaca !important;
+              margin-top: 8px !important;
+              line-height: 1.4 !important;
+            }
+            
+            .seller-profile .success-message {
+              font-size: 13px !important;
+              color: #059669 !important;
+              background: #f0fdf4 !important;
+              padding: 10px 12px !important;
+              border-radius: 8px !important;
+              border: 1px solid #bbf7d0 !important;
+              margin-top: 8px !important;
+              line-height: 1.4 !important;
+            }
+            
+            /* GPS Verification Mobile Styles */
+            .gps-verification-card {
+              padding: 16px !important;
+              margin: 16px 0 !important;
+              border-radius: 12px !important;
+            }
+            
+            .gps-verification-card h4 {
+              font-size: 18px !important;
+              margin-bottom: 12px !important;
+              text-align: center !important;
+              font-weight: 700 !important;
+              line-height: 1.3 !important;
+            }
+            
+            .gps-verification-card p {
+              font-size: 13px !important;
+              line-height: 1.4 !important;
+              margin-bottom: 8px !important;
+              text-align: center !important;
+            }
+            
+            .gps-verification-card button {
+              font-size: 14px !important;
+              padding: 12px 16px !important;
+              min-height: 48px !important;
+              font-weight: 700 !important;
+              border-radius: 8px !important;
+              width: 100% !important;
+            }
+            
+            .gps-verification-card .feature-list {
+              text-align: left !important;
+              margin-top: 16px !important;
+            }
+            
+            .gps-verification-card .feature-list p {
+              font-size: 12px !important;
+              margin-bottom: 6px !important;
+              text-align: left !important;
+              line-height: 1.3 !important;
+            }
+          }
         `}</style>
         <PWAMetaTags />
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div><p className="text-gray-600">Cargando…</p></div></div>}>

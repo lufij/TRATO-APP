@@ -858,15 +858,24 @@ export function SellerDashboard() {
     return (
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Gestión de Productos</h2>
-            <p className="text-gray-600">Administra tu menú y ofertas especiales</p>
+        <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          <div className="text-center md:text-left">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+              Gestión de Productos
+            </h2>
+            <p className="text-sm md:text-base text-gray-600 mt-1">
+              Administra tu menú y ofertas especiales
+            </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 md:flex-row">
             <Button 
               onClick={() => setProductView('add-product')}
-              className="bg-gradient-to-r from-green-500 to-green-600"
+              className="bg-gradient-to-r from-green-500 to-green-600 w-full md:w-auto"
+              style={{
+                minHeight: '44px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Nuevo Producto
@@ -874,7 +883,13 @@ export function SellerDashboard() {
             <Button 
               onClick={() => setProductView('add-daily')}
               variant="outline"
-              className="border-orange-500 text-orange-600 hover:bg-orange-50"
+              className="border-orange-500 text-orange-600 hover:bg-orange-50 w-full md:w-auto"
+              style={{
+                minHeight: '44px',
+                fontSize: '14px',
+                fontWeight: '600',
+                borderWidth: '2px'
+              }}
             >
               <Clock className="w-4 h-4 mr-2" />
               Venta del Día
@@ -884,14 +899,34 @@ export function SellerDashboard() {
 
         {/* Products Tabs */}
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="products" className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Productos Normales ({products.length})
+          <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-gray-100 rounded-lg">
+            <TabsTrigger 
+              value="products" 
+              className="flex items-center justify-center gap-2 py-3 px-2 text-sm font-medium transition-all"
+              style={{
+                minHeight: '44px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              <Package className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Productos Normales</span>
+              <span className="sm:hidden">Normales</span>
+              <span className="ml-1">({products.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="daily" className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Productos del Día ({dailyProducts.length})
+            <TabsTrigger 
+              value="daily" 
+              className="flex items-center justify-center gap-2 py-3 px-2 text-sm font-medium transition-all"
+              style={{
+                minHeight: '44px',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              <Clock className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Productos del Día</span>
+              <span className="sm:hidden">Del Día</span>
+              <span className="ml-1">({dailyProducts.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -901,18 +936,23 @@ export function SellerDashboard() {
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
               </div>
             ) : products.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
+                <CardContent className="p-8 md:p-12 text-center">
+                  <Package className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     No tienes productos aún
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-sm md:text-base text-gray-600 mb-6">
                     Comienza agregando tu primer producto para empezar a vender
                   </p>
                   <Button 
                     onClick={() => setProductView('add-product')}
-                    className="bg-gradient-to-r from-green-500 to-green-600"
+                    className="bg-gradient-to-r from-green-500 to-green-600 w-full md:w-auto"
+                    style={{
+                      minHeight: '44px',
+                      fontSize: '14px',
+                      fontWeight: '600'
+                    }}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Agregar Primer Producto
@@ -920,7 +960,7 @@ export function SellerDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -935,14 +975,19 @@ export function SellerDashboard() {
 
           <TabsContent value="daily" className="space-y-4">
             {dailyProducts.length > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-orange-600" />
-                  <span className="font-medium text-orange-800">
-                    Tiempo restante: {getTimeUntilMidnight()}
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-orange-600 flex-shrink-0" />
+                    <span className="font-medium text-orange-800 text-sm sm:text-base">
+                      Tiempo restante:
+                    </span>
+                  </div>
+                  <span className="font-bold text-orange-800 text-sm sm:text-base">
+                    {getTimeUntilMidnight()}
                   </span>
                 </div>
-                <p className="text-sm text-orange-700">
+                <p className="text-xs sm:text-sm text-orange-700">
                   Los productos del día se eliminan automáticamente a las 23:59:59
                 </p>
               </div>
@@ -953,19 +998,25 @@ export function SellerDashboard() {
                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
               </div>
             ) : dailyProducts.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
+                <CardContent className="p-8 md:p-12 text-center">
+                  <Clock className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     No tienes productos del día
                   </h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-sm md:text-base text-gray-600 mb-6">
                     Crea ofertas especiales que duran solo hasta medianoche
                   </p>
                   <Button 
                     onClick={() => setProductView('add-daily')}
                     variant="outline"
-                    className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                    className="border-orange-500 text-orange-600 hover:bg-orange-50 w-full md:w-auto"
+                    style={{
+                      minHeight: '44px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      borderWidth: '2px'
+                    }}
                   >
                     <Clock className="w-4 h-4 mr-2" />
                     Crear Venta del Día
@@ -973,7 +1024,7 @@ export function SellerDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {dailyProducts.map((dailyProduct) => (
                   <DailyProductCard
                     key={dailyProduct.id}

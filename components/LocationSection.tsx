@@ -118,17 +118,19 @@ export function LocationSection({
 
         {/* PROFESSIONAL GPS VERIFICATION SECTION */}
         {isEditing && (
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-4 md:p-6 text-white">
             <div className="text-center space-y-4">
-              <div className="bg-white bg-opacity-20 p-4 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
-                <Satellite className="w-10 h-10 text-white" />
+              <div className="bg-white bg-opacity-20 p-3 md:p-4 rounded-full w-16 h-16 md:w-20 md:h-20 mx-auto flex items-center justify-center">
+                <Satellite className="w-8 h-8 md:w-10 md:h-10 text-white" />
               </div>
               <div>
-                <h4 className="font-bold text-xl mb-2">Verificación GPS Profesional</h4>
-                <p className="text-blue-100 mb-4">
+                <h4 className="font-bold text-lg md:text-xl mb-2 leading-tight">
+                  Verificación GPS Profesional
+                </h4>
+                <p className="text-blue-100 mb-4 text-sm md:text-base leading-relaxed">
                   Sistema de geolocalización de alta precisión.
                   <br />
-                  <strong>¡IMPORTANTE!</strong> Esta ubicación será utilizada por los repartidores para encontrar tu negocio.
+                  <span className="font-semibold text-yellow-200">¡IMPORTANTE!</span> Esta ubicación será utilizada por los repartidores para encontrar tu negocio.
                 </p>
               </div>
               
@@ -137,22 +139,33 @@ export function LocationSection({
                 onClick={detectLocationProfessional}
                 disabled={gpsLoading}
                 size="lg"
-                className="w-full bg-white text-blue-600 hover:bg-blue-50 font-bold py-4 text-lg shadow-lg"
+                className="w-full bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 md:py-4 text-sm md:text-lg shadow-lg"
+                style={{
+                  minHeight: '48px',
+                  fontSize: '14px',
+                  fontWeight: '700'
+                }}
               >
                 {gpsLoading ? (
                   <>
-                    <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-                    Detectando ubicación GPS...
+                    <Loader2 className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 animate-spin" />
+                    <span className="hidden sm:inline">Detectando ubicación GPS...</span>
+                    <span className="sm:hidden">Detectando GPS...</span>
                   </>
                 ) : (
                   <>
-                    <Target className="w-6 h-6 mr-3" />
-                    {locationVerified ? 'ACTUALIZAR UBICACIÓN GPS' : 'VERIFICAR UBICACIÓN GPS AHORA'}
+                    <Target className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+                    <span className="hidden sm:inline">
+                      {locationVerified ? 'ACTUALIZAR UBICACIÓN GPS' : 'VERIFICAR UBICACIÓN GPS AHORA'}
+                    </span>
+                    <span className="sm:hidden">
+                      {locationVerified ? 'ACTUALIZAR GPS' : 'VERIFICAR GPS'}
+                    </span>
                   </>
                 )}
               </Button>
 
-              <div className="text-xs text-blue-200 space-y-1">
+              <div className="text-xs md:text-sm text-blue-200 space-y-1 leading-relaxed">
                 <p>✓ Detección automática con GPS</p>
                 <p>✓ Validación para área de Gualán</p>
                 <p>✓ Información optimizada para repartidores</p>

@@ -341,19 +341,48 @@ export function SellerBusinessProfile() {
       setUploadingImage(true);
       setError('');
 
+      // Validar tamaño del archivo (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setError('La imagen debe ser menor a 5MB');
+        setError('❌ La imagen debe ser menor a 5MB. Tamaño actual: ' + (file.size / (1024 * 1024)).toFixed(1) + 'MB');
         return;
       }
 
-      const fileExt = file.name.split('.').pop();
+      // Validar tipo de archivo
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('❌ Formato no válido. Solo se permiten: JPG, JPEG, PNG, WEBP');
+        return;
+      }
+
+      // Validar dimensiones de la imagen
+      const img = new Image();
+      const imageCheckPromise = new Promise((resolve, reject) => {
+        img.onload = () => {
+          if (img.width < 200 || img.height < 200) {
+            reject(new Error('❌ La imagen debe tener al menos 200x200 píxeles'));
+          } else if (img.width > 2000 || img.height > 2000) {
+            reject(new Error('❌ La imagen debe tener máximo 2000x2000 píxeles'));
+          } else {
+            resolve(true);
+          }
+        };
+        img.onerror = () => reject(new Error('❌ Error al leer la imagen'));
+      });
+      
+      img.src = URL.createObjectURL(file);
+      await imageCheckPromise;
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${user.id}/business-logo-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('business-logos')
         .upload(fileName, file, { upsert: true });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('❌ Error al subir archivo: ' + uploadError.message);
+      }
 
       const { data: urlData } = supabase.storage
         .from('business-logos')
@@ -364,13 +393,16 @@ export function SellerBusinessProfile() {
         .update({ business_logo: urlData.publicUrl, updated_at: new Date().toISOString() })
         .eq('id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error('❌ Error al actualizar perfil: ' + updateError.message);
+      }
 
       setSuccess('✅ Logo actualizado exitosamente');
       await loadProfile();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      setError('Error al subir la imagen. Verifica el formato y tamaño.');
+      setError(error.message || '❌ Error al subir la imagen. Verifica el formato y tamaño.');
     } finally {
       setUploadingImage(false);
     }

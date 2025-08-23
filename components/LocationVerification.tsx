@@ -379,7 +379,7 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
   return (
     <div className="space-y-6">
       {/* Status Overview */}
-      <Card>
+      <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             {statusMessage.type === 'success' ? (
@@ -419,7 +419,7 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
       </Card>
 
       {/* Personal Location */}
-      <Card>
+      <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <MapPin className="w-5 h-5 text-blue-500" />
@@ -429,22 +429,34 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
             )}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4" style={{backgroundColor: 'rgba(255,255,255,0.95)', padding: '20px', borderRadius: '8px'}}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Dirección</Label>
+              <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>Dirección</Label>
               <Input
                 value={location.address}
                 onChange={(e) => setLocation(prev => ({ ...prev, address: e.target.value }))}
                 placeholder="Tu dirección"
+                style={{ 
+                  backgroundColor: '#ffffff !important',
+                  color: '#000000 !important',
+                  border: '1px solid #d1d5db !important'
+                }}
+                className="bg-white text-black border-gray-300"
               />
             </div>
             <div className="flex items-end">
               <Button
                 onClick={getCurrentLocation}
                 disabled={gettingLocation}
-                className="w-full"
+                className="w-full border-blue-500 text-blue-600 hover:bg-blue-50"
                 variant="outline"
+                style={{
+                  borderColor: '#2563eb',
+                  color: '#2563eb',
+                  backgroundColor: 'white',
+                  fontWeight: '600'
+                }}
               >
                 {gettingLocation ? 'Obteniendo...' : 'Obtener Ubicación Actual'}
               </Button>
@@ -471,7 +483,7 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
 
       {/* Business Location (only for sellers) */}
       {userRole === 'vendedor' && (
-        <Card>
+        <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <MapPin className="w-5 h-5 text-green-500" />
@@ -481,14 +493,20 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4" style={{backgroundColor: 'rgba(255,255,255,0.95)', padding: '20px', borderRadius: '8px'}}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Dirección del Negocio</Label>
+                <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>Dirección del Negocio</Label>
                 <Input
                   value={businessLocation.address}
                   onChange={(e) => setBusinessLocation(prev => ({ ...prev, address: e.target.value }))}
                   placeholder="Dirección de tu negocio"
+                  style={{ 
+                    backgroundColor: '#ffffff !important',
+                    color: '#000000 !important',
+                    border: '1px solid #d1d5db !important'
+                  }}
+                  className="bg-white text-black border-gray-300"
                 />
               </div>
               <div className="flex items-end">
@@ -525,39 +543,57 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
       )}
 
       {/* Profile Information */}
-      <Card>
+      <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Camera className="w-5 h-5 text-purple-500" />
             <span>Información del Perfil</span>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4" style={{backgroundColor: 'rgba(255,255,255,0.95)', padding: '20px', borderRadius: '8px'}}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Teléfono</Label>
+              <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>Teléfono</Label>
               <Input
                 value={profile.phone}
                 onChange={(e) => setProfile(prev => ({ ...prev, phone: e.target.value }))}
                 placeholder="+502 1234-5678"
+                style={{ 
+                  backgroundColor: '#ffffff !important',
+                  color: '#000000 !important',
+                  border: '1px solid #d1d5db !important'
+                }}
+                className="bg-white text-black border-gray-300"
               />
             </div>
             <div>
-              <Label>URL de Foto de Perfil</Label>
+              <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>URL de Foto de Perfil</Label>
               <Input
                 value={profile.profileImage}
                 onChange={(e) => setProfile(prev => ({ ...prev, profileImage: e.target.value }))}
                 placeholder="https://..."
+                style={{ 
+                  backgroundColor: '#ffffff !important',
+                  color: '#000000 !important',
+                  border: '1px solid #d1d5db !important'
+                }}
+                className="bg-white text-black border-gray-300"
               />
             </div>
             
             {userRole === 'vendedor' && (
               <div>
-                <Label>URL de Foto de Portada</Label>
+                <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>URL de Foto de Portada</Label>
                 <Input
                   value={profile.coverImage}
                   onChange={(e) => setProfile(prev => ({ ...prev, coverImage: e.target.value }))}
                   placeholder="https://..."
+                  style={{ 
+                    backgroundColor: '#ffffff !important',
+                    color: '#000000 !important',
+                    border: '1px solid #d1d5db !important'
+                  }}
+                  className="bg-white text-black border-gray-300"
                 />
               </div>
             )}
@@ -565,19 +601,31 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
             {userRole === 'repartidor' && (
               <>
                 <div>
-                  <Label>Tipo de Vehículo</Label>
+                  <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>Tipo de Vehículo</Label>
                   <Input
                     value={profile.vehicleType}
                     onChange={(e) => setProfile(prev => ({ ...prev, vehicleType: e.target.value }))}
                     placeholder="Motocicleta, Automóvil, Bicicleta..."
+                    style={{ 
+                      backgroundColor: '#ffffff !important',
+                      color: '#000000 !important',
+                      border: '1px solid #d1d5db !important'
+                    }}
+                    className="bg-white text-black border-gray-300"
                   />
                 </div>
                 <div>
-                  <Label>Número de Licencia</Label>
+                  <Label style={{color: '#000000', fontWeight: '600', backgroundColor: 'rgba(255,255,255,0.9)', padding: '2px 4px', borderRadius: '4px'}}>Número de Licencia</Label>
                   <Input
                     value={profile.licenseNumber}
                     onChange={(e) => setProfile(prev => ({ ...prev, licenseNumber: e.target.value }))}
                     placeholder="M-123456"
+                    style={{ 
+                      backgroundColor: '#ffffff !important',
+                      color: '#000000 !important',
+                      border: '1px solid #d1d5db !important'
+                    }}
+                    className="bg-white text-black border-gray-300"
                   />
                 </div>
               </>
@@ -587,7 +635,15 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
           <Button
             onClick={updateProfile}
             disabled={loading}
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            style={{
+              backgroundColor: '#2563eb',
+              color: 'white',
+              border: 'none',
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: '600'
+            }}
           >
             {loading ? 'Actualizando...' : 'Actualizar Perfil'}
           </Button>

@@ -462,50 +462,62 @@ export function SellerOrderManagement() {
   };
 
   const renderOrderCard = (order: Order) => (
-    <Card key={order.id} className="hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+    <Card 
+      key={order.id} 
+      className="order-card hover:shadow-lg transition-shadow border border-gray-200" 
+      style={{backgroundColor: 'white'}}
+    >
+      <CardHeader className="pb-3" style={{backgroundColor: 'white'}}>
+        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <div>
-            <h3 className="font-semibold text-lg">Pedido #{order.id}</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-bold text-base md:text-lg text-gray-900">Pedido #{order.id}</h3>
+            <p className="text-xs md:text-sm text-gray-600">
               {formatDate(order.created_at)} a las {formatTime(order.created_at)}
             </p>
           </div>
-          <Badge className={getStatusColor(order.status)}>
+          <Badge 
+            className={`${getStatusColor(order.status)} text-xs font-medium`}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '600'
+            }}
+          >
             {getStatusText(order.status)}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" style={{backgroundColor: 'white'}}>
         {/* Customer Info */}
-        <div className="bg-gray-50 rounded-lg p-3">
+        <div className="customer-info bg-gray-50 rounded-lg p-3 border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-gray-500" />
-            <span className="font-medium">{order.customer_name}</span>
+            <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <span className="font-medium text-sm md:text-base text-gray-900">{order.customer_name}</span>
           </div>
-          <div className="flex items-center gap-2 mb-1 text-sm text-gray-600">
-            <Phone className="w-3 h-3" />
+          <div className="flex items-center gap-2 mb-1 text-xs md:text-sm text-gray-600">
+            <Phone className="w-3 h-3 flex-shrink-0" />
             <span>{order.customer_phone}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-3 h-3" />
-            <span>{order.customer_address}</span>
+          <div className="flex items-start gap-2 text-xs md:text-sm text-gray-600">
+            <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5" />
+            <span className="line-clamp-2">{order.customer_address}</span>
           </div>
         </div>
 
         {/* Order Items */}
         <div>
-          <h4 className="font-medium mb-2">Productos:</h4>
+          <h4 className="font-medium mb-2 text-sm md:text-base">Productos:</h4>
           <div className="space-y-1">
             {order.items.map((item, index) => (
-              <div key={index} className="flex justify-between text-sm">
-                <span>{item.quantity}x {item.product_name}</span>
-                <span className="font-medium">Q{item.total}</span>
+              <div key={index} className="flex justify-between text-xs md:text-sm">
+                <span className="flex-1 pr-2">{item.quantity}x {item.product_name}</span>
+                <span className="font-medium text-green-600">Q{item.total}</span>
               </div>
             ))}
           </div>
           <Separator className="my-2" />
-          <div className="flex justify-between font-semibold">
+          <div className="flex justify-between font-bold text-sm md:text-base">
             <span>Total:</span>
             <span className="text-green-600">Q{order.total_amount}</span>
           </div>
@@ -513,27 +525,34 @@ export function SellerOrderManagement() {
 
         {/* Notes */}
         {order.notes && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+            <p className="text-xs md:text-sm text-blue-800">
               <strong>Notas:</strong> {order.notes}
             </p>
           </div>
         )}
 
         {/* Estimated Delivery */}
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Clock className="w-4 h-4" />
+        <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 bg-gray-50 rounded-lg p-2">
+          <Clock className="w-4 h-4 flex-shrink-0" />
           <span>Entrega estimada: {formatTime(order.estimated_delivery)}</span>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="order-actions flex flex-col gap-2 sm:flex-row">
           {order.status === 'pending' && (
             <>
               <Button 
                 size="sm" 
                 onClick={() => updateOrderStatus(order.id, 'confirmed')}
                 className="flex-1"
+                style={{
+                  minHeight: '40px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  backgroundColor: '#22c55e',
+                  color: 'white'
+                }}
               >
                 <CheckCircle className="w-4 h-4 mr-1" />
                 Confirmar
@@ -542,7 +561,15 @@ export function SellerOrderManagement() {
                 size="sm" 
                 variant="outline"
                 onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                className="border-red-200 text-red-600 hover:bg-red-50"
+                className="flex-1"
+                style={{
+                  minHeight: '40px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  borderColor: '#fecaca',
+                  color: '#dc2626',
+                  backgroundColor: 'white'
+                }}
               >
                 <XCircle className="w-4 h-4 mr-1" />
                 Cancelar
@@ -553,7 +580,14 @@ export function SellerOrderManagement() {
             <Button 
               size="sm" 
               onClick={() => updateOrderStatus(order.id, 'preparing')}
-              className="w-full bg-orange-500 hover:bg-orange-600"
+              className="w-full"
+              style={{
+                minHeight: '40px',
+                fontSize: '12px',
+                fontWeight: '600',
+                backgroundColor: '#f97316',
+                color: 'white'
+              }}
             >
               <Package className="w-4 h-4 mr-1" />
               Iniciar Preparación
@@ -563,7 +597,14 @@ export function SellerOrderManagement() {
             <Button 
               size="sm" 
               onClick={() => updateOrderStatus(order.id, 'ready')}
-              className="w-full bg-purple-500 hover:bg-purple-600"
+              className="w-full"
+              style={{
+                minHeight: '40px',
+                fontSize: '12px',
+                fontWeight: '600',
+                backgroundColor: '#a855f7',
+                color: 'white'
+              }}
             >
               <CheckCircle className="w-4 h-4 mr-1" />
               Marcar como Listo
@@ -573,7 +614,14 @@ export function SellerOrderManagement() {
             <Button 
               size="sm" 
               onClick={() => updateOrderStatus(order.id, 'delivered')}
-              className="w-full bg-green-500 hover:bg-green-600"
+              className="w-full"
+              style={{
+                minHeight: '40px',
+                fontSize: '12px',
+                fontWeight: '600',
+                backgroundColor: '#22c55e',
+                color: 'white'
+              }}
             >
               <CheckCircle className="w-4 h-4 mr-1" />
               Marcar como Entregado
@@ -585,19 +633,43 @@ export function SellerOrderManagement() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="orders-section space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gestión de Pedidos</h2>
-          <p className="text-gray-600">Administra tus órdenes y revisa las estadísticas de ventas</p>
+      <div className="orders-header flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div className="text-center md:text-left">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+            Gestión de Pedidos
+          </h2>
+          <p className="text-sm md:text-base text-gray-600 mt-1">
+            Administra tus órdenes y revisa las estadísticas de ventas
+          </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={loadOrders}>
+        <div className="flex flex-col gap-3 md:flex-row">
+          <Button 
+            variant="outline" 
+            onClick={loadOrders}
+            className="w-full md:w-auto"
+            style={{
+              minHeight: '44px',
+              fontSize: '14px',
+              fontWeight: '600',
+              borderWidth: '2px'
+            }}
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Actualizar
           </Button>
-          <Button variant="outline" onClick={() => exportData('orders')}>
+          <Button 
+            variant="outline" 
+            onClick={() => exportData('orders')}
+            className="w-full md:w-auto"
+            style={{
+              minHeight: '44px',
+              fontSize: '14px',
+              fontWeight: '600',
+              borderWidth: '2px'
+            }}
+          >
             <Download className="w-4 h-4 mr-2" />
             Exportar Órdenes
           </Button>
@@ -606,29 +678,56 @@ export function SellerOrderManagement() {
 
       {/* Tabs */}
       <Tabs defaultValue="orders" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:w-96">
-          <TabsTrigger value="orders" className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4" />
-            Pedidos Activos
+        <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-gray-100 rounded-lg">
+          <TabsTrigger 
+            value="orders" 
+            className="flex items-center justify-center gap-2 py-3 px-2 text-sm font-medium transition-all"
+            style={{
+              minHeight: '44px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            <ClipboardList className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Pedidos Activos</span>
+            <span className="sm:hidden">Pedidos</span>
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Analytics de Ventas
+          <TabsTrigger 
+            value="analytics" 
+            className="flex items-center justify-center gap-2 py-3 px-2 text-sm font-medium transition-all"
+            style={{
+              minHeight: '44px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+          >
+            <BarChart3 className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Analytics de Ventas</span>
+            <span className="sm:hidden">Analytics</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Orders Tab */}
         <TabsContent value="orders" className="space-y-6">
           {/* Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col md:flex-row gap-4">
+          <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
+            <CardContent className="orders-filters p-4" style={{backgroundColor: 'white'}}>
+              <div className="flex flex-col gap-4 md:flex-row">
                 <div className="flex-1">
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filtrar por estado" />
+                    <SelectTrigger 
+                      className="w-full"
+                      style={{
+                        minHeight: '44px',
+                        fontSize: '14px',
+                        backgroundColor: 'white',
+                        border: '2px solid #d1d5db',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <SelectValue placeholder="Todos los estados" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent style={{backgroundColor: 'white', border: '1px solid #d1d5db'}}>
                       <SelectItem value="all">Todos los estados</SelectItem>
                       <SelectItem value="pending">Pendientes</SelectItem>
                       <SelectItem value="confirmed">Confirmados</SelectItem>
@@ -641,10 +740,19 @@ export function SellerOrderManagement() {
                 </div>
                 <div className="flex-1">
                   <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Período" />
+                    <SelectTrigger 
+                      className="w-full"
+                      style={{
+                        minHeight: '44px',
+                        fontSize: '14px',
+                        backgroundColor: 'white',
+                        border: '2px solid #d1d5db',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <SelectValue placeholder="Hoy" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent style={{backgroundColor: 'white', border: '1px solid #d1d5db'}}>
                       <SelectItem value="today">Hoy</SelectItem>
                       <SelectItem value="yesterday">Ayer</SelectItem>
                       <SelectItem value="week">Esta semana</SelectItem>
@@ -662,13 +770,13 @@ export function SellerOrderManagement() {
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : orders.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <Card style={{backgroundColor: 'white', border: '1px solid #e5e7eb'}}>
+              <CardContent className="p-8 md:p-12 text-center" style={{backgroundColor: 'white'}}>
+                <ClipboardList className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   No hay pedidos
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-sm md:text-base text-gray-600">
                   {filterStatus === 'all' 
                     ? 'No tienes pedidos en este período' 
                     : `No hay pedidos con estado "${getStatusText(filterStatus as Order['status'])}"`
@@ -677,7 +785,7 @@ export function SellerOrderManagement() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
               {orders.map(renderOrderCard)}
             </div>
           )}

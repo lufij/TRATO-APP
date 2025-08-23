@@ -56,13 +56,16 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   };
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
+    <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden border border-gray-200" style={{backgroundColor: 'white'}}>
       <div className="relative">
         {/* Product Image */}
-        <div className="aspect-square overflow-hidden">
+        <div className="aspect-square overflow-hidden bg-gray-100">
           {imageError ? (
             <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-              <Package className="w-12 h-12 text-gray-400" />
+              <div className="text-center">
+                <Package className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-xs text-gray-500">Sin imagen</p>
+              </div>
             </div>
           ) : (
             <ImageWithFallback
@@ -80,7 +83,12 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
         <div className="absolute top-2 left-2">
           <Badge 
             variant={product.is_public ? "default" : "secondary"}
-            className="text-xs"
+            className="text-xs font-medium"
+            style={{
+              backgroundColor: product.is_public ? '#22c55e' : '#6b7280',
+              color: 'white',
+              border: 'none'
+            }}
           >
             {product.is_public ? (
               <>
@@ -99,7 +107,15 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
         {/* Stock Badge */}
         {product.stock_quantity === 0 && (
           <div className="absolute top-2 right-2">
-            <Badge variant="destructive" className="text-xs">
+            <Badge 
+              variant="destructive" 
+              className="text-xs font-medium"
+              style={{
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none'
+              }}
+            >
               Sin stock
             </Badge>
           </div>
@@ -107,21 +123,29 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
 
         {/* Category Badge */}
         <div className="absolute bottom-2 left-2">
-          <Badge variant="outline" className="text-xs bg-white/90 backdrop-blur-sm">
+          <Badge 
+            variant="outline" 
+            className="text-xs font-medium"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              color: '#374151',
+              border: '1px solid #d1d5db'
+            }}
+          >
             {product.category}
           </Badge>
         </div>
       </div>
 
-      <CardContent className="p-4">
+      <CardContent className="p-3 md:p-4" style={{backgroundColor: 'white'}}>
         {/* Product Info */}
         <div className="space-y-3">
           <div>
-            <h3 className="font-semibold text-gray-900 line-clamp-1" title={product.name}>
+            <h3 className="font-semibold text-gray-900 line-clamp-1 text-sm md:text-base" title={product.name}>
               {product.name}
             </h3>
             {product.description && (
-              <p className="text-sm text-gray-600 line-clamp-2 mt-1" title={product.description}>
+              <p className="text-xs md:text-sm text-gray-600 line-clamp-2 mt-1" title={product.description}>
                 {product.description}
               </p>
             )}
@@ -130,14 +154,14 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           {/* Price and Stock Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <DollarSign className="w-4 h-4 text-green-600" />
-              <span className="font-semibold text-lg text-green-600">
+              <DollarSign className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <span className="font-bold text-sm md:text-lg text-green-600">
                 {formatPrice(product.price)}
               </span>
             </div>
             <div className="flex items-center gap-1">
-              <Hash className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
+              <Hash className="w-3 h-3 md:w-4 md:h-4 text-gray-500 flex-shrink-0" />
+              <span className="text-xs md:text-sm text-gray-600">
                 {product.stock_quantity} disponible
               </span>
             </div>
@@ -149,14 +173,21 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => onEdit(product)}
               className="flex-1"
+              style={{
+                minHeight: '36px',
+                fontSize: '12px',
+                fontWeight: '600',
+                borderColor: '#d1d5db',
+                color: '#374151'
+              }}
             >
-              <Edit2 className="w-4 h-4 mr-1" />
+              <Edit2 className="w-3 h-3 mr-1" />
               Editar
             </Button>
 
@@ -165,9 +196,17 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                  className="flex-1"
+                  style={{
+                    minHeight: '36px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    borderColor: '#fecaca',
+                    color: '#dc2626',
+                    backgroundColor: 'white'
+                  }}
                 >
-                  <Trash2 className="w-4 h-4 mr-1" />
+                  <Trash2 className="w-3 h-3 mr-1" />
                   Eliminar
                 </Button>
               </AlertDialogTrigger>
