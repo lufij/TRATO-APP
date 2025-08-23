@@ -145,11 +145,13 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
           subtotal,
           delivery_fee: deliveryFee,
           total,
+          total_amount: total, // Asegurar que total_amount tenga valor
           delivery_type: deliveryType,
           delivery_address: orderData.delivery_address,
           customer_notes: orderData.customer_notes,
           phone_number: orderData.phone_number,
           customer_name: orderData.customer_name,
+          payment_method: 'cash', // Agregar método de pago por defecto
           status: 'pending'
         })
         .select()

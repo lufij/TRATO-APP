@@ -185,6 +185,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
           subtotal,
           delivery_fee: deliveryFee,
           total: finalTotal,
+          total_amount: finalTotal, // Asegurar que total_amount tenga valor
           delivery_type: deliveryType,
           delivery_address: checkoutData.delivery_address,
           customer_notes: checkoutData.customer_notes,
@@ -204,9 +205,8 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         product_id: item.product_id,
         product_name: item.product?.name || '',
         product_image: item.product?.image_url || '',
-        price_per_unit: item.product?.price || 0,
+        price: item.product?.price || 0, // Usar 'price' en lugar de 'price_per_unit'
         quantity: item.quantity,
-        total_price: (item.product?.price || 0) * item.quantity,
         notes: ''
       }));
 
