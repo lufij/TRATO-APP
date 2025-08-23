@@ -4,8 +4,6 @@ import { ImageModalProvider } from './contexts/ImageModalContext';
 import { CartProvider } from './contexts/CartContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { UserStatusProvider } from './components/UserStatusIndicator';
-// Importar estilos móviles críticos
-import './src/mobile.css';
 const WelcomeScreen = lazy(() => import('./components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const RoleSelection = lazy(() => import('./components/RoleSelection').then(m => ({ default: m.RoleSelection })));
 const RegistrationForm = lazy(() => import('./components/RegistrationForm').then(m => ({ default: m.RegistrationForm })));
@@ -817,6 +815,74 @@ export default function App() {
   return (
     <AuthProvider>
       <ImageModalProvider>
+        {/* Estilos móviles críticos */}
+        <style>{`
+          /* ESTILOS MÓVILES CRÍTICOS PARA TRATO APP */
+          input, textarea, select {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #d1d5db !important;
+            font-size: 16px !important;
+            padding: 12px !important;
+            border-radius: 8px !important;
+            min-height: 44px !important;
+          }
+          
+          input:focus, textarea:focus, select:focus {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border-color: #f97316 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+          }
+          
+          input::placeholder, textarea::placeholder {
+            color: #6b7280 !important;
+            opacity: 1 !important;
+          }
+          
+          @media (max-width: 768px) {
+            body {
+              font-size: 16px !important;
+              line-height: 1.5 !important;
+            }
+            
+            h1 { font-size: 24px !important; }
+            h2 { font-size: 20px !important; }
+            h3 { font-size: 18px !important; }
+            h4 { font-size: 16px !important; }
+            
+            p, span, div {
+              font-size: 16px !important;
+            }
+            
+            button {
+              min-height: 44px !important;
+              font-size: 16px !important;
+              padding: 12px 16px !important;
+            }
+            
+            .text-xs { font-size: 14px !important; }
+            .text-sm { font-size: 16px !important; }
+            .text-base { font-size: 18px !important; }
+          }
+          
+          .mobile-bottom-nav {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            background: white !important;
+            border-top: 2px solid #e5e7eb !important;
+            padding: 12px !important;
+            z-index: 50 !important;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+          }
+          
+          .main-content {
+            padding-bottom: 80px !important;
+          }
+        `}</style>
         <PWAMetaTags />
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div><p className="text-gray-600">Cargando…</p></div></div>}>
           <AppContent />
