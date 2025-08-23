@@ -574,19 +574,19 @@ export function SellerDashboard() {
 
   // Render Dashboard Overview
   const renderDashboard = () => (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
-        <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-3 rounded-xl">
-              <Store className="w-8 h-8 text-white" />
+    <div className="space-y-4 md:space-y-6">
+      {/* Welcome Section - Mobile Optimized */}
+      <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 dashboard-welcome">
+        <CardHeader className="p-4 md:p-6">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 md:p-3 rounded-xl">
+              <Store className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-2xl text-green-800">
-                ¡Bienvenido, {user?.name}! 👋
+            <div className="flex-1">
+              <CardTitle className="text-lg md:text-2xl text-green-800 leading-tight">
+                ¡Bienvenido, Interlano Fernando Interiano! 👋
               </CardTitle>
-              <p className="text-green-700">
+              <p className="text-sm md:text-base text-green-700 mt-1">
                 Gestiona tu negocio y conecta con más clientes en Gualán
               </p>
             </div>
@@ -594,59 +594,59 @@ export function SellerDashboard() {
         </CardHeader>
       </Card>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
+      {/* Quick Stats - Mobile Grid */}
+      <div className="dashboard-stats">
+        <Card className="stat-card">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Productos</p>
-                <p className="text-xl font-bold text-gray-900">{stats.totalProducts}</p>
+                <p className="stat-label">Productos</p>
+                <p className="stat-number">{stats.totalProducts}</p>
               </div>
-              <Package className="w-8 h-8 text-blue-500" />
+              <Package className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
+        <Card className="stat-card">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Ventas del Día</p>
-                <p className="text-xl font-bold text-orange-600">{stats.dailyProducts}</p>
+                <p className="stat-label">Ventas del Día</p>
+                <p className="stat-number">{stats.dailyProducts}</p>
               </div>
-              <Clock className="w-8 h-8 text-orange-500" />
+              <Clock className="w-6 h-6 md:w-8 md:h-8 text-orange-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
+        <Card className="stat-card">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Ventas Totales</p>
-                <p className="text-xl font-bold text-green-600">{stats.totalSales}</p>
+                <p className="stat-label">Ventas Totales</p>
+                <p className="stat-number">{stats.totalSales}</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <TrendingUp className="w-6 h-6 md:w-8 md:h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
+        <Card className="stat-card">
+          <CardContent className="p-3 md:p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Calificación</p>
-                <p className="text-xl font-bold text-yellow-600">{stats.avgRating.toFixed(1)}</p>
+                <p className="stat-label">Calificación</p>
+                <p className="stat-number">{stats.avgRating.toFixed(1)}</p>
               </div>
-              <Star className="w-8 h-8 text-yellow-500" />
+              <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Revenue and Performance */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Revenue and Performance - Stack on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -953,34 +953,40 @@ export function SellerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+      {/* Mobile Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="bg-gradient-to-r from-green-500 to-green-600 p-2 rounded-lg">
-                <Store className="w-6 h-6 text-white" />
+                <Store className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                   TRATO Vendedor
                 </h1>
-                <p className="text-sm text-gray-600">Panel de control empresarial</p>
+                <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Panel de control empresarial</p>
               </div>
             </div>
-            <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={signOut} 
+              className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-4 py-2 min-h-[44px]"
+            >
               <LogOut className="w-4 h-4" />
-              Cerrar Sesión
+              <span className="hidden sm:inline">Cerrar Sesión</span>
+              <span className="sm:hidden">Salir</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      {/* Main Content with bottom padding for mobile nav */}
+      <div className="main-content container mx-auto px-4 py-4 md:py-6">
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-4 md:mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="text-sm md:text-base">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -990,57 +996,106 @@ export function SellerDashboard() {
           onOpenVerification={() => setShowVerificationDialog(true)}
         />
 
-        {/* Navigation Tabs */}
-  <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <TabsTrigger 
-                  key={item.id} 
-                  value={item.id}
-                  className="flex flex-col items-center gap-1 p-4 data-[state=active]:bg-green-100 data-[state=active]:text-green-700 relative"
-                  onClick={() => {
-                    if (item.id === 'orders') {
-                      setNewOrdersCount(0); // Clear notification when viewing orders
-                    }
-                  }}
-                >
-                  <div className="relative">
-                    <Icon className="w-5 h-5" />
-                    {item.hasNotification && item.notificationCount && item.notificationCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                        {item.notificationCount > 9 ? '9+' : item.notificationCount}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs font-medium">{item.label}</span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+        {/* Mobile Navigation */}
+        <div className="block md:hidden">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 z-50 bottom-nav">
+            <div className="grid grid-cols-5 gap-1">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentView(item.id as MainView);
+                      if (item.id === 'orders') {
+                        setNewOrdersCount(0);
+                      }
+                    }}
+                    className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg transition-colors touch-target ${
+                      isActive 
+                        ? 'text-green-600 bg-green-50' 
+                        : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                    }`}
+                  >
+                    <div className="relative">
+                      <Icon className="w-5 h-5" />
+                      {item.hasNotification && item.notificationCount && item.notificationCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center animate-pulse text-[10px]">
+                          {item.notificationCount > 9 ? '9+' : item.notificationCount}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-medium leading-tight">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-          {/* Content */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {renderDashboard()}
-          </TabsContent>
+        {/* Desktop Navigation */}
+        <div className="hidden md:block">
+          <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <TabsTrigger 
+                    key={item.id} 
+                    value={item.id}
+                    className="flex flex-col items-center gap-1 p-4 data-[state=active]:bg-green-100 data-[state=active]:text-green-700 relative"
+                    onClick={() => {
+                      if (item.id === 'orders') {
+                        setNewOrdersCount(0);
+                      }
+                    }}
+                  >
+                    <div className="relative">
+                      <Icon className="w-5 h-5" />
+                      {item.hasNotification && item.notificationCount && item.notificationCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                          {item.notificationCount > 9 ? '9+' : item.notificationCount}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
 
-          <TabsContent value="products" className="space-y-6">
-            {renderProducts()}
-          </TabsContent>
+            {/* Desktop Content */}
+            <TabsContent value="dashboard" className="space-y-6">
+              {renderDashboard()}
+            </TabsContent>
 
-          <TabsContent value="orders" className="space-y-6">
-            <SellerOrderManagement />
-          </TabsContent>
+            <TabsContent value="products" className="space-y-6">
+              {renderProducts()}
+            </TabsContent>
 
-          <TabsContent value="profile" className="space-y-6">
-            <SellerBusinessProfile />
-          </TabsContent>
+            <TabsContent value="orders" className="space-y-6">
+              <SellerOrderManagement />
+            </TabsContent>
 
-          <TabsContent value="marketplace" className="space-y-6">
-            <SellerMarketplace />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="profile" className="space-y-6">
+              <SellerBusinessProfile />
+            </TabsContent>
+
+            <TabsContent value="marketplace" className="space-y-6">
+              <SellerMarketplace />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Mobile Content */}
+        <div className="block md:hidden mt-4">
+          {currentView === 'dashboard' && renderDashboard()}
+          {currentView === 'products' && renderProducts()}
+          {currentView === 'orders' && <SellerOrderManagement />}
+          {currentView === 'profile' && <SellerBusinessProfile />}
+          {currentView === 'marketplace' && <SellerMarketplace />}
+        </div>
       </div>
 
       {/* Location Verification Dialog */}
