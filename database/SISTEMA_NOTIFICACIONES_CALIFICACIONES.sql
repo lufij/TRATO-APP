@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     data JSONB, -- Datos adicionales como order_id, action_required, etc.
-    read BOOLEAN DEFAULT FALSE,
+    is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(recipient_id, read) WHERE read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(recipient_id, is_read) WHERE is_read = FALSE;
 
 -- 2. TABLA DE CALIFICACIONES
 -- ===========================
@@ -140,7 +140,7 @@ BEGIN
         n.created_at
     FROM notifications n
     WHERE n.recipient_id = p_user_id 
-    AND n.read = FALSE
+    AND n.is_read = FALSE
     ORDER BY n.created_at DESC;
 END;
 $$;
@@ -152,7 +152,7 @@ RETURNS BOOLEAN LANGUAGE plpgsql AS $$
 BEGIN
     UPDATE notifications 
     SET 
-        read = TRUE,
+        is_read = TRUE,
         updated_at = NOW()
     WHERE id = p_notification_id 
     AND recipient_id = p_user_id;

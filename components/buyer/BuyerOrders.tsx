@@ -177,12 +177,14 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
     return status === 'pending';
   };
 
+  // Pedidos activos: todos excepto entregados, completados, cancelados o rechazados
   const activeOrders = orders.filter(order => 
-    !['completed', 'cancelled', 'rejected'].includes(order.status)
+    !['delivered', 'completed', 'cancelled', 'rejected'].includes(order.status)
   );
-  
+
+  // Historial: pedidos entregados, completados, cancelados o rechazados
   const historyOrders = orders.filter(order => 
-    ['completed', 'cancelled', 'rejected'].includes(order.status)
+    ['delivered', 'completed', 'cancelled', 'rejected'].includes(order.status)
   );
 
   // Show order tracking if an order is selected
