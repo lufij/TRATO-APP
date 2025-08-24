@@ -548,26 +548,39 @@ export function DriverDashboard() {
     try {
       console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
       
-      // Use the new RPC function with unique name
+      // Actualización directa usando update en lugar de RPC
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        driver_id: user.id
+      };
+
+      // Agregar campos específicos según el estado
+      if (newStatus === 'picked_up') {
+        updateData.picked_up_at = new Date().toISOString();
+      } else if (newStatus === 'in_transit') {
+        updateData.in_transit_at = new Date().toISOString();
+      } else if (newStatus === 'delivered') {
+        updateData.delivered_at = new Date().toISOString();
+      }
+
       const { data, error } = await supabase
-        .rpc('driver_update_order_status', {
-          p_order_id: orderId,
-          p_status: newStatus
-        });
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId)
+        .select();
 
       if (error) {
-        console.error('RPC Error updating status:', error);
+        console.error('Error updating status:', error);
         toast.error('Error al actualizar estado: ' + error.message);
         return;
       }
 
       console.log('Update status response:', data);
 
-      if (data?.success) {
+      if (data && data.length > 0) {
         const statusMessages: Record<string, string> = {
-          'picked-up': '📦 Pedido marcado como recogido',
           'picked_up': '📦 Pedido marcado como recogido',
-          'in-transit': '🚚 En camino al destino',
           'in_transit': '🚚 En camino al destino',
           'delivered': '✅ Entrega completada exitosamente'
         };
@@ -581,7 +594,7 @@ export function DriverDashboard() {
           loadCompletedDeliveries()
         ]);
       } else {
-        toast.error(data?.[0]?.message || 'Error al actualizar estado');
+        toast.error('No se pudo actualizar el estado');
       }
     } catch (error) {
       console.error('Error updating delivery status:', error);
