@@ -149,29 +149,33 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${import.meta.env.VITE_MAPBOX_TOKEN || ''}`
           );
           
-          let address = `${latitude}, ${longitude}`;
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.features && data.features.length > 0) {
-              address = data.features[0].place_name;
-            }
-          }
-
-          setLocation({
-            latitude,
-            longitude,
-            address
-          });
+              if (response.ok) {
+                const data = await response.json();
+                if (data.features && data.features.length > 0) {
+                  setLocation(prev => ({
+                    ...prev,
+                    latitude,
+                    longitude,
+                    // address permanece igual, el usuario lo escribe manualmente
+                  }));
+                }
+              } else {
+                setLocation(prev => ({
+                  ...prev,
+                  latitude,
+                  longitude
+                }));
+              }
 
           toast.success('Ubicación obtenida correctamente');
         } catch (error) {
           console.error('Error getting address:', error);
-          setLocation({
+          setLocation(prev => ({
+            ...prev,
             latitude,
-            longitude,
-            address: `${latitude}, ${longitude}`
-          });
+            longitude
+            // No modificar address en caso de error tampoco
+          }));
           toast.success('Ubicación obtenida (sin dirección)');
         } finally {
           setGettingLocation(false);
