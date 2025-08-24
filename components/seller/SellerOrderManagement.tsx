@@ -314,21 +314,50 @@ export function SellerOrderManagement() {
     setProcessingOrderId(orderId);
     
     try {
+      // Actualización directa usando update en lugar de RPC
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      };
+
+      // Agregar campos específicos según el estado
+      if (newStatus === 'accepted') {
+        updateData.accepted_at = new Date().toISOString();
+      } else if (newStatus === 'ready') {
+        updateData.ready_at = new Date().toISOString();
+      } else if (newStatus === 'rejected') {
+        updateData.rejection_reason = notes || 'Rechazado por el vendedor';
+        updateData.rejected_at = new Date().toISOString();
+      }
+
       const { data, error } = await supabase
-        .rpc('update_order_status', {
-          p_order_id: orderId,
-          p_new_status: newStatus,
-          p_user_id: user?.id,
-          p_notes: notes
-        });
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId)
+        .eq('seller_id', user?.id) // Verificar que pertenece al vendedor
+        .select();
 
       if (error) throw error;
 
-      if (data?.[0]?.success) {
-        toast.success(data[0].message);
+      if (data && data.length > 0) {
+        let message = '';
+        switch (newStatus) {
+          case 'accepted':
+            message = 'Orden aceptada exitosamente';
+            break;
+          case 'ready':
+            message = 'Orden marcada como lista';
+            break;
+          case 'rejected':
+            message = 'Orden rechazada';
+            break;
+          default:
+            message = 'Estado actualizado exitosamente';
+        }
+        toast.success(message);
         await fetchOrders();
       } else {
-        toast.error(data?.[0]?.message || 'Error al actualizar orden');
+        toast.error('No se pudo actualizar la orden');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
