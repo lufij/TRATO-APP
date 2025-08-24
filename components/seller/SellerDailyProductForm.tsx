@@ -9,7 +9,6 @@ const initialState = {
   description: '',
   price: '',
   image_url: '',
-  category: '',
   stock_quantity: 1,
 };
 
@@ -21,7 +20,7 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
   const { user } = useAuth();
   const [form, setForm] = useState(initialState);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -42,7 +41,6 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
         description: form.description,
   price: parseFloat(form.price),
   image_url: form.image_url,
-  category: form.category,
   stock_quantity: Number(form.stock_quantity),
   expires_at: expires_at.toISOString(),
   is_available: true,
@@ -67,7 +65,6 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
       <Input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" required />
       <Input name="price" value={form.price} onChange={handleChange} placeholder="Precio" type="number" required />
       <Input name="image_url" value={form.image_url} onChange={handleChange} placeholder="URL de imagen" required />
-      <Input name="category" value={form.category} onChange={handleChange} placeholder="Categoría" required />
       <Input name="stock_quantity" value={form.stock_quantity} onChange={handleChange} placeholder="Cantidad" type="number" min={1} required />
       <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Crear producto del día'}</Button>
       {error && <div className="text-red-500">{error}</div>}
