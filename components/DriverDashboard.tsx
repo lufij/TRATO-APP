@@ -666,6 +666,19 @@ export function DriverDashboard() {
     try {
       console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
       
+      // Primero obtenemos la información completa del pedido
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError || !orderData) {
+        console.error('Error getting order data:', orderError);
+        toast.error('Error al obtener información del pedido');
+        return;
+      }
+
       // Actualización directa usando update en lugar de RPC
       const updateData: any = {
         status: newStatus,
@@ -704,6 +717,11 @@ export function DriverDashboard() {
         };
 
         toast.success(statusMessages[newStatus] || 'Estado actualizado');
+
+        // 🚀 NUEVO: Si el pedido fue marcado como entregado, ejecutar sistema completo
+        if (newStatus === 'delivered') {
+          await handleDeliveryCompleted(orderId, orderData);
+        }
         
         // Refresh data immediately
         await Promise.all([
@@ -719,6 +737,179 @@ export function DriverDashboard() {
       toast.error('Error al actualizar estado');
     } finally {
       setProcessingOrderId(null);
+    }
+  };
+
+  // 🚀 NUEVA FUNCIÓN: Manejo completo cuando se entrega un pedido
+  const handleDeliveryCompleted = async (orderId: string, orderData: any) => {
+    if (!user?.id) return;
+    
+    try {
+      console.log('🎯 Iniciando proceso de entrega completada para pedido:', orderId);
+      
+      // 1. 📨 Enviar notificaciones al vendedor y comprador
+      await sendDeliveryNotifications(orderId, orderData);
+      
+      // 2. 🌟 Crear registros para calificaciones pendientes
+      await createRatingRecords(orderId, orderData);
+      
+      // 3. 📊 Actualizar estadísticas del repartidor
+      await updateDriverStats(user.id);
+      
+      console.log('✅ Proceso de entrega completada exitoso');
+      
+    } catch (error) {
+      console.error('❌ Error en proceso de entrega completada:', error);
+      // No mostramos error al usuario para no interrumpir el flujo principal
+    }
+  };
+
+  // 📨 Función para enviar notificaciones
+  const sendDeliveryNotifications = async (orderId: string, orderData: any) => {
+    if (!user?.id) return;
+    
+    try {
+      const notifications = [];
+      
+      // Notificación al vendedor
+      if (orderData.seller_id) {
+        notifications.push({
+          recipient_id: orderData.seller_id,
+          type: 'delivery_completed',
+          title: '✅ Pedido Entregado',
+          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado exitosamente. ¡Califica al repartidor y comprador!`,
+          data: {
+            order_id: orderId,
+            action_required: 'rate_driver_and_buyer',
+            driver_id: user.id,
+            buyer_id: orderData.buyer_id
+          },
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Notificación al comprador
+      if (orderData.buyer_id) {
+        notifications.push({
+          recipient_id: orderData.buyer_id,
+          type: 'delivery_completed',
+          title: '🎉 ¡Tu pedido ha llegado!',
+          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado. ¡Califica al vendedor y repartidor!`,
+          data: {
+            order_id: orderId,
+            action_required: 'rate_seller_and_driver',
+            seller_id: orderData.seller_id,
+            driver_id: user.id
+          },
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Insertar todas las notificaciones
+      if (notifications.length > 0) {
+        const { error } = await supabase
+          .from('notifications')
+          .insert(notifications);
+
+        if (error) {
+          console.error('Error sending notifications:', error);
+        } else {
+          console.log('📨 Notificaciones enviadas exitosamente');
+        }
+      }
+    } catch (error) {
+      console.error('Error sending delivery notifications:', error);
+    }
+  };
+
+  // 🌟 Función para crear registros de calificaciones
+  const createRatingRecords = async (orderId: string, orderData: any) => {
+    if (!user?.id) return;
+    
+    try {
+      const ratingRecords = [];
+
+      // Registro para que el vendedor califique al repartidor
+      if (orderData.seller_id) {
+        ratingRecords.push({
+          order_id: orderId,
+          rater_id: orderData.seller_id,
+          rated_id: user.id,
+          rating_type: 'seller_to_driver',
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Registro para que el vendedor califique al comprador
+      if (orderData.seller_id && orderData.buyer_id) {
+        ratingRecords.push({
+          order_id: orderId,
+          rater_id: orderData.seller_id,
+          rated_id: orderData.buyer_id,
+          rating_type: 'seller_to_buyer',
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Registro para que el comprador califique al vendedor
+      if (orderData.buyer_id && orderData.seller_id) {
+        ratingRecords.push({
+          order_id: orderId,
+          rater_id: orderData.buyer_id,
+          rated_id: orderData.seller_id,
+          rating_type: 'buyer_to_seller',
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Registro para que el comprador califique al repartidor
+      if (orderData.buyer_id) {
+        ratingRecords.push({
+          order_id: orderId,
+          rater_id: orderData.buyer_id,
+          rated_id: user.id,
+          rating_type: 'buyer_to_driver',
+          status: 'pending',
+          created_at: new Date().toISOString()
+        });
+      }
+
+      // Insertar registros de calificaciones
+      if (ratingRecords.length > 0) {
+        const { error } = await supabase
+          .from('ratings')
+          .insert(ratingRecords);
+
+        if (error) {
+          console.error('Error creating rating records:', error);
+        } else {
+          console.log('🌟 Registros de calificación creados exitosamente');
+        }
+      }
+    } catch (error) {
+      console.error('Error creating rating records:', error);
+    }
+  };
+
+  // 📊 Función para actualizar estadísticas del repartidor
+  const updateDriverStats = async (driverId: string) => {
+    try {
+      // Aquí podrías actualizar estadísticas como:
+      // - Total de entregas completadas
+      // - Ganancias acumuladas
+      // - Tiempo promedio de entrega
+      // - Calificación promedio
+      
+      console.log('📊 Actualizando estadísticas del repartidor:', driverId);
+      
+      // Implementación opcional: podrías crear una tabla driver_stats
+      // y actualizar los números aquí
+      
+    } catch (error) {
+      console.error('Error updating driver stats:', error);
     }
   };
 

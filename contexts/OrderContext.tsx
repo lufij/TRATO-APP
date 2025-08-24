@@ -595,6 +595,8 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      console.log('🌟 Enviando calificación:', { orderId, rating, type, comment });
+
       // Get order info
       const { data: orderData } = await supabase
         .from('orders')
@@ -612,40 +614,57 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: `No hay ${type === 'seller' ? 'vendedor' : 'repartidor'} asignado`};
       }
 
-      // Create review
-      const { error: reviewError } = await supabase
-        .from('reviews')
-        .insert({
-          order_id: orderId,
-          reviewer_id: user.id,
-          reviewee_id: revieweeId,
-          reviewee_type: type,
-          rating,
-          comment: comment || ''
+      // Determinar el tipo de calificación basado en el rol del usuario y el tipo
+      let ratingType: string;
+      if (user.id === orderData.buyer_id) {
+        ratingType = type === 'seller' ? 'buyer_to_seller' : 'buyer_to_driver';
+      } else if (user.id === orderData.seller_id) {
+        ratingType = type === 'seller' ? 'seller_to_buyer' : 'seller_to_driver';
+      } else {
+        return { success: false, message: 'No tienes permisos para calificar esta orden' };
+      }
+
+      console.log('🎯 Tipo de calificación:', ratingType);
+
+      // Buscar la calificación pendiente
+      const { data: existingRating } = await supabase
+        .from('ratings')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('rater_id', user.id)
+        .eq('rated_id', revieweeId)
+        .eq('rating_type', ratingType)
+        .eq('status', 'pending')
+        .single();
+
+      if (!existingRating) {
+        return { success: false, message: 'No se encontró una calificación pendiente para esta orden' };
+      }
+
+      // Usar la función SQL para completar la calificación
+      const { data, error } = await supabase
+        .rpc('complete_rating', {
+          p_rating_id: existingRating.id,
+          p_user_id: user.id,
+          p_rating: rating,
+          p_comment: comment || null
         });
 
-      if (reviewError) {
-        console.error('Error creating review:', reviewError);
-        return { success: false, message: 'Error al crear la calificación' };
+      if (error) {
+        console.error('Error completing rating:', error);
+        return { success: false, message: 'Error al enviar la calificación: ' + error.message };
       }
 
-      // Update order rating
-      const updateField = type === 'seller' ? 'seller_rating' : 'driver_rating';
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ [updateField]: rating })
-        .eq('id', orderId);
-
-      if (updateError) {
-        console.error('Error updating order rating:', updateError);
+      if (!data) {
+        return { success: false, message: 'No se pudo completar la calificación' };
       }
 
-      await fetchOrders();
-      return { success: true, message: 'Calificación enviada exitosamente' };
+      console.log('✅ Calificación enviada exitosamente');
+      return { success: true, message: '¡Calificación enviada exitosamente!' };
 
     } catch (error) {
       console.error('Unexpected error rating order:', error);
-      return { success: false, message: 'Error inesperado al calificar' };
+      return { success: false, message: 'Error inesperado al enviar la calificación' };
     }
   };
 

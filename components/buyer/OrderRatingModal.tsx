@@ -78,12 +78,12 @@ export function OrderRatingModal({ orderId, type, onClose, onRatingSubmitted }: 
   if (success) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
+        <Card className="w-full max-w-md bg-white">
+          <CardContent className="p-8 text-center bg-white">
             <div className="bg-green-100 p-4 rounded-full w-16 h-16 mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">¡Gracias por tu calificación!</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900">¡Gracias por tu calificación!</h3>
             <p className="text-gray-600">Tu opinión nos ayuda a mejorar el servicio</p>
           </CardContent>
         </Card>
@@ -93,19 +93,19 @@ export function OrderRatingModal({ orderId, type, onClose, onRatingSubmitted }: 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md bg-white border border-gray-200 shadow-xl">
+        <CardHeader className="text-center bg-white">
           <div className="bg-gradient-to-r from-orange-100 to-green-100 p-3 rounded-full w-16 h-16 mx-auto mb-4">
             <div className="text-orange-600">
               {getIcon()}
             </div>
           </div>
-          <CardTitle>{getTitle()}</CardTitle>
+          <CardTitle className="text-gray-900">{getTitle()}</CardTitle>
           <p className="text-sm text-gray-600 font-normal">
             {getDescription()}
           </p>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 bg-white">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -155,6 +155,7 @@ export function OrderRatingModal({ orderId, type, onClose, onRatingSubmitted }: 
               rows={3}
               maxLength={500}
               disabled={isSubmitting}
+              className="bg-white border border-gray-300"
             />
             <div className="text-xs text-gray-500 text-right">
               {comment.length}/500
@@ -167,14 +168,14 @@ export function OrderRatingModal({ orderId, type, onClose, onRatingSubmitted }: 
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1"
+              className="flex-1 bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSubmitRating}
               disabled={isSubmitting || rating === 0}
-              className="flex-1 bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600"
+              className="flex-1 bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 text-white"
             >
               {isSubmitting ? (
                 <>
@@ -190,7 +191,7 @@ export function OrderRatingModal({ orderId, type, onClose, onRatingSubmitted }: 
             </Button>
           </div>
 
-          <p className="text-xs text-gray-500 text-center">
+          <p className="text-xs text-gray-500 text-center bg-white">
             Tu calificación será visible para otros usuarios y ayudará a mejorar la calidad del servicio
           </p>
         </CardContent>
