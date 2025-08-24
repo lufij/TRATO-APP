@@ -93,7 +93,7 @@ export function SellerPurchaseOrders() {
           delivery_type,
           notes,
           estimated_delivery,
-          seller:users!seller_id (
+          seller:sellers!seller_id (
             id,
             name,
             phone,

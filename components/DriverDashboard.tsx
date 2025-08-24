@@ -366,8 +366,9 @@ export function DriverDashboard() {
         .from('orders')
         .select(`
           *,
-          seller_info:users!seller_id (
+          seller_info:sellers!seller_id (
             name,
+            business_name,
             address
           ),
           seller_business:sellers!seller_id (
