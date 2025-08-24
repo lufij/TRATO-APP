@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Check, AlertTriangle, Smartphone, Navigation, Save, ShoppingCart } from 'lucide-react';
+import { supabase } from '../../../utils/supabase/client';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface UserProfile {
   user_id: string;
@@ -43,6 +45,7 @@ export const SmartCheckout: React.FC<Props> = ({
   cartTotal, 
   cartItems 
 }) => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -57,49 +60,60 @@ export const SmartCheckout: React.FC<Props> = ({
   });
 
   useEffect(() => {
-    loadUserProfile();
-  }, []);
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (profile && profile.has_complete_profile) {
+    if (profile) {
       // Auto-llenar con datos del perfil
       setFormData({
         customerName: profile.name || '',
         customerPhone: profile.phone || '',
         deliveryAddress: profile.primary_address || '',
         deliveryInstructions: profile.delivery_instructions || '',
-        useProfileLocation: true
+        useProfileLocation: profile.gps_verified
       });
       
       // Si el perfil está completo, preparar datos automáticamente
-      prepareCheckoutData(true);
+      if (profile.has_complete_profile) {
+        prepareCheckoutData(profile.gps_verified);
+      }
     }
   }, [profile]);
 
-  // Simulación de carga de perfil - reemplazar con llamada real a Supabase
+  // Carga real de perfil desde Supabase
   const loadUserProfile = async () => {
     try {
       setLoading(true);
       
-      // Simulación de llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Datos de ejemplo - reemplazar con datos reales
-      const mockProfile: UserProfile = {
-        user_id: '123',
-        name: 'Juan Pérez',
-        email: 'juan@email.com',
-        phone: '1234-5678',
-        primary_address: 'Calle Principal #123, Gualán, Zacapa',
-        primary_latitude: 15.1234567,
-        primary_longitude: -89.1234567,
-        gps_verified: true,
-        delivery_instructions: 'Casa color verde con portón negro',
-        location_accuracy: 10,
-        has_complete_profile: true
-      };
-      
-      setProfile(mockProfile);
+      const { data, error } = await supabase.rpc('get_user_profile_for_checkout', {
+        p_user_id: user?.id
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const profileData = data[0];
+        setProfile(profileData);
+      } else {
+        // Si no hay perfil completo, crear uno básico
+        const basicProfile: UserProfile = {
+          user_id: user?.id || '',
+          name: '',
+          email: user?.email || '',
+          phone: '',
+          primary_address: '',
+          primary_latitude: 0,
+          primary_longitude: 0,
+          gps_verified: false,
+          delivery_instructions: '',
+          location_accuracy: 0,
+          has_complete_profile: false
+        };
+        setProfile(basicProfile);
+      }
     } catch (error) {
       console.error('Error loading profile:', error);
     } finally {

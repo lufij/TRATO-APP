@@ -55,7 +55,8 @@ function PWAMetaTags() {
 
     const links: Array<{ rel: string; href: string }> = [
       { rel: 'manifest', href: '/manifest.webmanifest' },
-      { rel: 'apple-touch-icon', href: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 180 180\'%3E%3Crect width=\'180\' height=\'180\' fill=\'%23f97316\'/%3E%3Ctext x=\'90\' y=\'110\' font-family=\'Arial, sans-serif\' font-size=\'36\' font-weight=\'bold\' text-anchor=\'middle\' fill=\'white\'%3ETRATO%3C/text%3E%3C/svg%3E' }
+      { rel: 'apple-touch-icon', href: '/assets/trato-logo.png' },
+      { rel: 'icon', href: '/assets/trato-logo.png' }
     ];
     if (supaOrigin) {
       links.push({ rel: 'preconnect', href: supaOrigin });

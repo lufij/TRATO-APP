@@ -47,23 +47,66 @@ interface CheckoutData {
 }
 
 type DeliveryType = 'pickup' | 'dine-in' | 'delivery';
-type CheckoutStep = 'delivery' | 'contact' | 'payment' | 'review' | 'processing';
+type CheckoutStep = 'complete-info' | 'payment' | 'review' | 'processing';
 
 export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
   const { user } = useAuth();
   const { items: cartItems, clearCart, getCartTotal } = useCart();
-  const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
+  const [currentStep, setCurrentStep] = useState<CheckoutStep>('complete-info');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('pickup');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderCreated, setOrderCreated] = useState(false);
   
   const [checkoutData, setCheckoutData] = useState<CheckoutData>({
-    customer_name: user?.name || '',
-    phone_number: user?.phone || '',
+    customer_name: '',
+    phone_number: '',
     delivery_address: '',
     customer_notes: '',
     payment_method: 'cash'
   });
+
+  // Cargar perfil del usuario al iniciar
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_user_profile_for_checkout', {
+        p_user_id: user?.id
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const profileData = data[0];
+        setCheckoutData(prev => ({
+          ...prev,
+          customer_name: profileData.name || '',
+          phone_number: profileData.phone || '',
+          delivery_address: profileData.primary_address || '',
+          customer_notes: profileData.delivery_instructions || ''
+        }));
+      } else {
+        // Fallback a datos básicos del auth
+        setCheckoutData(prev => ({
+          ...prev,
+          customer_name: user?.name || '',
+          phone_number: user?.phone || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      // Fallback a datos básicos del auth
+      setCheckoutData(prev => ({
+        ...prev,
+        customer_name: user?.name || '',
+        phone_number: user?.phone || ''
+      }));
+    }
+  };
 
   // Calcular costos
   const subtotal = cartItems.reduce((sum: number, item: any) => sum + (item.product?.price || 0) * item.quantity, 0);
@@ -117,13 +160,10 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
 
   const validateStep = (step: CheckoutStep): string | null => {
     switch (step) {
-      case 'delivery':
+      case 'complete-info':
         if (deliveryType === 'delivery' && !checkoutData.delivery_address.trim()) {
           return 'Ingresa tu dirección de entrega';
         }
-        return null;
-      
-      case 'contact':
         if (!checkoutData.customer_name.trim()) return 'Ingresa tu nombre';
         if (!checkoutData.phone_number.trim()) return 'Ingresa tu teléfono';
         return null;
@@ -144,7 +184,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
       return;
     }
 
-    const steps: CheckoutStep[] = ['delivery', 'contact', 'payment', 'review'];
+    const steps: CheckoutStep[] = ['complete-info', 'payment', 'review'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
@@ -152,7 +192,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
   };
 
   const prevStep = () => {
-    const steps: CheckoutStep[] = ['delivery', 'contact', 'payment', 'review'];
+    const steps: CheckoutStep[] = ['complete-info', 'payment', 'review'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
@@ -260,8 +300,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
 
   const renderStepIndicator = () => {
     const steps = [
-      { key: 'delivery', label: 'Entrega', icon: Truck },
-      { key: 'contact', label: 'Contacto', icon: User },
+      { key: 'complete-info', label: 'Información', icon: User },
       { key: 'payment', label: 'Pago', icon: CreditCard },
       { key: 'review', label: 'Revisar', icon: CheckCircle }
     ];
@@ -303,102 +342,143 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
     );
   };
 
-  const renderDeliveryStep = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Truck className="w-5 h-5" />
-          Tipo de entrega
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <RadioGroup 
-          value={deliveryType} 
-          onValueChange={(value: string) => setDeliveryType(value as DeliveryType)}
-        >
-          {deliveryOptions.map((option) => {
-            const Icon = option.icon;
-            return (
-              <div key={option.type} className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
-                <RadioGroupItem value={option.type} id={option.type} />
-                <div className="flex-1 flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-orange-500" />
-                  <div className="flex-1">
-                    <Label htmlFor={option.type} className="font-medium cursor-pointer">
-                      {option.title}
-                    </Label>
-                    <p className="text-sm text-gray-600">{option.description}</p>
-                  </div>
-                  <div className="text-right">
-                    {option.fee > 0 ? (
-                      <span className="font-medium">Q{option.fee.toFixed(2)}</span>
-                    ) : (
-                      <span className="text-green-600 font-medium">Gratis</span>
-                    )}
+  const renderCompleteInfoStep = () => (
+    <div className="space-y-6">
+      {/* Tipo de entrega */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Truck className="w-5 h-5" />
+            Opciones de entrega
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <RadioGroup 
+            value={deliveryType} 
+            onValueChange={(value: string) => setDeliveryType(value as DeliveryType)}
+          >
+            {deliveryOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <div key={option.type} className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-gray-50">
+                  <RadioGroupItem value={option.type} id={option.type} />
+                  <div className="flex-1 flex items-center gap-3">
+                    <Icon className="w-5 h-5 text-orange-500" />
+                    <div className="flex-1">
+                      <Label htmlFor={option.type} className="font-medium cursor-pointer">
+                        {option.title}
+                      </Label>
+                      <p className="text-sm text-gray-600">{option.description}</p>
+                    </div>
+                    <div className="text-right">
+                      {option.fee > 0 ? (
+                        <span className="font-medium">Q{option.fee.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-green-600 font-medium">Gratis</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </RadioGroup>
+              );
+            })}
+          </RadioGroup>
 
-        {deliveryType === 'delivery' && (
+          {deliveryType === 'delivery' && (
+            <div className="space-y-2">
+              <Label htmlFor="address">Dirección de entrega *</Label>
+              <Textarea
+                id="address"
+                placeholder="Ingresa tu dirección completa..."
+                value={checkoutData.delivery_address}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, delivery_address: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Información de contacto */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Información de contacto
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="address">Dirección de entrega *</Label>
+            <Label htmlFor="name">Nombre completo *</Label>
+            <Input
+              id="name"
+              placeholder="Tu nombre completo"
+              value={checkoutData.customer_name}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, customer_name: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Número de teléfono *</Label>
+            <Input
+              id="phone"
+              placeholder="1234-5678"
+              value={checkoutData.phone_number}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, phone_number: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Instrucciones especiales (opcional)</Label>
             <Textarea
-              id="address"
-              placeholder="Ingresa tu dirección completa..."
-              value={checkoutData.delivery_address}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, delivery_address: e.target.value }))}
+              id="notes"
+              placeholder="Alguna instrucción especial para tu pedido..."
+              value={checkoutData.customer_notes}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, customer_notes: e.target.value }))}
               rows={3}
             />
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
 
-  const renderContactStep = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="w-5 h-5" />
-          Información de contacto
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nombre completo *</Label>
-          <Input
-            id="name"
-            placeholder="Tu nombre completo"
-            value={checkoutData.customer_name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, customer_name: e.target.value }))}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone">Número de teléfono *</Label>
-          <Input
-            id="phone"
-            placeholder="1234-5678"
-            value={checkoutData.phone_number}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, phone_number: e.target.value }))}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">Instrucciones especiales (opcional)</Label>
-          <Textarea
-            id="notes"
-            placeholder="Alguna instrucción especial para tu pedido..."
-            value={checkoutData.customer_notes}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, customer_notes: e.target.value }))}
-            rows={3}
-          />
-        </div>
-      </CardContent>
-    </Card>
+      {/* Resumen del pedido */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5" />
+            Resumen del pedido
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {cartItems.map((item: any, index: number) => (
+            <div key={index} className="flex justify-between items-center py-2">
+              <div className="flex-1">
+                <p className="font-medium">{item.product?.name || item.name}</p>
+                <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+              </div>
+              <p className="font-medium">Q{((item.product?.price || 0) * item.quantity).toFixed(2)}</p>
+            </div>
+          ))}
+          
+          <Separator />
+          
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal:</span>
+              <span>Q{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Entrega:</span>
+              <span>{deliveryFee > 0 ? `Q${deliveryFee.toFixed(2)}` : 'Gratis'}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between text-lg font-bold">
+              <span>Total:</span>
+              <span className="text-orange-600">Q{finalTotal.toFixed(2)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 
   const renderPaymentStep = () => (
@@ -582,10 +662,8 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
 
   const renderStepContent = () => {
     switch (currentStep) {
-      case 'delivery':
-        return renderDeliveryStep();
-      case 'contact':
-        return renderContactStep();
+      case 'complete-info':
+        return renderCompleteInfoStep();
       case 'payment':
         return renderPaymentStep();
       case 'review':
@@ -621,7 +699,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
           <Button
             variant="outline"
             onClick={prevStep}
-            disabled={currentStep === 'delivery' || isSubmitting}
+            disabled={currentStep === 'complete-info' || isSubmitting}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Anterior

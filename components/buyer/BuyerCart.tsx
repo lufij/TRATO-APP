@@ -61,11 +61,64 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
   const [orderData, setOrderData] = useState<OrderData>({
     delivery_type: 'pickup',
     phone_number: '',
-    customer_name: user?.name || '',
+    customer_name: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // Cargar perfil del usuario al iniciar
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    try {
+      setProfileLoading(true);
+      
+      const { data, error } = await supabase.rpc('get_user_profile_for_checkout', {
+        p_user_id: user?.id
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const profileData = data[0];
+        setUserProfile(profileData);
+        
+        // Autocompletar datos del formulario
+        setOrderData(prev => ({
+          ...prev,
+          customer_name: profileData.name || user?.name || '',
+          phone_number: profileData.phone || '',
+          delivery_address: profileData.primary_address || ''
+        }));
+      } else {
+        // Si no hay perfil en la base de datos, usar datos básicos del auth
+        setOrderData(prev => ({
+          ...prev,
+          customer_name: user?.name || '',
+          phone_number: '',
+          delivery_address: ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      // Fallback a datos básicos del auth
+      setOrderData(prev => ({
+        ...prev,
+        customer_name: user?.name || '',
+        phone_number: '',
+        delivery_address: ''
+      }));
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   // Delivery fees
   const deliveryFees = {

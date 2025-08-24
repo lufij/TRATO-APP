@@ -210,11 +210,12 @@ export function RoleSelection({ onSelectRole, onBack }: RoleSelectionProps) {
             </Button>
             
             <div className="flex items-center space-x-3">
-              <div 
-                className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                style={{ background: TRATO_GRADIENTS.primary }}
-              >
-                <Store className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg overflow-hidden bg-white">
+                <img 
+                  src="/assets/trato-logo.png" 
+                  alt="TRATO Logo" 
+                  className="w-10 h-10 object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent">
@@ -306,6 +307,7 @@ export function RoleSelection({ onSelectRole, onBack }: RoleSelectionProps) {
           <div className="text-center text-gray-600">
             <p>&copy; 2025 TRATO - Mercado Local Gualán. Todos los derechos reservados.</p>
             <p className="text-sm mt-2">Fortaleciendo el comercio local con tecnología moderna</p>
+            <p className="text-xs mt-1 text-gray-500">Aplicación creada por Luis Interiano</p>
           </div>
         </footer>
       </div>
