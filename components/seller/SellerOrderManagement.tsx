@@ -80,13 +80,137 @@ export function SellerOrderManagement() {
     return order.total_amount || order.total || 0;
   };
 
-  const fetchOrders = async () => {
+  const runDiagnostic = async () => {
     if (!user) return;
+    
+    console.log('🔍 EJECUTANDO DIAGNÓSTICO DE ÓRDENES');
+    console.log('=====================================');
+    
+    try {
+      // 1. Verificar perfil del usuario
+      console.log('👤 Usuario actual:', { id: user.id, email: user.email, role: user.role });
+      
+      // 2. Verificar todas las órdenes recientes
+      const { data: allOrders, error: allError } = await supabase
+        .from('orders')
+        .select('id, seller_id, buyer_id, customer_name, total, total_amount, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (allError) {
+        console.error('❌ Error consultando todas las órdenes:', allError);
+      } else {
+        console.log(`📊 Total órdenes recientes encontradas: ${allOrders?.length || 0}`);
+        allOrders?.forEach((order, index) => {
+          console.log(`${index + 1}. ID: ${order.id}`);
+          console.log(`   Seller: ${order.seller_id || 'NULL'}`);
+          console.log(`   Buyer: ${order.buyer_id || 'NULL'}`);
+          console.log(`   Customer: ${order.customer_name || 'N/A'}`);
+          console.log(`   Status: ${order.status || 'N/A'}`);
+          console.log('   ---');
+        });
+      }
+      
+      // 3. Verificar órdenes sin seller_id
+      const { data: orphanOrders, error: orphanError } = await supabase
+        .from('orders')
+        .select('*')
+        .is('seller_id', null)
+        .order('created_at', { ascending: false });
+      
+      if (orphanError) {
+        console.error('❌ Error consultando órdenes huérfanas:', orphanError);
+      } else {
+        console.log(`🚨 Órdenes sin seller_id: ${orphanOrders?.length || 0}`);
+        
+        if (orphanOrders && orphanOrders.length > 0) {
+          const shouldAssign = confirm(`Se encontraron ${orphanOrders.length} órdenes sin vendedor asignado. ¿Quieres asignarlas a tu cuenta?`);
+          
+          if (shouldAssign) {
+            console.log('🔧 Asignando órdenes huérfanas...');
+            
+            for (const order of orphanOrders) {
+              try {
+                const { error: updateError } = await supabase
+                  .from('orders')
+                  .update({ seller_id: user.id })
+                  .eq('id', order.id);
+                
+                if (updateError) {
+                  console.error(`❌ Error asignando orden ${order.id}:`, updateError);
+                } else {
+                  console.log(`✅ Orden ${order.id} asignada exitosamente`);
+                }
+              } catch (err) {
+                console.error(`❌ Error:`, err);
+              }
+            }
+            
+            toast.success(`${orphanOrders.length} órdenes fueron asignadas a tu cuenta`);
+            
+            // Recargar órdenes
+            setTimeout(() => {
+              fetchOrders();
+            }, 1000);
+          }
+        }
+      }
+      
+      // 4. Verificar productos del vendedor
+      const { data: myProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, seller_id')
+        .eq('seller_id', user.id);
+      
+      if (productsError) {
+        console.error('❌ Error consultando productos:', productsError);
+      } else {
+        console.log(`📦 Mis productos: ${myProducts?.length || 0}`);
+      }
+      
+      console.log('🎉 Diagnóstico completado. Revisa la consola para más detalles.');
+      toast.success('Diagnóstico completado. Revisa la consola del navegador.');
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+      toast.error('Error durante el diagnóstico');
+    }
+  };
+
+  const fetchOrders = async () => {
+    if (!user) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
 
     try {
       setLoading(true);
       console.log('🔍 Cargando órdenes para vendedor:', user.id);
+      console.log('👤 Datos del usuario:', { id: user.id, email: user.email, role: user.role });
       
+      // Primero verificar TODAS las órdenes (para debug)
+      const { data: allOrdersDebug, error: debugError } = await supabase
+        .from('orders')
+        .select('id, seller_id, buyer_id, customer_name, total, total_amount, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (debugError) {
+        console.error('❌ Error en consulta debug:', debugError);
+      } else {
+        console.log('🔍 DEBUG - Últimas 10 órdenes en la BD:');
+        allOrdersDebug?.forEach((order, index) => {
+          console.log(`${index + 1}. ID: ${order.id}`);
+          console.log(`   Seller ID: ${order.seller_id || 'NULL'}`);
+          console.log(`   Buyer ID: ${order.buyer_id || 'NULL'}`);
+          console.log(`   Customer: ${order.customer_name || 'Sin nombre'}`);
+          console.log(`   Total: ${order.total_amount || order.total || 0}`);
+          console.log(`   Status: ${order.status || 'Sin status'}`);
+          console.log('   ---');
+        });
+      }
+      
+      // Consulta principal para el vendedor
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -105,14 +229,60 @@ export function SellerOrderManagement() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Error en consulta de órdenes:', error);
+        console.error('❌ Error en consulta principal de órdenes:', error);
         throw error;
       }
       
-      console.log('✅ Órdenes encontradas:', data?.length || 0);
+      console.log('✅ Órdenes encontradas para este vendedor:', data?.length || 0);
+      
+      // Si no hay órdenes, intentar buscar órdenes sin seller_id
+      if (!data || data.length === 0) {
+        console.log('⚠️  No se encontraron órdenes para este vendedor. Buscando órdenes sin seller_id...');
+        
+        const { data: orphanOrders, error: orphanError } = await supabase
+          .from('orders')
+          .select('*')
+          .is('seller_id', null)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (orphanError) {
+          console.error('❌ Error buscando órdenes huérfanas:', orphanError);
+        } else {
+          console.log(`🔍 Órdenes sin seller_id encontradas: ${orphanOrders?.length || 0}`);
+          if (orphanOrders && orphanOrders.length > 0) {
+            console.log('💡 Asignando órdenes huérfanas a este vendedor...');
+            
+            // Asignar las órdenes huérfanas a este vendedor
+            for (const orphanOrder of orphanOrders) {
+              try {
+                const { error: updateError } = await supabase
+                  .from('orders')
+                  .update({ seller_id: user.id })
+                  .eq('id', orphanOrder.id);
+                
+                if (updateError) {
+                  console.error(`❌ Error asignando orden ${orphanOrder.id}:`, updateError);
+                } else {
+                  console.log(`✅ Orden ${orphanOrder.id} asignada exitosamente`);
+                }
+              } catch (err) {
+                console.error(`❌ Error en asignación:`, err);
+              }
+            }
+            
+            // Volver a cargar las órdenes después de la asignación
+            setTimeout(() => {
+              fetchOrders();
+            }, 1000);
+            return;
+          }
+        }
+      }
+      
       setOrders(data || []);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error general fetchOrders:', error);
       toast.error('Error al cargar las órdenes');
     } finally {
       setLoading(false);
@@ -421,14 +591,27 @@ export function SellerOrderManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Gestión de Órdenes</h2>
-        <Button 
-          variant="outline" 
-          onClick={fetchOrders}
-          disabled={loading}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={fetchOrders}
+            disabled={loading}
+            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={runDiagnostic}
+            disabled={loading}
+            className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
+          >
+            <AlertCircle className="w-4 h-4 mr-2" />
+            Diagnóstico
+          </Button>
+        </div>
       </div>
 
       {orders.length === 0 ? (
