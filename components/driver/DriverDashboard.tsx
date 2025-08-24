@@ -98,15 +98,11 @@ export function DriverDashboard() {
         .from('orders')
         .select(`
           *,
-          order_items (
-            product_name,
-            quantity
-          ),
           buyer:users!buyer_id (
             name,
             phone
           ),
-          seller:users!seller_id (
+          seller:sellers!seller_id (
             name,
             business_name,
             address,
