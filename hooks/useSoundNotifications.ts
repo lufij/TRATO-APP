@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabase/client';
 import { toast } from 'sonner';
+import { usePushNotifications } from './usePushNotifications';
 
 // Define notification sound types
 export enum NotificationSound {
@@ -64,10 +65,11 @@ const defaultConfig: SoundNotificationConfig = {
 
 export function useSoundNotifications() {
   const { user } = useAuth();
+  const { showOrderNotification, showDeliveryNotification, showGeneralNotification, requestPermission } = usePushNotifications();
   const audioContextRef = useRef<AudioContext | null>(null);
   const configRef = useRef<SoundNotificationConfig>(defaultConfig);
 
-  // Initialize AudioContext
+  // Initialize AudioContext and request notification permissions
   useEffect(() => {
     if (!audioContextRef.current) {
       try {
@@ -77,12 +79,21 @@ export function useSoundNotifications() {
       }
     }
 
+    // Request notification permissions on initialization
+    requestPermission().then(granted => {
+      if (granted) {
+        console.log('✅ Permisos de notificación concedidos');
+      } else {
+        console.warn('⚠️ Permisos de notificación denegados');
+      }
+    });
+
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
     };
-  }, []);
+  }, [requestPermission]);
 
   // Play notification sound
   const playSound = useCallback((soundType: NotificationSound) => {
@@ -157,8 +168,16 @@ export function useSoundNotifications() {
           console.log('🔊 Vendor: New order notification with sound');
           playSound(NotificationSound.NEW_ORDER);
           
+          // Show push notification
+          showOrderNotification({
+            customer_name: payload.new.customer_name || 'Cliente',
+            total: payload.new.total_amount || payload.new.total || 0,
+            delivery_type: payload.new.delivery_type || 'pickup',
+            order_id: payload.new.id
+          });
+          
           toast.success('¡Nueva orden recibida!', {
-            description: `Pedido por Q${payload.new.total}`,
+            description: `Pedido por Q${(payload.new.total_amount || payload.new.total || 0)}`,
             duration: 5000,
           });
         }
@@ -180,6 +199,8 @@ export function useSoundNotifications() {
             console.log('🔊 Vendor: Driver assigned notification with sound');
             playSound(NotificationSound.ORDER_ASSIGNED);
             
+            showDeliveryNotification('Un repartidor aceptó la entrega');
+            
             toast.info('Repartidor asignado', {
               description: 'Un repartidor aceptó la entrega',
               duration: 4000,
@@ -190,6 +211,8 @@ export function useSoundNotifications() {
           if (newStatus === 'delivered') {
             console.log('🔊 Vendor: Order delivered notification with sound');
             playSound(NotificationSound.ORDER_DELIVERED);
+            
+            showDeliveryNotification('El pedido fue entregado exitosamente');
             
             toast.success('Pedido entregado', {
               description: 'El pedido fue entregado exitosamente',
@@ -221,8 +244,14 @@ export function useSoundNotifications() {
           console.log('🔊 Driver: New delivery available with sound');
           playSound(NotificationSound.ORDER_READY);
           
+          // Push notification for new delivery available
+          showDeliveryNotification(
+            'Nueva entrega disponible',
+            `Pedido de Q${payload.new.total_amount || payload.new.total || 0} listo para recoger`
+          );
+          
           toast.info('¡Nueva entrega disponible!', {
-            description: `Pedido de Q${payload.new.total} listo para recoger`,
+            description: `Pedido de Q${payload.new.total_amount || payload.new.total || 0} listo para recoger`,
             duration: 6000,
           });
         }
@@ -242,6 +271,12 @@ export function useSoundNotifications() {
             console.log('🔊 Driver: Order assigned to you with sound');
             playSound(NotificationSound.ORDER_ASSIGNED);
             
+            // Push notification for order assignment
+            showDeliveryNotification(
+              'Entrega asignada',
+              'Tienes una nueva entrega asignada'
+            );
+            
             toast.success('Entrega asignada', {
               description: 'Tienes una nueva entrega asignada',
               duration: 4000,
@@ -252,7 +287,7 @@ export function useSoundNotifications() {
       .subscribe();
 
     return () => subscription.unsubscribe();
-  }, [user, playSound]);
+  }, [user, playSound, showDeliveryNotification]);
 
   // Handle buyer notifications
   const setupBuyerNotifications = useCallback(() => {
@@ -277,6 +312,15 @@ export function useSoundNotifications() {
             console.log('🔊 Buyer: Order accepted with sound');
             playSound(NotificationSound.GENERAL);
             
+            // Push notification for order accepted
+            showOrderNotification({
+              customer_name: 'Tu pedido',
+              total: payload.new.total_amount || payload.new.total || 0,
+              delivery_type: payload.new.delivery_type || 'pickup',
+              order_id: payload.new.id,
+              status: 'accepted'
+            });
+            
             toast.success('Pedido aceptado', {
               description: 'El vendedor aceptó tu pedido',
               duration: 4000,
@@ -287,6 +331,15 @@ export function useSoundNotifications() {
           if (newStatus === 'ready') {
             console.log('🔊 Buyer: Order ready with sound');
             playSound(NotificationSound.ORDER_READY);
+            
+            // Push notification for order ready
+            showOrderNotification({
+              customer_name: 'Tu pedido',
+              total: payload.new.total_amount || payload.new.total || 0,
+              delivery_type: payload.new.delivery_type || 'pickup',
+              order_id: payload.new.id,
+              status: 'ready'
+            });
             
             toast.info('Pedido listo', {
               description: 'Tu pedido está listo para recoger o será entregado pronto',
@@ -299,6 +352,12 @@ export function useSoundNotifications() {
             console.log('🔊 Buyer: Driver assigned with sound');
             playSound(NotificationSound.ORDER_ASSIGNED);
             
+            // Push notification for driver assigned
+            showDeliveryNotification(
+              'Repartidor asignado',
+              'Un repartidor está en camino a recoger tu pedido'
+            );
+            
             toast.info('Repartidor asignado', {
               description: 'Un repartidor está en camino a recoger tu pedido',
               duration: 4000,
@@ -309,6 +368,15 @@ export function useSoundNotifications() {
           if (newStatus === 'delivered') {
             console.log('🔊 Buyer: Order delivered with sound');
             playSound(NotificationSound.ORDER_DELIVERED);
+            
+            // Push notification for order delivered
+            showOrderNotification({
+              customer_name: 'Tu pedido',
+              total: payload.new.total_amount || payload.new.total || 0,
+              delivery_type: payload.new.delivery_type || 'pickup',
+              order_id: payload.new.id,
+              status: 'delivered'
+            });
             
             toast.success('¡Pedido entregado!', {
               description: 'Tu pedido ha sido entregado exitosamente',
@@ -328,6 +396,15 @@ export function useSoundNotifications() {
           console.log('🔊 Buyer: New product available with sound');
           playSound(NotificationSound.NEW_PRODUCT);
           
+          // Push notification for new product
+          showOrderNotification({
+            customer_name: 'Nuevo producto',
+            total: 0,
+            delivery_type: 'pickup',
+            order_id: 'new-product',
+            status: 'new_product'
+          });
+          
           toast.info('¡Nuevo producto disponible!', {
             description: 'Se agregó un nuevo producto al catálogo',
             duration: 4000,
@@ -337,7 +414,7 @@ export function useSoundNotifications() {
       .subscribe();
 
     return () => subscription.unsubscribe();
-  }, [user, playSound]);
+  }, [user, playSound, showOrderNotification, showDeliveryNotification]);
 
   // Setup notifications based on user role
   useEffect(() => {

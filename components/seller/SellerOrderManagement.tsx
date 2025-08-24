@@ -42,6 +42,7 @@ interface Order {
   customer_phone: string;
   phone_number: string;
   total: number;
+  total_amount: number; // Campo adicional para compatibilidad
   subtotal: number;
   delivery_fee: number;
   delivery_type: 'pickup' | 'dine-in' | 'delivery';
@@ -74,11 +75,18 @@ export function SellerOrderManagement() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
 
+  // Helper function para obtener el total correcto
+  const getOrderTotal = (order: Order): number => {
+    return order.total_amount || order.total || 0;
+  };
+
   const fetchOrders = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
+      console.log('🔍 Cargando órdenes para vendedor:', user.id);
+      
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -87,6 +95,7 @@ export function SellerOrderManagement() {
             id,
             product_name,
             quantity,
+            price,
             price_per_unit,
             total_price,
             notes
@@ -95,7 +104,12 @@ export function SellerOrderManagement() {
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error en consulta de órdenes:', error);
+        throw error;
+      }
+      
+      console.log('✅ Órdenes encontradas:', data?.length || 0);
       setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -315,7 +329,7 @@ export function SellerOrderManagement() {
           {/* Total y acciones */}
           <div className="flex justify-between items-center">
             <div className="space-y-1">
-              <p className="text-2xl font-bold text-green-600">Q{order.total.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-green-600">Q{getOrderTotal(order).toFixed(2)}</p>
               <p className="text-xs text-gray-500">
                 Hace {new Date(order.created_at).toLocaleString('es-GT')}
               </p>
@@ -489,7 +503,7 @@ export function SellerOrderManagement() {
                       </div>
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
                         <span>Total:</span>
-                        <span className="text-green-600">Q{selectedOrder.total.toFixed(2)}</span>
+                        <span className="text-green-600">Q{getOrderTotal(selectedOrder).toFixed(2)}</span>
                       </div>
                     </div>
                   </div>

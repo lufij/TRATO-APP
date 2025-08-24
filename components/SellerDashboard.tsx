@@ -16,6 +16,7 @@ import { SellerOrderManagement } from './SellerOrderManagement';
 import { SellerMarketplace } from './seller/SellerMarketplace';
 import { LocationVerification } from './LocationVerification';
 import { VerificationAlert } from './VerificationAlert';
+import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { 
   Plus, 
@@ -1096,6 +1097,11 @@ export function SellerDashboard() {
           userRole="vendedor"
           onOpenVerification={() => setShowVerificationDialog(true)}
         />
+
+        {/* Notification Permission Banner */}
+        <div className="mb-4 md:mb-6">
+          <NotificationPermissionBanner />
+        </div>
 
         {/* Mobile Navigation */}
         <div className="block md:hidden">
