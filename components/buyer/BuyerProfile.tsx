@@ -500,22 +500,50 @@ export function BuyerProfile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-green-500" />
-              Gestión de Ubicaciones
+              Mi Ubicación
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="p-4 bg-green-50 rounded-lg mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Award className="w-4 h-4 text-green-600" />
-                <span className="font-medium text-green-800">Cliente frecuente</span>
+            <div className="space-y-4">
+              {/* Botón GPS */}
+              <button 
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (position) => {
+                        alert(`📍 Ubicación obtenida: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`);
+                      },
+                      (error) => {
+                        alert('Error al obtener ubicación. Verifica que el GPS esté activado.');
+                      }
+                    );
+                  } else {
+                    alert('GPS no disponible en este dispositivo');
+                  }
+                }}
+              >
+                <MapPin className="w-5 h-5" />
+                📍 Confirmar Ubicación GPS
+              </button>
+
+              {/* Espacio para dirección */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tu Dirección de Entrega
+                </label>
+                <textarea
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                  placeholder="Escribe tu dirección completa aquí..."
+                />
               </div>
-              <p className="text-sm text-green-700">
-                Has realizado {orderStats.completed_orders} pedidos exitosos. 
-                ¡Sigue así para obtener descuentos especiales!
-              </p>
+
+              {/* Botón guardar */}
+              <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700">
+                Guardar Ubicación
+              </button>
             </div>
-            
-            <LocationManagerTest />
           </CardContent>
         </Card>
       </div>
