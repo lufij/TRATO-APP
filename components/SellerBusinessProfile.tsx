@@ -831,41 +831,19 @@ export function SellerBusinessProfile() {
                     <Store className="w-5 h-5 text-green-500"/> Información Básica
                   </CardTitle>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label htmlFor="business_name" className="flex items-center gap-2 text-sm font-medium">
-                        <Store className="w-4 h-4 text-green-500" />
-                        Nombre del Negocio
-                      </Label>
-                      <Input 
-                        id="business_name" 
-                        value={formData.business_name} 
-                        onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))} 
-                        disabled={!isEditing} 
-                        placeholder="Mi Negocio"
-                        className="border-gray-200 focus:border-green-500"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="business_category" className="flex items-center gap-2 text-sm font-medium">
-                        <Badge className="w-4 h-4 text-blue-500" />
-                        Categoría
-                      </Label>
-                      <Select 
-                        value={formData.business_category} 
-                        onValueChange={(value: string) => setFormData(prev => ({ ...prev, business_category: value }))} 
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger className="border-gray-200 focus:border-blue-500">
-                          <SelectValue placeholder="Selecciona categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BUSINESS_CATEGORIES.map(category => (
-                            <SelectItem key={category} value={category}>{category}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="business_name" className="flex items-center gap-2 text-sm font-medium">
+                      <Store className="w-4 h-4 text-green-500" />
+                      Nombre del Negocio
+                    </Label>
+                    <Input 
+                      id="business_name" 
+                      value={formData.business_name} 
+                      onChange={(e) => setFormData(prev => ({ ...prev, business_name: e.target.value }))} 
+                      disabled={!isEditing} 
+                      placeholder="Mi Negocio"
+                      className="border-gray-200 focus:border-green-500"
+                    />
                   </div>
                   
                   <div className="mt-4 space-y-1">
