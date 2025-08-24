@@ -654,7 +654,7 @@ function OrdersOverview() {
         .select(`
           *,
           buyer:users!buyer_id (name, email),
-          seller:sellers!seller_id (name, business_name),
+          seller:sellers!seller_id (business_name),
           driver:users!driver_id (name, email)
         `)
         .order('created_at', { ascending: false });
@@ -1638,7 +1638,7 @@ export function AdminDashboard() {
         case 'orders':
           const { data: orders } = await supabase
             .from('orders')
-            .select('*, buyer:users!buyer_id(name), seller:sellers!seller_id(name, business_name)');
+            .select('*, buyer:users!buyer_id(name), seller:sellers!seller_id(business_name)');
           data = orders || [];
           filename = 'ordenes_trato.csv';
           break;

@@ -367,7 +367,6 @@ export function DriverDashboard() {
         .select(`
           *,
           seller_info:sellers!seller_id (
-            name,
             business_name,
             address
           ),

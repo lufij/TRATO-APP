@@ -103,7 +103,6 @@ export function DriverDashboard() {
             phone
           ),
           seller:sellers!seller_id (
-            name,
             business_name,
             address,
             latitude,

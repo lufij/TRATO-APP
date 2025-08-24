@@ -95,9 +95,8 @@ export function SellerPurchaseOrders() {
           estimated_delivery,
           seller:sellers!seller_id (
             id,
-            name,
-            phone,
-            business_name
+            business_name,
+            phone
           ),
           order_items (
             id,
