@@ -305,14 +305,14 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         throw new Error('No se pudo crear la orden');
       }
 
-      // Crear items de la orden
+      // Crear items de la orden (sin product_id para evitar foreign key errors)
       const orderItems = cartItems.map((item: any) => ({
         order_id: order.id,
-        product_id: item.product_id,
+        // product_id: item.product_id, // Comentado para evitar foreign key constraint
         product_name: item.product?.name || item.product_name || 'Producto',
         product_image: item.product?.image_url || item.product_image || null,
         price: Number((item.product?.price || item.product_price || 0).toFixed(2)),
-        price_per_unit: Number((item.product?.price || item.product_price || 0).toFixed(2)), // Campo adicional por compatibilidad
+        price_per_unit: Number((item.product?.price || item.product_price || 0).toFixed(2)), 
         quantity: Number(item.quantity),
         total_price: Number(((item.product?.price || item.product_price || 0) * item.quantity).toFixed(2)),
         notes: null
