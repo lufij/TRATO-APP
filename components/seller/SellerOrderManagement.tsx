@@ -314,6 +314,8 @@ export function SellerOrderManagement() {
     setProcessingOrderId(orderId);
     
     try {
+      console.log('🔄 Actualizando orden:', orderId, 'a estado:', newStatus);
+      
       // Actualización directa usando update en lugar de RPC
       const updateData: any = {
         status: newStatus,
@@ -330,6 +332,8 @@ export function SellerOrderManagement() {
         updateData.rejected_at = new Date().toISOString();
       }
 
+      console.log('📝 Datos a actualizar:', updateData);
+
       const { data, error } = await supabase
         .from('orders')
         .update(updateData)
@@ -337,7 +341,12 @@ export function SellerOrderManagement() {
         .eq('seller_id', user?.id) // Verificar que pertenece al vendedor
         .select();
 
-      if (error) throw error;
+      console.log('📊 Resultado de actualización:', { data, error });
+
+      if (error) {
+        console.error('❌ Error en actualización:', error);
+        throw error;
+      }
 
       if (data && data.length > 0) {
         let message = '';

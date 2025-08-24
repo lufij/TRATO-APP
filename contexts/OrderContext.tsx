@@ -322,7 +322,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: 'Error al crear la orden' };
       }
 
-      // Create order items with verified product data
+      // Create order items with verified product data INCLUDING product_type
       const orderItems = validCartItems.map(item => {
         const productPrice = item.products.price || item.product_price || 0;
         return {
@@ -332,6 +332,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
           product_image: item.product_image,
           price: productPrice,
           quantity: item.quantity,
+          product_type: item.product_type || 'regular', // ← TRANSFERIR PRODUCT_TYPE
           notes: ''
         };
       });
