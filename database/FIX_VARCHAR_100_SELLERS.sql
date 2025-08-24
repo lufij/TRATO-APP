@@ -5,10 +5,11 @@
 ALTER TABLE sellers 
 ALTER COLUMN business_address TYPE TEXT,
 ALTER COLUMN business_description TYPE TEXT,
-ALTER COLUMN address TYPE TEXT;
+ALTER COLUMN address TYPE TEXT,
+ALTER COLUMN business_hours TYPE TEXT;
 
 -- Verificar los cambios
 SELECT column_name, data_type, character_maximum_length 
 FROM information_schema.columns 
 WHERE table_name = 'sellers' 
-AND column_name IN ('business_address', 'business_description', 'address');
+AND column_name IN ('business_address', 'business_description', 'address', 'business_hours');
