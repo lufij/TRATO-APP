@@ -55,7 +55,6 @@ export default function SellerDailyProducts() {
             <CardContent>
               <div>Descripción: {product.description}</div>
               <div>Precio: Q{product.price}</div>
-              <div>Categoría: {product.category}</div>
               <div>Stock: {product.stock_quantity}</div>
               <div>Expira: {new Date(product.expires_at).toLocaleString()}</div>
             </CardContent>

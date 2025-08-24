@@ -49,9 +49,6 @@ export function validateFormData(formData: {
     return 'El nombre del negocio es requerido';
   }
 
-  if (!formData.business_category) {
-    return 'La categoría del negocio es requerida';
-  }
 
   return null;
 }
