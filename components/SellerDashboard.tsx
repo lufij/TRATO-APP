@@ -12,7 +12,7 @@ import { DailyProductForm } from './DailyProductForm';
 import { ProductCard } from './ProductCard';
 import { DailyProductCard } from './DailyProductCard';
 import { SellerBusinessProfile } from './SellerBusinessProfile';
-import { SellerOrderManagement } from './SellerOrderManagement';
+import { SellerOrderManagement } from './seller/SellerOrderManagement';
 import { SellerMarketplace } from './seller/SellerMarketplace';
 import { LocationVerification } from './LocationVerification';
 import { VerificationAlert } from './VerificationAlert';
