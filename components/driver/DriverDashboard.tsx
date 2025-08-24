@@ -109,14 +109,9 @@ export function DriverDashboard() {
           seller:users!seller_id (
             name,
             business_name,
-            address
-          ),
-          seller_business:sellers!seller_id (
-            business_name,
-            business_address,
+            address,
             latitude,
-            longitude,
-            location_verified
+            longitude
           )
         `)
         .eq('driver_id', user.id)
@@ -135,7 +130,14 @@ export function DriverDashboard() {
         customer_name: order.buyer?.name || 'Cliente',
         phone_number: order.buyer?.phone || 'No disponible',
         seller_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
-        seller_address: order.seller?.address || 'Dirección no disponible'
+        seller_address: order.seller?.address || 'Dirección no disponible',
+        seller_business: {
+          business_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
+          business_address: order.seller?.address || 'Dirección no disponible',
+          latitude: order.seller?.latitude,
+          longitude: order.seller?.longitude,
+          location_verified: true
+        }
       })) || [];
 
       setAssignedOrders(formattedData);
