@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabase/client';
 import { Button } from './ui/button';
@@ -35,8 +36,6 @@ import {
   Activity,
   Map
 } from 'lucide-react';
-import { NotificationManager } from './ui/NotificationManager';
-import { useState, useEffect, useCallback } from 'react';
 
 interface DeliveryOrder {
   id: string;
@@ -348,47 +347,50 @@ export function DriverDashboard() {
 
   const loadActiveDeliveries = async () => {
     try {
-      // Try to fetch driver's active deliveries
+      console.log('Loading active deliveries for driver:', user?.id);
+      
+      // Simplified query without problematic JOINs
       const { data: deliveriesData, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          buyer:users!buyer_id (name, phone),
-          seller:users!seller_id (name),
-          sellers!seller_id (business_name)
-        `)
+        .select('*')
         .eq('driver_id', user?.id)
         .in('status', ['assigned', 'picked_up', 'in_transit'])
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.log('Active deliveries not available, using mock data');
+        console.error('Error loading active deliveries:', error);
         setActiveDeliveries([]);
         return;
       }
+
+      console.log('Active deliveries data:', deliveriesData);
 
       // Transform real data
       const transformedDeliveries: DeliveryOrder[] = (deliveriesData || []).map(order => ({
         id: order.id,
         order_id: order.id,
-        pickup_address: order.pickup_address || 'Dirección de recogida',
+        pickup_address: order.pickup_address || order.seller_address || 'Dirección de recogida',
         delivery_address: order.delivery_address || 'Dirección de entrega',
-        customer_name: order.buyer?.name || 'Cliente',
-        customer_phone: order.buyer?.phone || 'Sin teléfono',
+        customer_name: order.customer_name || 'Cliente',
+        customer_phone: order.customer_phone || 'Sin teléfono',
         total_amount: order.total || 0,
-        delivery_fee: order.delivery_fee || 10,
+        delivery_fee: order.delivery_fee || Math.round((order.total || 0) * 0.15) || 10,
         status: order.status,
         created_at: order.created_at,
         estimated_delivery: order.estimated_delivery || new Date(Date.now() + 30 * 60000).toISOString(),
         items_count: 1,
-        business_name: order.sellers?.business_name || order.seller?.name || 'Negocio',
+        business_name: order.business_name || 'Negocio',
         pickup_notes: order.pickup_notes,
-        delivery_notes: order.delivery_notes
+        delivery_notes: order.delivery_notes,
+        picked_up_at: order.picked_up_at,
+        delivered_at: order.delivered_at
       }));
 
+      console.log('Transformed active deliveries:', transformedDeliveries);
       setActiveDeliveries(transformedDeliveries);
     } catch (error) {
       console.error('Error loading active deliveries:', error);
+      setActiveDeliveries([]);
     }
   };
 
@@ -1435,7 +1437,22 @@ export function DriverDashboard() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
-            <NotificationManager />
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Notificaciones</h2>
+              <p className="text-gray-600">Centro de notificaciones del repartidor</p>
+            </div>
+            
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Centro de Notificaciones
+                </h3>
+                <p className="text-gray-600">
+                  Aquí aparecerán todas tus notificaciones de pedidos y actualizaciones del sistema
+                </p>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Profile Tab */}
