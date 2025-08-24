@@ -1,28 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Label } from '../ui/label';
 import { Separator } from '../ui/separator';
 import { ScrollArea } from '../ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../utils/supabase/client';
 import { 
   ShoppingCart, 
   Plus, 
   Minus, 
   Trash2, 
   Store, 
-  Utensils, 
-  Truck,
-  MapPin,
-  Phone,
-  User,
   CreditCard,
   Clock,
   CheckCircle,
@@ -36,16 +26,6 @@ interface BuyerCartProps {
   onProceedToCheckout?: () => void;
 }
 
-type DeliveryType = 'pickup' | 'dine-in' | 'delivery';
-
-interface OrderData {
-  delivery_type: DeliveryType;
-  delivery_address?: string;
-  customer_notes?: string;
-  phone_number: string;
-  customer_name: string;
-}
-
 export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
   const { user } = useAuth();
   const { 
@@ -57,79 +37,11 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
     getCartItemCount 
   } = useCart();
 
-  const [deliveryType, setDeliveryType] = useState<DeliveryType>('pickup');
-  const [orderData, setOrderData] = useState<OrderData>({
-    delivery_type: 'pickup',
-    phone_number: '',
-    customer_name: '',
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-
-  // Cargar perfil del usuario al iniciar
-  useEffect(() => {
-    if (user) {
-      loadUserProfile();
-    }
-  }, [user]);
-
-  const loadUserProfile = async () => {
-    try {
-      setProfileLoading(true);
-      
-      const { data, error } = await supabase.rpc('get_user_profile_for_checkout', {
-        p_user_id: user?.id
-      });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const profileData = data[0];
-        setUserProfile(profileData);
-        
-        // Autocompletar datos del formulario
-        setOrderData(prev => ({
-          ...prev,
-          customer_name: profileData.name || user?.name || '',
-          phone_number: profileData.phone || '',
-          delivery_address: profileData.primary_address || ''
-        }));
-      } else {
-        // Si no hay perfil en la base de datos, usar datos básicos del auth
-        setOrderData(prev => ({
-          ...prev,
-          customer_name: user?.name || '',
-          phone_number: '',
-          delivery_address: ''
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-      // Fallback a datos básicos del auth
-      setOrderData(prev => ({
-        ...prev,
-        customer_name: user?.name || '',
-        phone_number: '',
-        delivery_address: ''
-      }));
-    } finally {
-      setProfileLoading(false);
-    }
-  };
-
-  // Delivery fees
-  const deliveryFees = {
-    pickup: 0,
-    'dine-in': 0,
-    delivery: 15.00 // Q15 delivery fee
-  };
 
   const subtotal = getCartTotal();
-  const deliveryFee = deliveryFees[deliveryType];
-  const total = subtotal + deliveryFee;
 
   // Group cart items by seller to enforce "one seller per cart" rule
   const groupedBySeller = cartItems.reduce((acc, item) => {
@@ -155,105 +67,6 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
       } else {
         await updateCartItem(cartItem.id, newQuantity);
       }
-    }
-  };
-
-  const handleDeliveryTypeChange = (type: DeliveryType) => {
-    setDeliveryType(type);
-    setOrderData(prev => ({
-      ...prev,
-      delivery_type: type,
-      delivery_address: type === 'delivery' ? prev.delivery_address : undefined
-    }));
-  };
-
-  const validateOrder = (): string | null => {
-    if (cartItems.length === 0) return 'Tu carrito está vacío';
-    if (hasMultipleSellers) return 'Solo puedes ordenar de un vendedor a la vez';
-    if (!orderData.customer_name.trim()) return 'Ingresa tu nombre';
-    if (!orderData.phone_number.trim()) return 'Ingresa tu número de teléfono';
-    if (deliveryType === 'delivery' && !orderData.delivery_address?.trim()) {
-      return 'Ingresa tu dirección de entrega';
-    }
-    return null;
-  };
-
-  const createOrder = async () => {
-    const validationError = validateOrder();
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const sellerId = sellerIds[0];
-      
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          buyer_id: user?.id,
-          seller_id: sellerId,
-          subtotal,
-          delivery_fee: deliveryFee,
-          total,
-          total_amount: total, // Asegurar que total_amount tenga valor
-          delivery_type: deliveryType,
-          delivery_address: orderData.delivery_address,
-          customer_notes: orderData.customer_notes,
-          phone_number: orderData.phone_number,
-          customer_name: orderData.customer_name,
-          payment_method: 'cash', // Agregar método de pago por defecto
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
-      const orderItems = cartItems.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        product_name: item.product?.name || '',
-        product_image: item.product?.image_url || '',
-        price: item.product?.price || 0,
-        unit_price: item.product?.price || 0, // Agregar unit_price también
-        quantity: item.quantity,
-        notes: ''
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
-
-      // Create notification for seller
-      await supabase
-        .from('notifications')
-        .insert({
-          recipient_id: sellerId,
-          type: 'new_order',
-          title: 'Nueva orden recibida',
-          message: `${orderData.customer_name} ha realizado un pedido por Q${total.toFixed(2)} (${
-            deliveryType === 'pickup' ? 'Recoger en tienda' :
-            deliveryType === 'dine-in' ? 'Comer dentro' : 'Servicio a domicilio'
-          })`,
-          data: { order_id: order.id, delivery_type: deliveryType }
-        });
-
-      // Clear cart and show success
-      await clearCart();
-      setOrderSuccess(true);
-      setShowOrderDialog(true);
-
-    } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Error al crear la orden. Por favor intenta de nuevo.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -353,125 +166,6 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
             ))}
           </div>
 
-          {/* Delivery Options */}
-          {!hasMultipleSellers && (
-            <Card className="border-green-200">
-              <CardHeader>
-                <CardTitle className="text-base">Opciones de entrega</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup value={deliveryType} onValueChange={handleDeliveryTypeChange}>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <RadioGroupItem value="pickup" id="pickup" />
-                      <Label htmlFor="pickup" className="flex items-center gap-2 cursor-pointer flex-1">
-                        <Store className="w-5 h-5 text-blue-500" />
-                        <div>
-                          <div className="font-medium">Recoger en tienda</div>
-                          <div className="text-sm text-gray-500">Gratis • 15-30 min</div>
-                        </div>
-                      </Label>
-                      <Badge variant="outline">Gratis</Badge>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <RadioGroupItem value="dine-in" id="dine-in" />
-                      <Label htmlFor="dine-in" className="flex items-center gap-2 cursor-pointer flex-1">
-                        <Utensils className="w-5 h-5 text-purple-500" />
-                        <div>
-                          <div className="font-medium">Comer dentro</div>
-                          <div className="text-sm text-gray-500">Gratis • Servicio en mesa</div>
-                        </div>
-                      </Label>
-                      <Badge variant="outline">Gratis</Badge>
-                    </div>
-
-                    <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                      <RadioGroupItem value="delivery" id="delivery" />
-                      <Label htmlFor="delivery" className="flex items-center gap-2 cursor-pointer flex-1">
-                        <Truck className="w-5 h-5 text-green-500" />
-                        <div>
-                          <div className="font-medium">Servicio a domicilio</div>
-                          <div className="text-sm text-gray-500">30-60 min • Entrega en tu dirección</div>
-                        </div>
-                      </Label>
-                      <Badge className="bg-green-100 text-green-700">Q{deliveryFees.delivery.toFixed(2)}</Badge>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Order Details Form */}
-          {!hasMultipleSellers && (
-            <Card className="border-blue-200">
-              <CardHeader>
-                <CardTitle className="text-base">Detalles del pedido</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <Label htmlFor="customer_name" className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      Nombre completo
-                    </Label>
-                    <Input
-                      id="customer_name"
-                      value={orderData.customer_name}
-                      onChange={(e) => setOrderData(prev => ({ ...prev, customer_name: e.target.value }))}
-                      placeholder="Tu nombre completo"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="phone_number" className="flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Teléfono
-                    </Label>
-                    <Input
-                      id="phone_number"
-                      value={orderData.phone_number}
-                      onChange={(e) => setOrderData(prev => ({ ...prev, phone_number: e.target.value }))}
-                      placeholder="Tu número de teléfono"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {deliveryType === 'delivery' && (
-                    <div>
-                      <Label htmlFor="delivery_address" className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        Dirección de entrega
-                      </Label>
-                      <Textarea
-                        id="delivery_address"
-                        value={orderData.delivery_address || ''}
-                        onChange={(e) => setOrderData(prev => ({ ...prev, delivery_address: e.target.value }))}
-                        placeholder="Ingresa tu dirección completa con referencias"
-                        className="mt-1"
-                        rows={3}
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <Label htmlFor="customer_notes">Notas especiales (opcional)</Label>
-                    <Textarea
-                      id="customer_notes"
-                      value={orderData.customer_notes || ''}
-                      onChange={(e) => setOrderData(prev => ({ ...prev, customer_notes: e.target.value }))}
-                      placeholder="Instrucciones especiales para tu pedido"
-                      className="mt-1"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Order Summary */}
           {!hasMultipleSellers && (
             <Card className="border-orange-200 bg-orange-50">
@@ -488,12 +182,12 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
                 </div>
                 <div className="flex justify-between">
                   <span>Entrega</span>
-                  <span>{deliveryFee === 0 ? 'Gratis' : `Q${deliveryFee.toFixed(2)}`}</span>
+                  <span>Gratis</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total</span>
-                  <span className="text-green-600">Q{total.toFixed(2)}</span>
+                  <span className="text-green-600">Q{subtotal.toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -514,7 +208,7 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
         ) : (
           <>
             <Button 
-              onClick={onProceedToCheckout || createOrder}
+              onClick={onProceedToCheckout}
               disabled={isSubmitting || cartItems.length === 0}
               className="w-full bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 h-12"
             >
@@ -525,16 +219,13 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
                 </>
               ) : (
                 <>
-                  {onProceedToCheckout ? 'Proceder al Checkout' : `Confirmar pedido Q${total.toFixed(2)}`}
+                  Proceder al Checkout
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}
             </Button>
             <p className="text-xs text-gray-500 text-center">
-              {onProceedToCheckout 
-                ? 'Revisa tu pedido antes de confirmar'
-                : 'Al confirmar aceptas los términos y condiciones'
-              }
+              Revisa tu pedido antes de confirmar
             </p>
           </>
         )}
@@ -557,14 +248,11 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span>Total pagado:</span>
-                  <span className="font-semibold">Q{total.toFixed(2)}</span>
+                  <span className="font-semibold">Q{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tipo de entrega:</span>
-                  <span className="font-medium">
-                    {deliveryType === 'pickup' ? 'Recoger en tienda' :
-                     deliveryType === 'dine-in' ? 'Comer dentro' : 'Servicio a domicilio'}
-                  </span>
+                  <span>Estado:</span>
+                  <span className="font-medium">Pedido confirmado</span>
                 </div>
               </div>
             </div>
