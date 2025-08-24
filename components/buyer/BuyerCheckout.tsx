@@ -74,36 +74,42 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
 
   const loadUserProfile = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_user_profile_for_checkout', {
-        p_user_id: user?.id
-      });
+      // Cargar perfil directamente desde la tabla users
+      const { data, error } = await supabase
+        .from('users')
+        .select('name, phone, address, preferred_delivery_address')
+        .eq('id', user?.id)
+        .single();
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const profileData = data[0];
+      if (data) {
         setCheckoutData(prev => ({
           ...prev,
-          customer_name: profileData.name || '',
-          phone_number: profileData.phone || '',
-          delivery_address: profileData.primary_address || '',
-          customer_notes: profileData.delivery_instructions || ''
+          customer_name: data.name || user?.name || '',
+          phone_number: data.phone || user?.phone || '',
+          delivery_address: data.preferred_delivery_address || data.address || '',
+          customer_notes: ''
         }));
       } else {
         // Fallback a datos básicos del auth
         setCheckoutData(prev => ({
           ...prev,
           customer_name: user?.name || '',
-          phone_number: user?.phone || ''
+          phone_number: user?.phone || '',
+          delivery_address: '',
+          customer_notes: ''
         }));
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
-      // Fallback a datos básicos del auth
+      // Fallback a datos básicos del auth si hay error
       setCheckoutData(prev => ({
         ...prev,
         customer_name: user?.name || '',
-        phone_number: user?.phone || ''
+        phone_number: user?.phone || '',
+        delivery_address: '',
+        customer_notes: ''
       }));
     }
   };
@@ -205,6 +211,19 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
       return;
     }
 
+    // Validación adicional antes de crear la orden
+    if (!checkoutData.customer_name.trim() || !checkoutData.phone_number.trim()) {
+      toast.error('Por favor completa toda la información requerida');
+      setCurrentStep('complete-info');
+      return;
+    }
+
+    if (deliveryType === 'delivery' && !checkoutData.delivery_address.trim()) {
+      toast.error('La dirección de entrega es requerida para servicio a domicilio');
+      setCurrentStep('complete-info');
+      return;
+    }
+
     setCurrentStep('processing');
     setIsSubmitting(true);
     
@@ -216,67 +235,85 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         throw new Error('No se pudo identificar el vendedor');
       }
 
+      // Preparar datos de la orden
+      const orderData = {
+        buyer_id: user.id,
+        seller_id: sellerId,
+        subtotal: Number(subtotal.toFixed(2)),
+        delivery_fee: Number(deliveryFee.toFixed(2)),
+        total: Number(finalTotal.toFixed(2)),
+        delivery_type: deliveryType,
+        delivery_address: deliveryType === 'delivery' ? checkoutData.delivery_address.trim() : null,
+        customer_notes: checkoutData.customer_notes.trim() || null,
+        phone_number: checkoutData.phone_number.trim(),
+        customer_name: checkoutData.customer_name.trim(),
+        payment_method: checkoutData.payment_method,
+        status: 'pending'
+      };
+
       // Crear orden
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          buyer_id: user.id,
-          seller_id: sellerId,
-          subtotal,
-          delivery_fee: deliveryFee,
-          total: finalTotal,
-          total_amount: finalTotal, // Asegurar que total_amount tenga valor
-          delivery_type: deliveryType,
-          delivery_address: checkoutData.delivery_address,
-          customer_notes: checkoutData.customer_notes,
-          phone_number: checkoutData.phone_number,
-          customer_name: checkoutData.customer_name,
-          payment_method: checkoutData.payment_method,
-          status: 'pending'
-        })
+        .insert(orderData)
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        throw new Error(`Error al crear la orden: ${orderError.message}`);
+      }
+
+      if (!order) {
+        throw new Error('No se pudo crear la orden');
+      }
 
       // Crear items de la orden
       const orderItems = cartItems.map((item: any) => ({
         order_id: order.id,
         product_id: item.product_id,
-        product_name: item.product?.name || '',
-        product_image: item.product?.image_url || '',
-        price: item.product?.price || 0,
-        unit_price: item.product?.price || 0, // Agregar unit_price también
-        quantity: item.quantity,
-        notes: ''
+        product_name: item.product?.name || 'Producto',
+        product_image: item.product?.image_url || null,
+        price: Number((item.product?.price || 0).toFixed(2)),
+        quantity: Number(item.quantity),
+        notes: null
       }));
 
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error creating order items:', itemsError);
+        // Intentar limpiar la orden creada si fallan los items
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw new Error(`Error al agregar productos a la orden: ${itemsError.message}`);
+      }
 
       // Crear notificación para el vendedor
-      await supabase
-        .from('notifications')
-        .insert({
-          recipient_id: sellerId,
-          type: 'new_order',
-          title: '🛒 Nueva orden recibida',
-          message: `${checkoutData.customer_name} ha realizado un pedido por Q${finalTotal.toFixed(2)} - ${
-            deliveryType === 'pickup' ? 'Recoger en tienda' :
-            deliveryType === 'dine-in' ? 'Comer en el lugar' : 'Servicio a domicilio'
-          }`,
-          data: { 
-            order_id: order.id, 
-            delivery_type: deliveryType,
-            payment_method: checkoutData.payment_method,
-            customer_name: checkoutData.customer_name,
-            customer_phone: checkoutData.phone_number,
-            total: finalTotal
-          }
-        });
+      try {
+        await supabase
+          .from('notifications')
+          .insert({
+            recipient_id: sellerId,
+            type: 'new_order',
+            title: '🛒 Nueva orden recibida',
+            message: `${checkoutData.customer_name} ha realizado un pedido por Q${finalTotal.toFixed(2)} - ${
+              deliveryType === 'pickup' ? 'Recoger en tienda' :
+              deliveryType === 'dine-in' ? 'Comer en el lugar' : 'Servicio a domicilio'
+            }`,
+            data: { 
+              order_id: order.id, 
+              delivery_type: deliveryType,
+              payment_method: checkoutData.payment_method,
+              customer_name: checkoutData.customer_name,
+              customer_phone: checkoutData.phone_number,
+              total: finalTotal
+            }
+          });
+      } catch (notificationError) {
+        console.error('Error creating notification:', notificationError);
+        // No detener el proceso si falla la notificación
+      }
 
       // Limpiar carrito
       await clearCart();
@@ -291,7 +328,8 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
 
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Error al crear el pedido. Intenta de nuevo.');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al crear el pedido';
+      toast.error(errorMessage);
       setCurrentStep('review');
     } finally {
       setIsSubmitting(false);
@@ -388,43 +426,63 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
               <Label htmlFor="address">Dirección de entrega *</Label>
               <Textarea
                 id="address"
-                placeholder="Ingresa tu dirección completa..."
+                placeholder="Ingresa tu dirección completa con referencias..."
                 value={checkoutData.delivery_address}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, delivery_address: e.target.value }))}
                 rows={3}
+                className={!checkoutData.delivery_address && deliveryType === 'delivery' ? 'border-red-300' : ''}
               />
+              {checkoutData.delivery_address && (
+                <p className="text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" />
+                  Dirección cargada desde tu perfil
+                </p>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Información de contacto */}
+      {/* Información de contacto - Más compacta y inteligente */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Información de contacto
+            Confirmar información de contacto
+            {checkoutData.customer_name && checkoutData.phone_number && (
+              <CheckCircle className="w-5 h-5 text-green-500 ml-auto" />
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nombre completo *</Label>
-            <Input
-              id="name"
-              placeholder="Tu nombre completo"
-              value={checkoutData.customer_name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, customer_name: e.target.value }))}
-            />
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre completo *</Label>
+              <Input
+                id="name"
+                placeholder="Tu nombre completo"
+                value={checkoutData.customer_name}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, customer_name: e.target.value }))}
+                className={checkoutData.customer_name ? 'border-green-300 bg-green-50' : ''}
+              />
+              {checkoutData.customer_name && (
+                <p className="text-xs text-green-600">✓ Cargado desde tu perfil</p>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Número de teléfono *</Label>
-            <Input
-              id="phone"
-              placeholder="1234-5678"
-              value={checkoutData.phone_number}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, phone_number: e.target.value }))}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="phone">Número de teléfono *</Label>
+              <Input
+                id="phone"
+                placeholder="+502 1234-5678"
+                value={checkoutData.phone_number}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCheckoutData(prev => ({ ...prev, phone_number: e.target.value }))}
+                className={checkoutData.phone_number ? 'border-green-300 bg-green-50' : ''}
+              />
+              {checkoutData.phone_number && (
+                <p className="text-xs text-green-600">✓ Cargado desde tu perfil</p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -434,13 +492,13 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
               placeholder="Alguna instrucción especial para tu pedido..."
               value={checkoutData.customer_notes}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCheckoutData(prev => ({ ...prev, customer_notes: e.target.value }))}
-              rows={3}
+              rows={2}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Resumen del pedido */}
+      {/* Resumen del pedido - Más compacto */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -449,19 +507,21 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {cartItems.map((item: any, index: number) => (
-            <div key={index} className="flex justify-between items-center py-2">
-              <div className="flex-1">
-                <p className="font-medium">{item.product?.name || item.name}</p>
-                <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {cartItems.map((item: any, index: number) => (
+              <div key={index} className="flex justify-between items-center py-1 text-sm">
+                <div className="flex-1">
+                  <span className="font-medium">{item.product?.name || item.name}</span>
+                  <span className="text-gray-600 ml-2">x{item.quantity}</span>
+                </div>
+                <span className="font-medium">Q{((item.product?.price || 0) * item.quantity).toFixed(2)}</span>
               </div>
-              <p className="font-medium">Q{((item.product?.price || 0) * item.quantity).toFixed(2)}</p>
-            </div>
-          ))}
+            ))}
+          </div>
           
           <Separator />
           
-          <div className="space-y-2 text-sm">
+          <div className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span>Subtotal:</span>
               <span>Q{subtotal.toFixed(2)}</span>
