@@ -278,7 +278,8 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         seller_id: sellerId,
         subtotal: Number(subtotal.toFixed(2)),
         delivery_fee: Number(deliveryFee.toFixed(2)),
-        total: Number(finalTotal.toFixed(2)),
+        total_amount: Number(finalTotal.toFixed(2)), // Campo correcto: total_amount
+        total: Number(finalTotal.toFixed(2)), // Mantener por compatibilidad
         delivery_type: deliveryType,
         delivery_address: deliveryType === 'delivery' ? checkoutData.delivery_address.trim() : null,
         customer_notes: checkoutData.customer_notes.trim() || null,
@@ -308,10 +309,12 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
       const orderItems = cartItems.map((item: any) => ({
         order_id: order.id,
         product_id: item.product_id,
-        product_name: item.product?.name || 'Producto',
-        product_image: item.product?.image_url || null,
-        price: Number((item.product?.price || 0).toFixed(2)),
+        product_name: item.product?.name || item.product_name || 'Producto',
+        product_image: item.product?.image_url || item.product_image || null,
+        price: Number((item.product?.price || item.product_price || 0).toFixed(2)),
+        price_per_unit: Number((item.product?.price || item.product_price || 0).toFixed(2)), // Campo adicional por compatibilidad
         quantity: Number(item.quantity),
+        total_price: Number(((item.product?.price || item.product_price || 0) * item.quantity).toFixed(2)),
         notes: null
       }));
 
