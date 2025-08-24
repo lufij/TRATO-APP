@@ -361,10 +361,21 @@ export function DriverDashboard() {
     try {
       console.log('Loading active deliveries for driver:', user?.id);
       
-      // Simplified query without problematic JOINs
+      // Query with seller information to get addresses
       const { data: deliveriesData, error } = await supabase
         .from('orders')
-        .select('*')
+        .select(`
+          *,
+          seller_info:users!seller_id (
+            name,
+            address
+          ),
+          seller_business:sellers!seller_id (
+            business_name,
+            business_address,
+            business_phone
+          )
+        `)
         .eq('driver_id', user?.id)
         .in('status', ['assigned', 'picked_up', 'in_transit'])
         .order('created_at', { ascending: false });
@@ -375,28 +386,41 @@ export function DriverDashboard() {
         return;
       }
 
-      console.log('Active deliveries data:', deliveriesData);
+      console.log('Active deliveries data with seller info:', deliveriesData);
 
-      // Transform real data
-      const transformedDeliveries: DeliveryOrder[] = (deliveriesData || []).map(order => ({
-        id: order.id,
-        order_id: order.id,
-        pickup_address: order.pickup_address || order.seller_address || 'Dirección de recogida',
-        delivery_address: order.delivery_address || 'Dirección de entrega',
-        customer_name: order.customer_name || 'Cliente',
-        customer_phone: order.customer_phone || 'Sin teléfono',
-        total_amount: order.total || 0,
-        delivery_fee: order.delivery_fee || Math.round((order.total || 0) * 0.15) || 10,
-        status: order.status,
-        created_at: order.created_at,
-        estimated_delivery: order.estimated_delivery || new Date(Date.now() + 30 * 60000).toISOString(),
-        items_count: 1,
-        business_name: order.business_name || 'Negocio',
-        pickup_notes: order.pickup_notes,
-        delivery_notes: order.delivery_notes,
-        picked_up_at: order.picked_up_at,
-        delivered_at: order.delivered_at
-      }));
+      // Transform data using seller information
+      const transformedDeliveries: DeliveryOrder[] = (deliveriesData || []).map(order => {
+        // Get seller address from business profile or user profile
+        const sellerAddress = order.seller_business?.business_address || 
+                             order.seller_info?.address || 
+                             'Contactar vendedor para dirección';
+        
+        const businessName = order.seller_business?.business_name || 
+                            order.seller_info?.name || 
+                            'Negocio';
+
+        console.log(`🏪 Orden ${order.id.slice(0,8)}: Vendedor = ${businessName}, Dirección = ${sellerAddress}`);
+
+        return {
+          id: order.id,
+          order_id: order.id,
+          pickup_address: sellerAddress,
+          delivery_address: order.delivery_address || 'Dirección de entrega',
+          customer_name: order.customer_name || 'Cliente',
+          customer_phone: order.customer_phone || order.phone_number || 'Sin teléfono',
+          total_amount: order.total || 0,
+          delivery_fee: order.delivery_fee || Math.round((order.total || 0) * 0.15) || 10,
+          status: order.status,
+          created_at: order.created_at,
+          estimated_delivery: order.estimated_delivery || new Date(Date.now() + 30 * 60000).toISOString(),
+          items_count: 1,
+          business_name: businessName,
+          pickup_notes: order.pickup_notes,
+          delivery_notes: order.delivery_notes,
+          picked_up_at: order.picked_up_at,
+          delivered_at: order.delivered_at
+        };
+      });
 
       console.log('Transformed active deliveries:', transformedDeliveries);
       setActiveDeliveries(transformedDeliveries);
@@ -969,8 +993,17 @@ export function DriverDashboard() {
   };
 
   const openInMaps = (address: string) => {
+    console.log('🗺️ Abriendo dirección en mapas:', address);
+    
+    // Verificar que la dirección no sea un placeholder
+    if (!address || address === 'Dirección del vendedor' || address === 'Dirección de recogida' || address.includes('Contactar vendedor')) {
+      toast.error('Dirección no disponible. Contacta al vendedor.');
+      return;
+    }
+    
     const encodedAddress = encodeURIComponent(address);
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    console.log('🔗 URL de mapas:', mapsUrl);
     window.open(mapsUrl, '_blank');
   };
 

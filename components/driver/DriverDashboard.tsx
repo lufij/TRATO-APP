@@ -52,6 +52,13 @@ interface AssignedOrder {
     product_name: string;
     quantity: number;
   }>;
+  seller_business?: {
+    business_name: string;
+    business_address: string;
+    latitude?: number;
+    longitude?: number;
+    location_verified?: boolean;
+  };
 }
 
 export function DriverDashboard() {
@@ -103,10 +110,17 @@ export function DriverDashboard() {
             name,
             business_name,
             address
+          ),
+          seller_business:sellers!seller_id (
+            business_name,
+            business_address,
+            latitude,
+            longitude,
+            location_verified
           )
         `)
         .eq('driver_id', user.id)
-        .in('status', ['assigned', 'picked-up', 'in-transit'])
+        .in('status', ['assigned', 'picked_up', 'in_transit'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -201,6 +215,28 @@ export function DriverDashboard() {
     }
   };
 
+  const openInMaps = (order: AssignedOrder) => {
+    const { seller_business } = order;
+    
+    // Si tenemos coordenadas verificadas de Google Maps, usarlas
+    if (seller_business?.latitude && seller_business?.longitude && seller_business?.location_verified) {
+      const coords = `${seller_business.latitude},${seller_business.longitude}`;
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&destination_place_id=${encodeURIComponent(seller_business.business_name)}`;
+      window.open(url, '_blank');
+      console.log('🗺️ Navegando con coordenadas Google Maps:', coords);
+    } 
+    // Fallback a dirección de texto si no hay coordenadas
+    else {
+      const address = encodeURIComponent(seller_business?.business_address || order.seller_address || '');
+      if (address) {
+        window.open(`https://www.google.com/maps/search/${address}`, '_blank');
+        console.log('🗺️ Navegando con dirección de texto:', address);
+      } else {
+        toast.error('No hay dirección disponible para navegar');
+      }
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     if (!user) {
       toast.error('Usuario no autenticado');
@@ -212,32 +248,34 @@ export function DriverDashboard() {
     try {
       console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
       
+      // Actualización directa con formato correcto de status
       const { data, error } = await supabase
-        .rpc('update_order_status', {
-          p_order_id: orderId,
-          p_new_status: newStatus,
-          p_user_id: user.id
-        });
+        .from('orders')
+        .update({ 
+          status: newStatus, // Usar formato con underscore: picked_up, in_transit
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .eq('driver_id', user.id)
+        .select();
 
       if (error) {
-        console.error('RPC Error updating status:', error);
+        console.error('Error updating status:', error);
         throw error;
       }
 
-      console.log('Update status response:', data);
+      console.log('Status updated successfully:', data);
 
-      if (data?.[0]?.success) {
-        const messages = {
-          'picked-up': 'Pedido marcado como recogido',
-          'in-transit': 'Pedido en camino al cliente',
-          'delivered': 'Pedido entregado exitosamente'
-        };
-        toast.success(messages[newStatus as keyof typeof messages] || 'Estado actualizado');
-        // Refrescar datos inmediatamente
-        await fetchData();
-      } else {
-        toast.error(data?.[0]?.message || 'Error al actualizar estado');
-      }
+      const messages = {
+        'picked_up': 'Pedido marcado como recogido',
+        'in_transit': 'Pedido en camino al cliente', 
+        'delivered': 'Pedido entregado exitosamente'
+      };
+      toast.success(messages[newStatus as keyof typeof messages] || 'Estado actualizado');
+      
+      // Refrescar datos inmediatamente
+      await fetchData();
+      
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Error al actualizar el estado. Verifica tu conexión.');
@@ -434,25 +472,36 @@ export function DriverDashboard() {
               <p className="text-xs text-gray-500">{statusInfo.description}</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {canPickup && (
-                <Button
-                  onClick={() => updateOrderStatus(order.id, 'picked-up')}
-                  disabled={isProcessing}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  {isProcessing ? (
-                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <Package className="w-4 h-4 mr-1" />
-                  )}
-                  Marcar recogido
-                </Button>
+                <>
+                  <Button
+                    onClick={() => openInMaps(order)}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    Ir a recoger
+                  </Button>
+                  
+                  <Button
+                    onClick={() => updateOrderStatus(order.id, 'picked_up')}
+                    disabled={isProcessing}
+                    className="bg-orange-600 hover:bg-orange-700"
+                  >
+                    {isProcessing ? (
+                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <Package className="w-4 h-4 mr-1" />
+                    )}
+                    Marcar recogido
+                  </Button>
+                </>
               )}
 
               {canMarkInTransit && (
                 <Button
-                  onClick={() => updateOrderStatus(order.id, 'in-transit')}
+                  onClick={() => updateOrderStatus(order.id, 'in_transit')}
                   disabled={isProcessing}
                   className="bg-purple-600 hover:bg-purple-700"
                 >
@@ -466,18 +515,36 @@ export function DriverDashboard() {
               )}
 
               {canDeliver && (
-                <Button
-                  onClick={() => updateOrderStatus(order.id, 'delivered')}
-                  disabled={isProcessing}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isProcessing ? (
-                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                  )}
-                  Marcar entregado
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      const address = encodeURIComponent(order.delivery_address || '');
+                      if (address) {
+                        window.open(`https://www.google.com/maps/search/${address}`, '_blank');
+                      } else {
+                        toast.error('No hay dirección de entrega disponible');
+                      }
+                    }}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    Ir al cliente
+                  </Button>
+                  
+                  <Button
+                    onClick={() => updateOrderStatus(order.id, 'delivered')}
+                    disabled={isProcessing}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {isProcessing ? (
+                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                    )}
+                    Marcar entregado
+                  </Button>
+                </>
               )}
             </div>
           </div>

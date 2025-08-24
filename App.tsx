@@ -13,6 +13,7 @@ const BuyerDashboard = lazy(() => import('./components/BuyerDashboard').then(m =
 const SellerDashboard = lazy(() => import('./components/SellerDashboard').then(m => ({ default: m.SellerDashboard })));
 const DriverDashboard = lazy(() => import('./components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
 const DiagnosticPage = lazy(() => import('./components/DiagnosticPage').then(m => ({ default: m.DiagnosticPage })));
+const SetupPage = lazy(() => import('./components/SetupPage').then(m => ({ default: m.SetupPage })));
 const DiagnosticProbe = lazy(async () => {
   const mod = await import('./components/DiagnosticProbe');
   return { default: mod.default } as { default: React.ComponentType<any> };
@@ -342,6 +343,11 @@ function AppContent() {
     const params = new URLSearchParams(window.location.search);
     if (params.get('diag') === '1') {
       setCurrentState('diagnostic');
+    }
+    
+    // Fast path: open setup if ?setup=1 is present  
+    if (params.get('setup') === '1') {
+      setCurrentState('setup' as any);
     }
 
     // Skip eager DB check in production; run in idle/dev or when diagnostics requested
@@ -683,6 +689,18 @@ function AppContent() {
           {/* Diagnostic UI: existing page + low-level probe */}
           <DiagnosticPage />
           <DiagnosticProbe />
+        </Suspense>
+      </div>
+    );
+  }
+
+  // Setup screen (explicit query ?setup=1)
+  if (currentState === 'setup') {
+    return (
+      <div>
+        <PWABanner />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+          <SetupPage />
         </Suspense>
       </div>
     );
