@@ -517,13 +517,14 @@ export function LocationVerification({ userRole, onVerificationComplete }: Locat
                 <Button
                   onClick={() => {
                     getCurrentLocation();
-                    // Copy current location to business location
+                    // Copy current location to business location (solo coordenadas, NO address)
                     if (location.latitude && location.longitude) {
-                      setBusinessLocation({
+                      setBusinessLocation(prev => ({
+                        ...prev,
                         latitude: location.latitude,
-                        longitude: location.longitude,
-                        address: location.address
-                      });
+                        longitude: location.longitude
+                        // NO copiar address, el usuario lo escribe manualmente
+                      }));
                     }
                   }}
                   disabled={gettingLocation}
