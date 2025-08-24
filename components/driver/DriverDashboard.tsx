@@ -215,21 +215,27 @@ export function DriverDashboard() {
   const openInMaps = (order: AssignedOrder) => {
     const { seller_business } = order;
     
-    // Si tenemos coordenadas verificadas de Google Maps, usarlas
-    if (seller_business?.latitude && seller_business?.longitude && seller_business?.location_verified) {
+    console.log('🗺️ Abriendo navegación para orden:', order.id);
+    console.log('🗺️ Datos del negocio:', seller_business);
+    
+    // PRIORIDAD 1: Si tenemos coordenadas GPS, usarlas SIEMPRE
+    if (seller_business?.latitude && seller_business?.longitude) {
       const coords = `${seller_business.latitude},${seller_business.longitude}`;
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&destination_place_id=${encodeURIComponent(seller_business.business_name)}`;
+      const businessName = seller_business.business_name || 'Negocio';
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&destination_place_id=${encodeURIComponent(businessName)}`;
       window.open(url, '_blank');
-      console.log('🗺️ Navegando con coordenadas Google Maps:', coords);
+      console.log('✅ Navegando con coordenadas GPS:', coords);
     } 
-    // Fallback a dirección de texto si no hay coordenadas
+    // PRIORIDAD 2: Usar dirección de texto solo si NO hay coordenadas
     else {
-      const address = encodeURIComponent(seller_business?.business_address || order.seller_address || '');
+      const address = seller_business?.business_address || order.seller_address || '';
       if (address) {
-        window.open(`https://www.google.com/maps/search/${address}`, '_blank');
-        console.log('🗺️ Navegando con dirección de texto:', address);
+        const encodedAddress = encodeURIComponent(address);
+        window.open(`https://www.google.com/maps/search/${encodedAddress}`, '_blank');
+        console.log('⚠️ Navegando con dirección de texto (sin coordenadas):', address);
       } else {
-        toast.error('No hay dirección disponible para navegar');
+        console.error('❌ No hay coordenadas ni dirección disponible');
+        toast.error('No hay ubicación disponible para este negocio');
       }
     }
   };
