@@ -560,8 +560,8 @@ export function SellerBusinessProfile() {
       setFormData(prev => ({
         ...prev,
         latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        address: locationData.formatted_address
+        longitude: locationData.longitude
+        // NO asignar address automáticamente, el usuario lo escribe manualmente
       }));
 
       setLocationVerified(true);
@@ -569,11 +569,11 @@ export function SellerBusinessProfile() {
       
       setSuccess(`🎯 ¡Ubicación GPS verificada exitosamente!
       
-📍 Dirección: ${locationData.formatted_address}
-🗺️ Ciudad: ${locationData.city}, ${locationData.state}
+️ Ciudad: ${locationData.city}, ${locationData.state}
 📊 Coordenadas: ${locationData.latitude.toFixed(6)}, ${locationData.longitude.toFixed(6)}
       
 ✅ Los repartidores podrán encontrar tu negocio fácilmente.
+📝 Ahora escribe la dirección de tu negocio en el campo correspondiente.
 
 🔔 No olvides guardar el perfil para mantener estos cambios.`);
       
