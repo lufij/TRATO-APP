@@ -271,13 +271,16 @@ export function BuyerProfile() {
     if (!profile) return;
 
     setLoading(true);
+    setError('');
     try {
-      // Actualiza solo columnas que existen en el esquema base
+      // Actualiza todos los campos del perfil incluyendo dirección
       const { error } = await supabase
         .from('users')
         .update({
           name: profile.name,
           phone: profile.phone,
+          address: profile.address,
+          preferred_delivery_address: profile.preferred_delivery_address,
         })
         .eq('id', profile.id);
 
@@ -289,10 +292,14 @@ export function BuyerProfile() {
         phone: profile.phone,
       });
 
+      setSuccess('✅ Perfil actualizado correctamente');
       setIsEditing(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error al actualizar perfil');
+      setError('Error al actualizar perfil: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -492,6 +499,19 @@ export function BuyerProfile() {
                 {loading ? 'Guardando...' : 'Guardar cambios'}
               </Button>
             )}
+
+            {/* Mensajes de feedback */}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+            
+            {success && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-700 text-sm">{success}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -536,12 +556,26 @@ export function BuyerProfile() {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3}
                   placeholder="Escribe tu dirección completa aquí..."
+                  value={profile?.preferred_delivery_address || ''}
+                  onChange={(e) => {
+                    if (profile) {
+                      setProfile({
+                        ...profile,
+                        preferred_delivery_address: e.target.value
+                      });
+                    }
+                  }}
+                  disabled={!isEditing}
                 />
               </div>
 
-              {/* Botón guardar */}
-              <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700">
-                Guardar Ubicación
+              {/* Botón guardar ubicación */}
+              <button 
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
+                onClick={handleSaveProfile}
+                disabled={loading || !profile?.preferred_delivery_address?.trim()}
+              >
+                {loading ? 'Guardando...' : 'Guardar Ubicación'}
               </button>
             </div>
           </CardContent>
