@@ -127,8 +127,8 @@ export function DriverDashboard() {
         seller_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
         seller_address: order.seller?.address || 'Dirección no disponible',
         seller_business: {
-          business_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
-          business_address: order.seller?.address || 'Dirección no disponible',
+          business_name: order.seller?.business_name || 'Vendedor',
+          business_address: '', // NO usar address para evitar direcciones imprecisas
           latitude: order.seller?.latitude,
           longitude: order.seller?.longitude,
           location_verified: true
@@ -216,27 +216,46 @@ export function DriverDashboard() {
     const { seller_business } = order;
     
     console.log('🗺️ Abriendo navegación para orden:', order.id);
-    console.log('🗺️ Datos del negocio:', seller_business);
+    console.log('🗺️ Datos del negocio completos:', seller_business);
+    console.log('🗺️ Coordenadas GPS disponibles:', {
+      latitude: seller_business?.latitude,
+      longitude: seller_business?.longitude,
+      tipos: {
+        lat: typeof seller_business?.latitude,
+        lng: typeof seller_business?.longitude
+      }
+    });
     
-    // PRIORIDAD 1: Si tenemos coordenadas GPS, usarlas SIEMPRE
-    if (seller_business?.latitude && seller_business?.longitude) {
-      const coords = `${seller_business.latitude},${seller_business.longitude}`;
+    // FORZAR USO DE COORDENADAS GPS - Convertir a números si es necesario
+    const lat = seller_business?.latitude ? Number(seller_business.latitude) : null;
+    const lng = seller_business?.longitude ? Number(seller_business.longitude) : null;
+    
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      const coords = `${lat},${lng}`;
       const businessName = seller_business.business_name || 'Negocio';
       const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&destination_place_id=${encodeURIComponent(businessName)}`;
       window.open(url, '_blank');
-      console.log('✅ Navegando con coordenadas GPS:', coords);
+      console.log('✅ NAVEGANDO CON COORDENADAS GPS:', coords);
+      console.log('🔗 URL completa:', url);
+      
+      // Mostrar notificación de éxito
+      toast.success(`Navegando a ${businessName} (GPS: ${coords})`);
     } 
-    // PRIORIDAD 2: Usar dirección de texto solo si NO hay coordenadas
     else {
-      const address = seller_business?.business_address || order.seller_address || '';
-      if (address) {
-        const encodedAddress = encodeURIComponent(address);
-        window.open(`https://www.google.com/maps/search/${encodedAddress}`, '_blank');
-        console.log('⚠️ Navegando con dirección de texto (sin coordenadas):', address);
-      } else {
-        console.error('❌ No hay coordenadas ni dirección disponible');
-        toast.error('No hay ubicación disponible para este negocio');
-      }
+      // NO usar dirección de texto - SOLO coordenadas GPS
+      console.error('❌ NO HAY COORDENADAS GPS VÁLIDAS');
+      console.log('⚠️ Datos de debug:', {
+        latitude_original: seller_business?.latitude,
+        longitude_original: seller_business?.longitude,
+        latitude_converted: lat,
+        longitude_converted: lng,
+        tipos: {
+          lat: typeof seller_business?.latitude,
+          lng: typeof seller_business?.longitude
+        }
+      });
+      
+      toast.error('Este negocio no tiene ubicación GPS configurada. Contacta al vendedor para que configure su ubicación.');
     }
   };
 
