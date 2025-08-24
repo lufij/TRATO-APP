@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { supabase } from '../../utils/supabase/client';
+import { supabase } from '../../utils/supabase/client';
 import { 
   Card, 
   CardContent, 
@@ -228,11 +229,47 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
     setIsSubmitting(true);
     
     try {
-      // Obtener el seller_id del primer item del carrito
-      const sellerId = cartItems[0]?.seller_id || cartItems[0]?.product?.seller_id;
+      // Obtener el seller_id del primer item del carrito con verificación mejorada
+      console.log('Cart items:', cartItems);
+      
+      let sellerId = null;
+      
+      // Intentar obtener seller_id de diferentes lugares
+      for (const item of cartItems) {
+        if (item.seller_id) {
+          sellerId = item.seller_id;
+          break;
+        }
+        if (item.product?.seller_id) {
+          sellerId = item.product.seller_id;
+          break;
+        }
+      }
+      
+      console.log('Seller ID encontrado:', sellerId);
+      
+      // Si no se encuentra seller_id, intentar obtenerlo del producto directamente
+      if (!sellerId && cartItems.length > 0) {
+        console.log('Intentando obtener seller_id del producto...');
+        
+        try {
+          const { data: productData, error: productError } = await supabase
+            .from('products')
+            .select('seller_id')
+            .eq('id', cartItems[0].product_id)
+            .single();
+            
+          if (!productError && productData?.seller_id) {
+            sellerId = productData.seller_id;
+            console.log('Seller ID obtenido del producto:', sellerId);
+          }
+        } catch (productQueryError) {
+          console.error('Error obteniendo seller_id del producto:', productQueryError);
+        }
+      }
       
       if (!sellerId) {
-        throw new Error('No se pudo identificar el vendedor');
+        throw new Error('No se pudo identificar el vendedor. Por favor:\n1. Vacía tu carrito\n2. Agrega los productos nuevamente\n3. Si el problema persiste, contacta soporte');
       }
 
       // Preparar datos de la orden

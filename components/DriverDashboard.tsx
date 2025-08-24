@@ -35,6 +35,7 @@ import {
   Activity,
   Map
 } from 'lucide-react';
+import { NotificationManager } from './ui/NotificationManager';
 import { useState, useEffect, useCallback } from 'react';
 
 interface DeliveryOrder {
@@ -78,7 +79,7 @@ interface DriverStatus {
   status: 'available' | 'busy' | 'offline';
 }
 
-type MainView = 'dashboard' | 'deliveries' | 'history' | 'profile';
+type MainView = 'dashboard' | 'deliveries' | 'history' | 'notifications' | 'profile';
 
 export function DriverDashboard() {
   const { user, signOut } = useAuth();
@@ -662,6 +663,14 @@ export function DriverDashboard() {
       description: 'Entregas completadas'
     },
     {
+      id: 'notifications',
+      label: 'Notificaciones',
+      icon: Bell,
+      description: 'Centro de notificaciones',
+      hasNotification: newOrdersCount > 0,
+      notificationCount: newOrdersCount
+    },
+    {
       id: 'profile',
       label: 'Perfil',
       icon: User,
@@ -743,7 +752,7 @@ export function DriverDashboard() {
 
         {/* Navigation Tabs */}
   <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-2/3 mx-auto bg-white border border-gray-200">
+          <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
             {navigationItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -1287,6 +1296,11 @@ export function DriverDashboard() {
                 </div>
               </div>
             )}
+          </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications" className="space-y-6">
+            <NotificationManager />
           </TabsContent>
 
           {/* Profile Tab */}

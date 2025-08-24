@@ -41,6 +41,7 @@ import {
   ShoppingCart,
   MapPin
 } from 'lucide-react';
+import { NotificationManager } from './ui/NotificationManager';
 
 interface Product {
   id: string;
@@ -68,7 +69,7 @@ interface DailyProduct {
   created_at: string;
 }
 
-type MainView = 'dashboard' | 'products' | 'orders' | 'profile' | 'marketplace';
+type MainView = 'dashboard' | 'products' | 'orders' | 'profile' | 'marketplace' | 'notifications';
 type ProductView = 'list' | 'add-product' | 'add-daily' | 'edit-product' | 'edit-daily';
 
 export function SellerDashboard() {
@@ -555,6 +556,14 @@ export function SellerDashboard() {
       label: 'Pedidos',
       icon: ClipboardList,
       description: 'Órdenes y analytics',
+      hasNotification: newOrdersCount > 0,
+      notificationCount: newOrdersCount
+    },
+    {
+      id: 'notifications',
+      label: 'Notificaciones',
+      icon: Bell,
+      description: 'Centro de notificaciones',
       hasNotification: newOrdersCount > 0,
       notificationCount: newOrdersCount
     },
@@ -1165,7 +1174,7 @@ export function SellerDashboard() {
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 lg:w-2/3 mx-auto bg-white border border-gray-200">
+            <TabsList className="grid w-full grid-cols-6 lg:w-2/3 mx-auto bg-white border border-gray-200">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1206,6 +1215,10 @@ export function SellerDashboard() {
               <SellerOrderManagement />
             </TabsContent>
 
+            <TabsContent value="notifications" className="space-y-6">
+              <NotificationManager />
+            </TabsContent>
+
             <TabsContent value="profile" className="space-y-6">
               <SellerBusinessProfile />
             </TabsContent>
@@ -1221,6 +1234,7 @@ export function SellerDashboard() {
           {currentView === 'dashboard' && renderDashboard()}
           {currentView === 'products' && renderProducts()}
           {currentView === 'orders' && <SellerOrderManagement />}
+          {currentView === 'notifications' && <NotificationManager />}
           {currentView === 'profile' && <SellerBusinessProfile />}
           {currentView === 'marketplace' && <SellerMarketplace />}
         </div>

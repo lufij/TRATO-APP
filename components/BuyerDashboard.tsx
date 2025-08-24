@@ -15,7 +15,8 @@ import { BuyerProfile } from './buyer/BuyerProfile';
 import { BuyerCart } from './buyer/BuyerCart';
 import { BuyerCheckout } from './buyer/BuyerCheckout';
 import { BuyerNotifications } from './buyer/BuyerNotifications';
-import { NotificationCenter, useNotificationCount } from './ui/NotificationCenter';
+import { NotificationManager } from './ui/NotificationManager';
+import { useNotificationCount } from './ui/NotificationCenter';
 import { BusinessProfile } from './buyer/BusinessProfile';
 import { CheckoutFlow } from './buyer/CheckoutFlow';
 import { OrderTracking } from './buyer/OrderTracking';
@@ -220,7 +221,7 @@ export function BuyerDashboard() {
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowNotifications(false)} />
             <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl">
               <div className="h-full overflow-hidden p-6">
-                <NotificationCenter 
+                <NotificationManager 
                   onClose={() => setShowNotifications(false)}
                 />
               </div>

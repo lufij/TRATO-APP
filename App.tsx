@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Progress } from './components/ui/progress';
 import { AlertCircle, Database, Loader2, CheckCircle, Stethoscope, Download, RefreshCw } from 'lucide-react';
 import { useServiceWorker } from './hooks/useServiceWorker';
+import { useSoundNotifications } from './hooks/useSoundNotifications';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 
@@ -178,6 +179,12 @@ function PWABanner() {
   }
 
   return null;
+}
+
+// Sound notification wrapper component
+function SoundNotificationWrapper({ children }: { children: React.ReactNode }) {
+  useSoundNotifications(); // Initialize sound notifications
+  return <>{children}</>;
 }
 
 function AppContent() {
@@ -706,11 +713,13 @@ function AppContent() {
           <UserStatusProvider>
             <CartProvider>
               <ChatProvider>
-                <PWABanner />
-                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
-                  <BuyerDashboard />
-                </Suspense>
-                <Toaster />
+                <SoundNotificationWrapper>
+                  <PWABanner />
+                  <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                    <BuyerDashboard />
+                  </Suspense>
+                  <Toaster />
+                </SoundNotificationWrapper>
               </ChatProvider>
             </CartProvider>
           </UserStatusProvider>
@@ -719,11 +728,13 @@ function AppContent() {
         return (
           <UserStatusProvider>
             <ChatProvider>
-              <PWABanner />
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
-                <SellerDashboard />
-              </Suspense>
-              <Toaster />
+              <SoundNotificationWrapper>
+                <PWABanner />
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                  <SellerDashboard />
+                </Suspense>
+                <Toaster />
+              </SoundNotificationWrapper>
             </ChatProvider>
           </UserStatusProvider>
         );
@@ -731,11 +742,13 @@ function AppContent() {
         return (
           <UserStatusProvider>
             <ChatProvider>
-              <PWABanner />
-              <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
-                <DriverDashboard />
-              </Suspense>
-              <Toaster />
+              <SoundNotificationWrapper>
+                <PWABanner />
+                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                  <DriverDashboard />
+                </Suspense>
+                <Toaster />
+              </SoundNotificationWrapper>
             </ChatProvider>
           </UserStatusProvider>
         );
