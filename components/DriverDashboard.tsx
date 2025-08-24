@@ -199,11 +199,23 @@ export function DriverDashboard() {
 
       console.log('Available orders from RPC:', ordersData);
       
+      // Debug: Log each order to see what fields are available
+      ordersData?.forEach((order: any, index: number) => {
+        console.log(`Order ${index + 1}:`, {
+          order_id: order.order_id,
+          seller_address: order.seller_address,
+          business_address: order.business_address,
+          delivery_address: order.delivery_address,
+          seller_name: order.seller_name,
+          business_name: order.business_name
+        });
+      });
+      
       // Transform RPC data to component format
       const transformedOrders: DeliveryOrder[] = (ordersData || []).map((order: any) => ({
         id: order.order_id,
         order_id: order.order_id,
-        pickup_address: order.seller_address || 'Dirección de recogida',
+        pickup_address: order.seller_address || order.business_address || 'Contactar vendedor para dirección',
         delivery_address: order.delivery_address || 'Dirección de entrega',
         customer_name: 'Cliente', // RPC doesn't return customer name for privacy
         customer_phone: 'Sin teléfono',
