@@ -96,24 +96,7 @@ export function DriverDashboard() {
       console.log('Fetching assigned orders for driver:', user.id);
       const { data, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (
-            product_name,
-            quantity
-          ),
-          buyer:users!buyer_id (
-            name,
-            phone
-          ),
-          seller:users!seller_id (
-            name,
-            business_name,
-            address,
-            latitude,
-            longitude
-          )
-        `)
+        .select('*')
         .eq('driver_id', user.id)
         .in('status', ['assigned', 'picked_up', 'in_transit'])
         .order('created_at', { ascending: false });
@@ -125,20 +108,37 @@ export function DriverDashboard() {
       
       console.log('Assigned orders data:', data);
       
-      const formattedData = data?.map(order => ({
-        ...order,
-        customer_name: order.buyer?.name || 'Cliente',
-        phone_number: order.buyer?.phone || 'No disponible',
-        seller_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
-        seller_address: order.seller?.address || 'Dirección no disponible',
-        seller_business: {
-          business_name: order.seller?.business_name || order.seller?.name || 'Vendedor',
-          business_address: order.seller?.address || 'Dirección no disponible',
-          latitude: order.seller?.latitude,
-          longitude: order.seller?.longitude,
-          location_verified: true
-        }
-      })) || [];
+      // Buscar información adicional por separado
+      const formattedData = await Promise.all(data?.map(async (order) => {
+        // Buscar info del comprador
+        const { data: buyer } = await supabase
+          .from('users')
+          .select('name, phone')
+          .eq('id', order.buyer_id)
+          .single();
+
+        // Buscar info del vendedor
+        const { data: seller } = await supabase
+          .from('users')
+          .select('name, business_name, address, latitude, longitude')
+          .eq('id', order.seller_id)
+          .single();
+
+        return {
+          ...order,
+          customer_name: buyer?.name || 'Cliente',
+          phone_number: buyer?.phone || 'No disponible',
+          seller_name: seller?.business_name || seller?.name || 'Vendedor',
+          seller_address: seller?.address || 'Dirección no disponible',
+          seller_business: {
+            business_name: seller?.business_name || seller?.name || 'Vendedor',
+            business_address: seller?.address || 'Dirección no disponible',
+            latitude: seller?.latitude,
+            longitude: seller?.longitude,
+            location_verified: true
+          }
+        };
+      }) || []);
 
       setAssignedOrders(formattedData);
     } catch (error) {
