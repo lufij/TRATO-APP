@@ -230,6 +230,122 @@ export function DriverDashboard() {
     }
   };
 
+  const runDriverDiagnostic = async () => {
+    if (!user?.id) {
+      toast.error('Usuario no autenticado');
+      return;
+    }
+
+    console.log('🔍 DIAGNÓSTICO DEL REPARTIDOR');
+    console.log('===============================');
+    console.log('👤 Driver ID autenticado:', user.id);
+
+    try {
+      // 1. Verificar todas las órdenes asignadas a repartidores
+      const { data: allOrders, error: allError } = await supabase
+        .from('orders')
+        .select('*')
+        .not('driver_id', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (allError) {
+        console.error('❌ Error consultando órdenes con driver_id:', allError);
+      } else {
+        console.log(`📊 Órdenes con driver_id asignado: ${allOrders?.length || 0}`);
+        allOrders?.forEach((order, index) => {
+          console.log(`${index + 1}. ID: ${order.id}`);
+          console.log(`   Driver ID: ${order.driver_id}`);
+          console.log(`   Status: ${order.status}`);
+          console.log(`   Customer: ${order.customer_name || 'N/A'}`);
+          console.log('   ---');
+        });
+      }
+
+      // 2. Verificar órdenes específicamente para este repartidor
+      const { data: myOrders, error: myError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('driver_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (myError) {
+        console.error('❌ Error consultando mis órdenes:', myError);
+      } else {
+        console.log(`🚚 Mis órdenes asignadas: ${myOrders?.length || 0}`);
+        if (myOrders && myOrders.length > 0) {
+          myOrders.forEach((order, index) => {
+            console.log(`${index + 1}. ID: ${order.id}`);
+            console.log(`   Status: ${order.status}`);
+            console.log(`   Customer: ${order.customer_name || 'N/A'}`);
+            console.log('   ---');
+          });
+        } else {
+          console.log('⚠️  No tienes órdenes asignadas actualmente');
+        }
+      }
+
+      // 3. Buscar órdenes en estado "ready" sin driver_id para auto-asignar
+      const { data: readyOrders, error: readyError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('status', 'ready')
+        .is('driver_id', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (readyError) {
+        console.error('❌ Error buscando órdenes listas:', readyError);
+      } else {
+        console.log(`📦 Órdenes listas sin repartidor: ${readyOrders?.length || 0}`);
+        
+        if (readyOrders && readyOrders.length > 0) {
+          const shouldAssign = confirm(`Se encontraron ${readyOrders.length} órdenes listas sin repartidor asignado. ¿Quieres asignarlas a tu cuenta?`);
+          
+          if (shouldAssign) {
+            console.log('🔧 Asignando órdenes listas...');
+            
+            for (const order of readyOrders) {
+              try {
+                const { error: updateError } = await supabase
+                  .from('orders')
+                  .update({ 
+                    driver_id: user.id,
+                    status: 'assigned',
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', order.id);
+                
+                if (updateError) {
+                  console.error(`❌ Error asignando orden ${order.id}:`, updateError);
+                } else {
+                  console.log(`✅ Orden ${order.id} asignada exitosamente`);
+                }
+              } catch (err) {
+                console.error(`❌ Error:`, err);
+              }
+            }
+            
+            toast.success(`${readyOrders.length} órdenes fueron asignadas a tu cuenta`);
+            
+            // Recargar datos
+            await Promise.all([
+              loadActiveDeliveries(),
+              loadAvailableOrders(),
+              loadDriverStats()
+            ]);
+          }
+        }
+      }
+
+      console.log('✅ Diagnóstico completado');
+      toast.success('Diagnóstico ejecutado. Revisa la consola para detalles.');
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+      toast.error('Error ejecutando diagnóstico');
+    }
+  };
+
   const loadActiveDeliveries = async () => {
     try {
       // Try to fetch driver's active deliveries
@@ -966,10 +1082,16 @@ export function DriverDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Entregas</h2>
                 <p className="text-gray-600">Gestiona tus pedidos disponibles y activos</p>
               </div>
-              <Button onClick={loadAvailableOrders} variant="outline">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Actualizar
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={loadAvailableOrders} variant="outline" className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Actualizar
+                </Button>
+                <Button onClick={runDriverDiagnostic} variant="outline" className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100">
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Diagnóstico
+                </Button>
+              </div>
             </div>
 
             <Tabs defaultValue="available" className="space-y-6">
