@@ -554,19 +554,31 @@ export function DriverDashboard() {
         }
       }
 
-      const { error } = await supabase
+      // Actualizar en tabla drivers (is_active + is_online)
+      const { error: driverError } = await supabase
         .from('drivers')
         .update({ 
           is_active: newStatus,
+          is_online: newStatus,  // Sincronizar estado online
           current_location: newStatus ? await getCurrentLocation() : null,
           updated_at: new Date().toISOString()
         })
         .eq('id', user?.id);
 
-      if (error) {
-        console.error('Error updating driver status:', error);
+      if (driverError) {
+        console.error('Error updating driver status:', driverError);
         toast.error('Error al actualizar estado');
         return;
+      }
+
+      // También actualizar en tabla users para consistencia
+      const { error: userError } = await supabase
+        .from('users')
+        .update({ is_active: newStatus })
+        .eq('id', user?.id);
+
+      if (userError) {
+        console.error('Error updating user status:', userError);
       }
 
       setDriverStatus(prev => ({
@@ -577,10 +589,10 @@ export function DriverDashboard() {
 
       if (newStatus) {
         startLocationTracking();
-        toast.success('¡Estás en línea! Comenzarás a recibir pedidos');
+        toast.success('¡Estás EN LÍNEA! Comenzarás a recibir pedidos');
       } else {
         stopLocationTracking();
-        toast.success('Te has desconectado');
+        toast.success('Te has DESCONECTADO');
       }
 
     } catch (error) {

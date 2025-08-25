@@ -261,15 +261,27 @@ export function DriverProfile() {
   // Toggle estado online/offline
   const toggleOnlineStatus = async (isOnline: boolean) => {
     try {
-      const { error } = await supabase
+      // Primero actualizar en la tabla drivers (is_online)
+      const { error: driverError } = await supabase
         .from('drivers')
         .update({ is_online: isOnline })
         .eq('id', user?.id);
 
-      if (error) throw error;
+      if (driverError) throw driverError;
 
+      // También actualizar en users (is_active) para mantener consistencia
+      const { error: userError } = await supabase
+        .from('users')
+        .update({ is_active: isOnline })
+        .eq('id', user?.id);
+
+      if (userError) throw userError;
+
+      // Actualizar estado local
       setDriverStats(prev => ({ ...prev, is_online: isOnline }));
-      toast.success(isOnline ? 'Ahora estás en línea' : 'Ahora estás desconectado');
+      setProfileData(prev => ({ ...prev, is_active: isOnline }));
+      
+      toast.success(isOnline ? '✅ Ahora estás EN LÍNEA' : '⏸️ Ahora estás DESCONECTADO');
 
     } catch (error) {
       console.error('Error updating online status:', error);
