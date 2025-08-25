@@ -220,7 +220,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   <div className="space-y-2">
                     <Label htmlFor="phone">Teléfono *</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium z-10">
                         +502
                       </span>
                       <Input
@@ -233,7 +233,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                           setFormData({ ...formData, phone: value });
                         }}
                         placeholder="12345678"
-                        className="pl-12"
+                        className="pl-16"
                         required
                         disabled={loading || isRegistering}
                         maxLength={8}
