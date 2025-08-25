@@ -62,6 +62,35 @@ export function DriverProfile() {
   useEffect(() => {
     if (user) {
       loadDriverProfile();
+      
+      // Suscripción en tiempo real para cambios en drivers
+      const subscription = supabase
+        .channel('driver-profile-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'drivers',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Driver status changed:', payload);
+            if (payload.new) {
+              setDriverStats(prev => ({
+                ...prev,
+                is_online: payload.new.is_online || false,
+                rating: payload.new.rating || 0,
+                total_deliveries: payload.new.total_deliveries || 0
+              }));
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
     }
   }, [user]);
 
@@ -260,32 +289,61 @@ export function DriverProfile() {
 
   // Toggle estado online/offline
   const toggleOnlineStatus = async (isOnline: boolean) => {
+    if (!user) return;
+
     try {
-      // Primero actualizar en la tabla drivers (is_online)
-      const { error: driverError } = await supabase
-        .from('drivers')
-        .update({ is_online: isOnline })
-        .eq('id', user?.id);
-
-      if (driverError) throw driverError;
-
-      // También actualizar en users (is_active) para mantener consistencia
-      const { error: userError } = await supabase
-        .from('users')
-        .update({ is_active: isOnline })
-        .eq('id', user?.id);
-
-      if (userError) throw userError;
-
-      // Actualizar estado local
+      console.log('Toggling online status to:', isOnline);
+      
+      // Actualizar estado local inmediatamente para retroalimentación visual
       setDriverStats(prev => ({ ...prev, is_online: isOnline }));
       setProfileData(prev => ({ ...prev, is_active: isOnline }));
+
+      // Primero actualizar en la tabla drivers (is_online)
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .update({ 
+          is_online: isOnline,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+        .select();
+
+      if (driverError) {
+        console.error('Driver update error:', driverError);
+        throw driverError;
+      }
+
+      // También actualizar en users (is_active) para mantener consistencia
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .update({ 
+          is_active: isOnline,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+        .select();
+
+      if (userError) {
+        console.error('User update error:', userError);
+        throw userError;
+      }
+
+      console.log('Status updated successfully - Driver:', driverData, 'User:', userData);
       
-      toast.success(isOnline ? '✅ Ahora estás EN LÍNEA' : '⏸️ Ahora estás DESCONECTADO');
+      toast.success(
+        isOnline 
+          ? '✅ Ahora estás EN LÍNEA y disponible para recibir pedidos' 
+          : '⏸️ Ahora estás DESCONECTADO. No recibirás nuevos pedidos'
+      );
 
     } catch (error) {
       console.error('Error updating online status:', error);
-      toast.error('Error al actualizar el estado');
+      
+      // Revertir estado local si hay error
+      setDriverStats(prev => ({ ...prev, is_online: !isOnline }));
+      setProfileData(prev => ({ ...prev, is_active: !isOnline }));
+      
+      toast.error(`Error al actualizar el estado: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -375,20 +433,41 @@ export function DriverProfile() {
 
           <CardTitle className="text-2xl">{profileData.name || 'Repartidor'}</CardTitle>
           
-          {/* Estado online/offline prominente */}
-          <div className="flex items-center justify-center gap-4 mt-4">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={driverStats.is_online}
-                onCheckedChange={toggleOnlineStatus}
-                className="data-[state=checked]:bg-green-600"
-              />
+          {/* Estado online/offline PROMINENTE Y FUNCIONAL */}
+          <div className="mt-6">
+            {/* Botón principal de estado */}
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${driverStats.is_online ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                  <span className="text-sm font-medium text-gray-600">Estado:</span>
+                </div>
+                <Switch
+                  checked={driverStats.is_online}
+                  onCheckedChange={toggleOnlineStatus}
+                  className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
+                />
+              </div>
+              
+              {/* Badge grande y prominente */}
               <Badge 
                 variant={driverStats.is_online ? "default" : "secondary"}
-                className={driverStats.is_online ? "bg-green-600" : "bg-gray-400"}
+                className={`px-6 py-2 text-lg font-bold ${
+                  driverStats.is_online 
+                    ? "bg-green-600 hover:bg-green-700 text-white" 
+                    : "bg-gray-400 hover:bg-gray-500 text-white"
+                }`}
               >
-                {driverStats.is_online ? "EN LÍNEA" : "DESCONECTADO"}
+                {driverStats.is_online ? "🟢 EN LÍNEA" : "⚫ DESCONECTADO"}
               </Badge>
+              
+              {/* Mensaje explicativo */}
+              <p className="text-sm text-center text-gray-600 max-w-sm">
+                {driverStats.is_online 
+                  ? "Estás visible para recibir nuevos pedidos. Los compradores pueden verte en línea." 
+                  : "Actívate para comenzar a recibir pedidos. No apareces en la lista de repartidores disponibles."
+                }
+              </p>
             </div>
           </div>
 

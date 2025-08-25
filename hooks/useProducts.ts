@@ -102,17 +102,20 @@ export function useProducts() {
             code === '42703' || // column does not exist
             msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
 
-        if (isRelIssue) {
-          console.warn('[products] Relationship select failed, falling back to plain select(*)');
-          let fallback = supabase
-            .from('products')
-            .select('*')
-            .eq('is_public', true);
-          if (sellerId) fallback = fallback.eq('seller_id', sellerId);
-          const r = await fallback.order('created_at', { ascending: false });
-          data = r.data as Product[] | null;
-          error = r.error as any;
+          if (isRelIssue) {
+            console.warn('[products] Relationship select failed, falling back to plain select(*)');
+            let fallback = supabase
+              .from('products')
+              .select('*')
+              .eq('is_public', true);
+            if (sellerId) fallback = fallback.eq('seller_id', sellerId);
+            const r = await fallback.order('created_at', { ascending: false });
+            data = r.data as Product[] | null;
+            error = r.error as any;
+          }
         }
+
+        if (!error) break;
       }
 
       if (error) {

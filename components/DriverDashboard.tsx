@@ -147,11 +147,14 @@ export function DriverDashboard() {
           await createDriverRecord();
         }
       } else {
+        // Usar is_online para el estado real del repartidor
+        const isOnline = driverData.is_online || false;
+        
         setDriverStatus({
-          is_active: driverData.is_active || false,
+          is_active: isOnline,  // Sincronizar con is_online
           is_verified: driverData.is_verified || false,
           current_location: driverData.current_location,
-          status: driverData.is_active ? 'available' : 'offline'
+          status: isOnline ? 'available' : 'offline'
         });
       }
     } catch (error) {
@@ -170,12 +173,23 @@ export function DriverDashboard() {
           vehicle_type: 'motocicleta',
           license_number: 'TEMP-' + Date.now(),
           is_active: false,
+          is_online: false,  // Inicialmente desconectado
           is_verified: false,
+          rating: 0.0,
+          total_deliveries: 0,
           created_at: new Date().toISOString()
         });
 
       if (error) {
         console.error('Error creating driver record:', error);
+      } else {
+        // Actualizar estado local después de crear
+        setDriverStatus({
+          is_active: false,
+          is_verified: false,
+          current_location: null,
+          status: 'offline'
+        });
       }
     } catch (error) {
       console.error('Error creating driver record:', error);
