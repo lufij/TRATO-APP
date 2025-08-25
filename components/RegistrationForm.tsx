@@ -40,7 +40,7 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
   const validateStep = (step: number) => {
     switch (step) {
       case 1:
-        return formData.name && formData.email && formData.password && 
+        return formData.name && formData.phone && formData.phone.length === 8 && formData.password && 
                formData.password === formData.confirmPassword && formData.password.length >= 6;
       case 2:
         if (role === 'comprador') return true;
@@ -66,8 +66,18 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     setError('');
 
     // Final validation
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.name || !formData.phone || !formData.password) {
       setError('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    if (formData.phone.length !== 8) {
+      setError('El teléfono debe tener exactamente 8 dígitos');
+      return;
+    }
+
+    if (!/^\d{8}$/.test(formData.phone)) {
+      setError('El teléfono solo debe contener números');
       return;
     }
 
@@ -92,10 +102,14 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
     }
 
     try {
-      const result = await signUp(formData.email, formData.password, {
+      // Generar email automático si no se proporcionó uno
+      const finalEmail = formData.email || `+502${formData.phone}@trato.app`;
+      const finalPhone = `+502${formData.phone}`;
+      
+      const result = await signUp(finalEmail, formData.password, {
         name: formData.name,
         role,
-        phone: formData.phone,
+        phone: finalPhone,
         businessName: formData.businessName,
         businessDescription: formData.businessDescription,
         vehicleType: formData.vehicleType,
@@ -204,26 +218,38 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="phone">Teléfono *</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">
+                        +502
+                      </span>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => {
+                          // Solo permitir números y máximo 8 dígitos
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+                          setFormData({ ...formData, phone: value });
+                        }}
+                        placeholder="12345678"
+                        className="pl-12"
+                        required
+                        disabled={loading || isRegistering}
+                        maxLength={8}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">Ingresa 8 dígitos (sin +502)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email (opcional)</Label>
                     <Input
                       id="email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="tu@email.com"
-                      required
-                      disabled={loading || isRegistering}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+502 1234-5678"
+                      placeholder="tu@email.com (opcional)"
                       disabled={loading || isRegistering}
                     />
                   </div>
