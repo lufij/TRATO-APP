@@ -32,7 +32,7 @@ import { useSoundNotifications } from './hooks/useSoundNotifications';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 
-type AppState = 'welcome' | 'role-selection' | 'register' | 'diagnostic' | 'orphaned-diagnostic';
+type AppState = 'welcome' | 'role-selection' | 'register' | 'diagnostic' | 'orphaned-diagnostic' | 'setup';
 
 // PWA Meta Tags Component
 function PWAMetaTags() {
@@ -347,7 +347,7 @@ function AppContent() {
     
     // Fast path: open setup if ?setup=1 is present  
     if (params.get('setup') === '1') {
-      setCurrentState('setup' as any);
+      setCurrentState('setup');
     }
 
     // Skip eager DB check in production; run in idle/dev or when diagnostics requested
