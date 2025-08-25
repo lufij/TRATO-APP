@@ -8,6 +8,7 @@ import { Switch } from './ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { DriverProfile } from './driver/DriverProfile';
 import { toast } from 'sonner';
 import { 
   Truck, 
@@ -1693,22 +1694,7 @@ export function DriverDashboard() {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Perfil del Repartidor</h2>
-              <p className="text-gray-600">Gestiona tu información y configuración</p>
-            </div>
-
-            <Card>
-              <CardContent className="p-8 text-center">
-                <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Configuración de perfil próximamente
-                </h3>
-                <p className="text-gray-600">
-                  Aquí podrás actualizar tu información personal, datos del vehículo, métodos de pago y preferencias
-                </p>
-              </CardContent>
-            </Card>
+            <DriverProfile />
           </TabsContent>
         </Tabs>
       </div>

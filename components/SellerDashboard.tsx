@@ -17,6 +17,7 @@ import { SellerMarketplace } from './seller/SellerMarketplace';
 import { LocationVerification } from './LocationVerification';
 import { VerificationAlert } from './VerificationAlert';
 import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
+import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { 
   Plus, 
@@ -1264,6 +1265,9 @@ export function SellerDashboard() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Indicador de repartidores online */}
+      <OnlineDriversIndicator />
     </div>
   );
 }

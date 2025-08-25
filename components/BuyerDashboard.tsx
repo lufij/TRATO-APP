@@ -21,6 +21,7 @@ import { BusinessProfile } from './buyer/BusinessProfile';
 import { CheckoutFlow } from './buyer/CheckoutFlow';
 import { OrderTracking } from './buyer/OrderTracking';
 import { CurrentUserStatus } from './CurrentUserStatus';
+import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { 
   Home, 
   ShoppingCart, 
@@ -288,6 +289,9 @@ export function BuyerDashboard() {
             </Card>
           </div>
         )}
+
+        {/* Indicador de repartidores online */}
+        <OnlineDriversIndicator />
       </div>
     </OrderProvider>
   );
