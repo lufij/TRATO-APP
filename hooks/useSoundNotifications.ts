@@ -89,8 +89,14 @@ export function useSoundNotifications() {
     });
 
     return () => {
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try {
+          audioContextRef.current.close().catch(err => {
+            console.warn('Error closing AudioContext:', err);
+          });
+        } catch (error) {
+          console.warn('Error closing AudioContext:', error);
+        }
       }
     };
   }, [requestPermission]);
@@ -102,34 +108,49 @@ export function useSoundNotifications() {
     const config = configRef.current.sounds[soundType];
     const audioContext = audioContextRef.current;
 
+    // Check if AudioContext is closed
+    if (audioContext.state === 'closed') {
+      console.warn('AudioContext is closed, cannot play sound');
+      return;
+    }
+
     // Resume AudioContext if suspended (required for some browsers)
     if (audioContext.state === 'suspended') {
-      audioContext.resume();
+      audioContext.resume().catch(err => {
+        console.warn('Error resuming AudioContext:', err);
+        return;
+      });
     }
 
     const playTone = (delay: number = 0) => {
       setTimeout(() => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+        try {
+          if (audioContext.state === 'closed') return;
+          
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
 
-        oscillator.frequency.value = config.frequency;
-        oscillator.type = 'sine';
+          oscillator.frequency.value = config.frequency;
+          oscillator.type = 'sine';
 
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(
-          configRef.current.volume,
-          audioContext.currentTime + 0.01
-        );
-        gainNode.gain.exponentialRampToValueAtTime(
-          0.01,
-          audioContext.currentTime + config.duration / 1000
-        );
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(
+            configRef.current.volume,
+            audioContext.currentTime + 0.01
+          );
+          gainNode.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioContext.currentTime + config.duration / 1000
+          );
 
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + config.duration / 1000);
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + config.duration / 1000);
+        } catch (error) {
+          console.warn('Error playing sound tone:', error);
+        }
       }, delay);
     };
 
@@ -317,8 +338,7 @@ export function useSoundNotifications() {
               customer_name: 'Tu pedido',
               total: payload.new.total_amount || payload.new.total || 0,
               delivery_type: payload.new.delivery_type || 'pickup',
-              order_id: payload.new.id,
-              status: 'accepted'
+              order_id: payload.new.id
             });
             
             toast.success('Pedido aceptado', {
@@ -337,8 +357,7 @@ export function useSoundNotifications() {
               customer_name: 'Tu pedido',
               total: payload.new.total_amount || payload.new.total || 0,
               delivery_type: payload.new.delivery_type || 'pickup',
-              order_id: payload.new.id,
-              status: 'ready'
+              order_id: payload.new.id
             });
             
             toast.info('Pedido listo', {
@@ -374,8 +393,7 @@ export function useSoundNotifications() {
               customer_name: 'Tu pedido',
               total: payload.new.total_amount || payload.new.total || 0,
               delivery_type: payload.new.delivery_type || 'pickup',
-              order_id: payload.new.id,
-              status: 'delivered'
+              order_id: payload.new.id
             });
             
             toast.success('¡Pedido entregado!', {
@@ -401,8 +419,7 @@ export function useSoundNotifications() {
             customer_name: 'Nuevo producto',
             total: 0,
             delivery_type: 'pickup',
-            order_id: 'new-product',
-            status: 'new_product'
+            order_id: 'new-product'
           });
           
           toast.info('¡Nuevo producto disponible!', {
