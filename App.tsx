@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ImageModalProvider } from './contexts/ImageModalContext';
 import { CartProvider } from './contexts/CartContext';
 import { ChatProvider } from './contexts/ChatContext';
+import { DriverProvider } from './contexts/DriverContext';
 import { UserStatusProvider } from './components/UserStatusIndicator';
 const WelcomeScreen = lazy(() => import('./components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const RoleSelection = lazy(() => import('./components/RoleSelection').then(m => ({ default: m.RoleSelection })));
@@ -11,7 +12,7 @@ const ProfileRecovery = lazy(() => import('./components/ProfileRecovery').then(m
 const OrphanedUserDiagnostic = lazy(() => import('./components/OrphanedUserDiagnostic').then(m => ({ default: m.OrphanedUserDiagnostic })));
 const BuyerDashboard = lazy(() => import('./components/BuyerDashboard').then(m => ({ default: m.BuyerDashboard })));
 const SellerDashboard = lazy(() => import('./components/SellerDashboard').then(m => ({ default: m.SellerDashboard })));
-const DriverDashboard = lazy(() => import('./components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
+const EnhancedDriverDashboard = lazy(() => import('./components/driver/EnhancedDriverDashboard').then(m => ({ default: m.EnhancedDriverDashboard })));
 const DiagnosticPage = lazy(() => import('./components/DiagnosticPage').then(m => ({ default: m.DiagnosticPage })));
 const SetupPage = lazy(() => import('./components/SetupPage').then(m => ({ default: m.SetupPage })));
 const DiagnosticProbe = lazy(async () => {
@@ -758,17 +759,19 @@ function AppContent() {
         );
       case 'repartidor':
         return (
-          <UserStatusProvider>
-            <ChatProvider>
-              <SoundNotificationWrapper>
-                <PWABanner />
-                <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
-                  <DriverDashboard />
-                </Suspense>
-                <Toaster />
-              </SoundNotificationWrapper>
-            </ChatProvider>
-          </UserStatusProvider>
+          <DriverProvider>
+            <UserStatusProvider>
+              <ChatProvider>
+                <SoundNotificationWrapper>
+                  <PWABanner />
+                  <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
+                    <EnhancedDriverDashboard />
+                  </Suspense>
+                  <Toaster />
+                </SoundNotificationWrapper>
+              </ChatProvider>
+            </UserStatusProvider>
+          </DriverProvider>
         );
       default:
         return (
