@@ -781,8 +781,10 @@ export function DriverDashboard() {
 
         toast.success(statusMessages[newStatus] || 'Estado actualizado');
 
-        // 🚀 NUEVO: Si el pedido fue marcado como entregado, ejecutar sistema completo
-        if (newStatus === 'delivered') {
+        // 🚀 Enviar notificaciones según el estado
+        if (newStatus === 'in_transit') {
+          await sendInTransitNotification(orderId, orderData);
+        } else if (newStatus === 'delivered') {
           await handleDeliveryCompleted(orderId, orderData);
         }
         
@@ -803,7 +805,40 @@ export function DriverDashboard() {
     }
   };
 
-  // 🚀 NUEVA FUNCIÓN: Manejo completo cuando se entrega un pedido
+  // � Función para enviar notificación cuando está en tránsito
+  const sendInTransitNotification = async (orderId: string, orderData: any) => {
+    if (!user?.id) return;
+    
+    try {
+      // Notificación al comprador que su pedido va en camino
+      if (orderData.buyer_id) {
+        const { error } = await supabase
+          .from('notifications')
+          .insert([{
+            recipient_id: orderData.buyer_id,
+            type: 'order_in_transit',
+            title: '🚚 Tu pedido va en camino',
+            message: `Tu pedido #${orderId.slice(0, 8)} está en camino. El repartidor se dirige a tu ubicación.`,
+            data: {
+              order_id: orderId,
+              driver_id: user.id,
+              estimated_arrival: orderData.estimated_delivery
+            },
+            created_at: new Date().toISOString()
+          }]);
+
+        if (error) {
+          console.error('Error enviando notificación en tránsito:', error);
+        } else {
+          console.log('✅ Notificación en tránsito enviada al comprador');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error en sendInTransitNotification:', error);
+    }
+  };
+
+  // �🚀 NUEVA FUNCIÓN: Manejo completo cuando se entrega un pedido
   const handleDeliveryCompleted = async (orderId: string, orderData: any) => {
     if (!user?.id) return;
     

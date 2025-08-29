@@ -94,7 +94,11 @@ export function BuyerDashboard() {
 
   // Render different views based on current state
   if (currentView === 'business-profile') {
-    return <BusinessProfile businessId={selectedBusinessId} onBack={handleBackFromBusiness} />;
+    return <BusinessProfile 
+      businessId={selectedBusinessId} 
+      onBack={handleBackFromBusiness} 
+      onShowCart={() => setShowCart(true)}
+    />;
   }
 
   if (currentView === 'checkout') {
@@ -260,7 +264,10 @@ export function BuyerDashboard() {
 
             {/* Tab Contents */}
             <TabsContent value="home" className="space-y-6">
-              <BuyerHome onBusinessClick={handleBusinessClick} />
+              <BuyerHome 
+                onBusinessClick={handleBusinessClick} 
+                onShowCart={() => setShowCart(true)}
+              />
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-6">
@@ -268,7 +275,7 @@ export function BuyerDashboard() {
             </TabsContent>
 
             <TabsContent value="profile" className="space-y-6">
-              <BuyerProfile />
+              <BuyerProfile onShowCart={() => setShowCart(true)} />
             </TabsContent>
           </Tabs>
         </div>

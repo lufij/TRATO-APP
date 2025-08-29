@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from './AuthContext';
 import { useCart } from './CartContext';
+import { 
+  updateProductStock, 
+  restoreProductStock, 
+  validateStockBeforeOrder,
+  type StockUpdateResult 
+} from '../utils/stockManager';
 
 export interface Order {
   id: string;
@@ -277,6 +283,27 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       const total = subtotal + deliveryFee;
 
+      // 🔍 NUEVA FUNCIONALIDAD: Validar stock antes de crear la orden
+      console.log('🛡️ Validando disponibilidad de stock antes de crear orden...');
+      
+      const stockValidation = await validateStockBeforeOrder(
+        validCartItems.map(item => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+          product_name: item.products.name
+        }))
+      );
+
+      if (!stockValidation.isValid) {
+        console.warn('⚠️ Stock insuficiente:', stockValidation.message);
+        return { 
+          success: false, 
+          message: stockValidation.message 
+        };
+      }
+
+      console.log('✅ Stock validado correctamente, procediendo con la orden');
+
       // Prepare order data with location information
       const orderInsertData: any = {
         buyer_id: user.id,
@@ -325,9 +352,12 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // Create order items with verified product data INCLUDING product_type
       const orderItems = validCartItems.map(item => {
         const productPrice = item.products.price || item.product_price || 0;
+        const isDaily = item.product_type === 'daily';
+        
         return {
           order_id: orderData.id,
-          product_id: item.product_id, // This is now verified to exist
+          product_id: isDaily ? null : item.product_id, // Solo para productos regulares
+          daily_product_id: isDaily ? item.product_id : null, // Solo para productos del día
           product_name: item.products.name || item.product_name || '',
           product_image: item.product_image,
           price: productPrice,
@@ -352,6 +382,10 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: 'Error al crear los items de la orden' };
       }
+
+      // 🔄 COMENTARIO TEMPORAL: Stock se actualizará cuando se marque como entregado
+      // NO actualizar stock en la creación de orden, sino cuando se complete la entrega
+      console.log('📦 Orden creada exitosamente. Stock se actualizará cuando se marque como entregado.');
 
       // Create notification for seller
       try {
@@ -439,6 +473,39 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('Error updating order status:', error);
         return { success: false, message: 'Error al actualizar el estado de la orden' };
+      }
+
+      // 🔄 NUEVA FUNCIONALIDAD: Restaurar stock si la orden es cancelada o rechazada
+      if (status === 'cancelled' || status === 'rejected') {
+        try {
+          // Obtener items de la orden para restaurar stock
+          const { data: orderItems, error: itemsError } = await supabase
+            .from('order_items')
+            .select('product_id, quantity, product_name')
+            .eq('order_id', orderId);
+
+          if (!itemsError && orderItems && orderItems.length > 0) {
+            console.log(`📦 Restaurando stock para orden ${status}...`);
+            
+            for (const item of orderItems) {
+              const restoreResult = await restoreProductStock(
+                item.product_id, 
+                item.quantity
+              );
+              
+              if (!restoreResult.success) {
+                console.warn(`⚠️ No se pudo restaurar stock para ${item.product_name}:`, restoreResult.message);
+              } else {
+                console.log(`✅ Stock restaurado: ${item.product_name} - Cantidad devuelta: ${item.quantity}`);
+              }
+            }
+            
+            console.log('🎉 Stock restaurado exitosamente');
+          }
+        } catch (stockError) {
+          console.error('❌ Error restaurando stock:', stockError);
+          // No fallamos la actualización de estado por errores de stock
+        }
       }
 
       // Get order details for notifications
@@ -733,6 +800,17 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: 'Solo se pueden eliminar pedidos pendientes' };
       }
 
+      // 📦 NUEVA FUNCIONALIDAD: Obtener items antes de eliminar para restaurar stock
+      const { data: orderItems, error: itemsFetchError } = await supabase
+        .from('order_items')
+        .select('product_id, quantity, product_name')
+        .eq('order_id', orderId);
+
+      if (itemsFetchError) {
+        console.error('Error fetching order items for stock restoration:', itemsFetchError);
+        // Continuar con la eliminación aunque no podamos restaurar stock
+      }
+
       // Delete order items first (foreign key constraint)
       const { error: itemsDeleteError } = await supabase
         .from('order_items')
@@ -753,6 +831,32 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       if (orderDeleteError) {
         console.error('Error deleting order:', orderDeleteError);
         return { success: false, message: 'Error al eliminar el pedido' };
+      }
+
+      // 🔄 NUEVA FUNCIONALIDAD: Restaurar stock después de eliminar orden
+      if (orderItems && orderItems.length > 0) {
+        console.log('📦 Restaurando stock después de eliminar orden...');
+        
+        try {
+          for (const item of orderItems) {
+            const restoreResult = await restoreProductStock(
+              item.product_id, 
+              item.quantity
+            );
+            
+            if (!restoreResult.success) {
+              console.warn(`⚠️ No se pudo restaurar stock para ${item.product_name}:`, restoreResult.message);
+              // Continuamos con otros productos aunque uno falle
+            } else {
+              console.log(`✅ Stock restaurado: ${item.product_name} - Cantidad devuelta: ${item.quantity}`);
+            }
+          }
+          
+          console.log('🎉 Stock restaurado exitosamente');
+        } catch (stockError) {
+          console.error('❌ Error restaurando stock:', stockError);
+          // No fallamos la eliminación por errores de stock
+        }
       }
 
       // Notify seller that the order was cancelled/deleted

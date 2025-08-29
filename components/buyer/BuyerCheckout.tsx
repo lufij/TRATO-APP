@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { supabase } from '../../utils/supabase/client';
-import { supabase } from '../../utils/supabase/client';
 import { 
   Card, 
   CardContent, 
@@ -225,6 +224,22 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
       return;
     }
 
+    // Validación de carrito
+    if (!cartItems || cartItems.length === 0) {
+      toast.error('Tu carrito está vacío');
+      return;
+    }
+
+    // Validación de productos en carrito
+    const invalidItems = cartItems.filter(item => 
+      !item.product_id || !item.quantity || item.quantity <= 0
+    );
+    
+    if (invalidItems.length > 0) {
+      toast.error('Hay productos inválidos en tu carrito. Por favor actualiza tu carrito.');
+      return;
+    }
+
     setCurrentStep('processing');
     setIsSubmitting(true);
     
@@ -281,13 +296,79 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         total_amount: Number(finalTotal.toFixed(2)), // Campo correcto: total_amount
         total: Number(finalTotal.toFixed(2)), // Mantener por compatibilidad
         delivery_type: deliveryType,
-        delivery_address: deliveryType === 'delivery' ? checkoutData.delivery_address.trim() : null,
+        delivery_address: deliveryType === 'delivery' 
+          ? checkoutData.delivery_address.trim() 
+          : deliveryType === 'pickup' 
+            ? 'Recoger en tienda' 
+            : 'Comer en el lugar',
         customer_notes: checkoutData.customer_notes.trim() || null,
         phone_number: checkoutData.phone_number.trim(),
         customer_name: checkoutData.customer_name.trim(),
         payment_method: checkoutData.payment_method,
         status: 'pending'
       };
+
+      // 🔍 VALIDACIÓN PREVIA: Verificar stock disponible antes de crear orden
+      console.log('🔍 Validando stock disponible...');
+      const stockValidation = await Promise.all(
+        cartItems.map(async (item) => {
+          let product = null;
+          let productName = '';
+          let availableStock = 0;
+
+          // 🆕 NUEVA: Verificar primero si es producto del día
+          if (item.product_type === 'daily') {
+            const { data: dailyProduct } = await supabase
+              .from('daily_products')
+              .select('stock_quantity, name, expires_at')
+              .eq('id', item.product_id)
+              .single();
+            
+            if (dailyProduct) {
+              product = dailyProduct;
+              productName = dailyProduct.name;
+              // Verificar si no ha expirado
+              const isExpired = new Date(dailyProduct.expires_at) <= new Date();
+              availableStock = isExpired ? 0 : dailyProduct.stock_quantity;
+            }
+          } else {
+            // Producto regular
+            const { data: regularProduct } = await supabase
+              .from('products')
+              .select('stock_quantity, name')
+              .eq('id', item.product_id)
+              .single();
+            
+            if (regularProduct) {
+              product = regularProduct;
+              productName = regularProduct.name;
+              availableStock = regularProduct.stock_quantity;
+            }
+          }
+          
+          return {
+            productId: item.product_id,
+            productName: productName || item.product?.name || 'Producto',
+            requestedQuantity: item.quantity,
+            availableStock: availableStock || 0,
+            isValid: (availableStock || 0) >= item.quantity
+          };
+        })
+      );
+
+      // Verificar si hay problemas de stock
+      const stockIssues = stockValidation.filter(item => !item.isValid);
+      if (stockIssues.length > 0) {
+        const issueMessages = stockIssues.map(issue => 
+          issue.availableStock === 0 
+            ? `❌ ${issue.productName}: AGOTADO`
+            : `⚠️ ${issue.productName}: Solo ${issue.availableStock} disponibles (solicitaste ${issue.requestedQuantity})`
+        ).join('\n');
+        
+        throw new Error(`❌ STOCK INSUFICIENTE:\n\n${issueMessages}\n\n💡 Actualiza las cantidades en tu carrito y vuelve a intentar.`);
+      }
+
+      console.log('✅ Stock validado correctamente');
 
       // Crear orden
       const { data: order, error: orderError } = await supabase
@@ -305,10 +386,10 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         throw new Error('No se pudo crear la orden');
       }
 
-      // Crear items de la orden (sin product_id para evitar foreign key errors)
+      // Crear items de la orden (incluir product_id para que funcione el trigger de stock)
       const orderItems = cartItems.map((item: any) => ({
         order_id: order.id,
-        // product_id: item.product_id, // Comentado para evitar foreign key constraint
+        product_id: item.product_id, // ✅ Necesario para que funcione el descuento de stock
         product_name: item.product?.name || item.product_name || 'Producto',
         product_image: item.product?.image_url || item.product_image || null,
         price: Number((item.product?.price || item.product_price || 0).toFixed(2)),

@@ -87,7 +87,7 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
               event: 'INSERT',
               schema: 'public',
               table: 'notifications',
-              filter: `user_id=eq.${user.id}`
+              filter: `recipient_id=eq.${user.id}`
             },
             () => {
               fetchNotifications();
@@ -99,7 +99,7 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
               event: 'UPDATE',
               schema: 'public',
               table: 'notifications',
-              filter: `user_id=eq.${user.id}`
+              filter: `recipient_id=eq.${user.id}`
             },
             () => {
               fetchNotifications();
@@ -142,7 +142,7 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -187,8 +187,8 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .update({ is_read: true })
+        .eq('recipient_id', user.id)
         .eq('is_read', false);
 
       if (error) {

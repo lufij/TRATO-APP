@@ -9,6 +9,7 @@ import { Switch } from '../ui/switch';
 import { Separator } from '../ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 import { supabase } from '../../utils/supabase/client';
 import { 
   User, 
@@ -33,6 +34,7 @@ import {
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { LocationManager } from './LocationManager';
 import { LocationManagerTest } from '../location/LocationManagerTest';
+import { FloatingCart } from '../ui/FloatingCart';
 
 interface UserProfile {
   id: string;
@@ -50,8 +52,13 @@ interface UserProfile {
   };
 }
 
-export function BuyerProfile() {
+interface BuyerProfileProps {
+  onShowCart?: () => void;
+}
+
+export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
   const { user, updateProfile } = useAuth();
+  const { getCartItemCount, addToCart, items } = useCart(); // Agregar items para debug
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,6 +72,48 @@ export function BuyerProfile() {
     total_spent: 0,
     average_rating: 0
   });
+
+  // Función de prueba para agregar producto directamente
+  const addTestProductDirect = async () => {
+    if (!user) {
+      alert('❌ No hay usuario logueado');
+      return;
+    }
+
+    try {
+      console.log('🧪 Agregando producto directamente a cart_items...');
+      
+      // Insertar directamente en la tabla cart_items
+      const { data, error } = await supabase
+        .from('cart_items')
+        .insert({
+          user_id: user.id,
+          product_id: 'test-product-' + Date.now(),
+          product_type: 'regular',
+          quantity: 1,
+          product_name: 'Producto de Prueba',
+          product_price: 10.00,
+          seller_id: 'test-seller'
+        })
+        .select();
+
+      if (error) {
+        console.error('❌ Error insertando:', error);
+        alert('❌ Error: ' + error.message);
+        return;
+      }
+
+      console.log('✅ Producto insertado:', data);
+      alert('✅ Producto agregado directamente. Refrescando carrito...');
+      
+      // Forzar actualización del carrito
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('💥 Error completo:', error);
+      alert('❌ Error: ' + error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -717,6 +766,90 @@ export function BuyerProfile() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Botón de prueba temporal para el carrito */}
+      <Card className="border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-center text-blue-600">🛒 Prueba del Carrito Flotante</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <p className="text-gray-600">
+            🛒 Carrito actual: <strong>{getCartItemCount()} productos</strong>
+          </p>
+          <p className="text-xs text-gray-500">
+            Items en memoria: {items?.length || 0} | Usuario: {user?.email || 'No logueado'}
+          </p>
+          <p className="text-sm text-blue-600">
+            {getCartItemCount() > 0 ? '✅ El carrito flotante debería estar visible' : '⚠️ Agrega productos para ver el carrito flotante'}
+          </p>
+          <div className="flex gap-2 justify-center flex-wrap">
+            <Button 
+              onClick={async () => {
+                try {
+                  console.log('🧪 Intentando agregar producto de prueba...');
+                  console.log('🧪 Estado del carrito antes:', getCartItemCount());
+                  
+                  // Agregar un producto de prueba
+                  const result = await addToCart('test-product-1', 1, 'regular');
+                  console.log('🧪 Resultado addToCart:', result);
+                  console.log('🧪 Estado del carrito después:', getCartItemCount());
+                  
+                  if (result?.success) {
+                    alert('✅ Producto agregado exitosamente. Carrito: ' + getCartItemCount() + ' productos');
+                  } else {
+                    alert('❌ Error: ' + (result?.message || 'Error desconocido'));
+                  }
+                } catch (error) {
+                  console.error('💥 Error completo:', error);
+                  alert('❌ Error al agregar producto: ' + error);
+                }
+              }}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              ➕ Prueba con RPC
+            </Button>
+            
+            <Button 
+              onClick={addTestProductDirect}
+              className="bg-blue-500 hover:bg-blue-600"
+            >
+              🔧 Insertar Directo
+            </Button>
+            
+            <Button 
+              onClick={() => {
+                if (onShowCart) {
+                  onShowCart();
+                } else {
+                  alert(`🛒 Tienes ${getCartItemCount()} productos. El carrito flotante está funcional.`);
+                }
+              }}
+              variant="outline"
+              className="border-blue-200"
+            >
+              🛒 Abrir Carrito
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Este botón es temporal para probar la funcionalidad
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Floating Cart */}
+      <FloatingCart 
+        onCartClick={onShowCart || (() => {
+          // Función por defecto si no se pasa onShowCart
+          alert(`Tienes ${getCartItemCount()} productos en tu carrito. Funcionalidad de carrito implementada.`);
+        })} 
+      />
+      
+      {/* Debug indicator para el carrito flotante */}
+      {getCartItemCount() > 0 && (
+        <div className="fixed bottom-20 right-4 z-40 bg-green-500 text-white px-2 py-1 rounded text-xs">
+          Debug: {getCartItemCount()} en carrito
+        </div>
+      )}
     </div>
   );
 }

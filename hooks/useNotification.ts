@@ -4,11 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 export interface Notification {
   id: string;
-  user_id: string;
+  recipient_id: string;
   type: 'order' | 'message' | 'system' | 'rating' | 'promotion';
   title: string;
   message: string;
-  read: boolean;
+  is_read: boolean;
   created_at: string;
   data?: Record<string, any>;
 }
@@ -21,7 +21,7 @@ interface UseNotificationReturn {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
   refreshNotifications: () => Promise<void>;
-  addNotification: (notification: Omit<Notification, 'id' | 'user_id' | 'read' | 'created_at'>) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'recipient_id' | 'is_read' | 'created_at'>) => Promise<void>;
   isTableAvailable: boolean;
 }
 
@@ -77,7 +77,7 @@ export function useNotification(): UseNotificationReturn {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -101,9 +101,9 @@ export function useNotification(): UseNotificationReturn {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('recipient_id', user.id);
 
       if (error) {
         console.error('Error marking notification as read:', error);
@@ -114,7 +114,7 @@ export function useNotification(): UseNotificationReturn {
       setNotifications(prev => 
         prev.map(notif => 
           notif.id === notificationId 
-            ? { ...notif, read: true }
+            ? { ...notif, is_read: true }
             : notif
         )
       );
@@ -130,9 +130,9 @@ export function useNotification(): UseNotificationReturn {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
+        .update({ is_read: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false);
 
       if (error) {
         console.error('Error marking all notifications as read:', error);
@@ -141,7 +141,7 @@ export function useNotification(): UseNotificationReturn {
 
       // Update local state
       setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read: true }))
+        prev.map(notif => ({ ...notif, is_read: true }))
       );
     } catch (error) {
       console.error('Unexpected error marking all notifications as read:', error);
@@ -157,7 +157,7 @@ export function useNotification(): UseNotificationReturn {
         .from('notifications')
         .delete()
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('recipient_id', user.id);
 
       if (error) {
         console.error('Error deleting notification:', error);
@@ -175,7 +175,7 @@ export function useNotification(): UseNotificationReturn {
 
   // Add notification - gracefully handle when table doesn't exist
   const addNotification = useCallback(async (
-    notification: Omit<Notification, 'id' | 'user_id' | 'read' | 'created_at'>
+    notification: Omit<Notification, 'id' | 'recipient_id' | 'is_read' | 'created_at'>
   ) => {
     if (!user) return;
 
@@ -186,8 +186,8 @@ export function useNotification(): UseNotificationReturn {
       // Add to local state with a temporary ID
       const localNotification: Notification = {
         id: `local-${Date.now()}`,
-        user_id: user.id,
-        read: false,
+        recipient_id: user.id,
+        is_read: false,
         created_at: new Date().toISOString(),
         ...notification
       };
@@ -202,8 +202,8 @@ export function useNotification(): UseNotificationReturn {
         .insert([
           {
             ...notification,
-            user_id: user.id,
-            read: false,
+            recipient_id: user.id,
+            is_read: false,
             created_at: new Date().toISOString()
           }
         ])
@@ -229,7 +229,7 @@ export function useNotification(): UseNotificationReturn {
   }, [fetchNotifications]);
 
   // Calculate unread count
-  const unreadCount = notifications.filter(notif => !notif.read).length;
+  const unreadCount = notifications.filter(notif => !notif.is_read).length;
 
   // Fetch notifications when user changes
   useEffect(() => {
@@ -248,7 +248,7 @@ export function useNotification(): UseNotificationReturn {
           event: '*',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user.id}`
+          filter: `recipient_id=eq.${user.id}`
         },
         (payload) => {
           console.log('Real-time notification update:', payload);

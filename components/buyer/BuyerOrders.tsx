@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useOrder } from '../../contexts/OrderContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../utils/supabase/client';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -35,10 +37,12 @@ interface BuyerOrdersProps {
 
 export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
   const { orders, loading, refreshOrders, deleteUnconfirmedOrder } = useOrder();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('active');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -79,6 +83,62 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
       });
     } finally {
       setDeletingOrderId(null);
+    }
+  };
+
+  const handleConfirmReceived = async (orderId: string, sellerName: string) => {
+    if (!user?.id) return;
+    
+    setConfirmingOrderId(orderId);
+    
+    try {
+      // Actualizar estado de la orden a 'completed'
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Enviar notificación al vendedor
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert([{
+          recipient_id: (await supabase.from('orders').select('seller_id').eq('id', orderId).single()).data?.seller_id,
+          type: 'order_completed_by_buyer',
+          title: '✅ Comprador confirmó recepción',
+          message: `El comprador confirmó que recibió su pedido #${orderId.slice(0, 8)}. ¡Pedido completado exitosamente!`,
+          data: {
+            order_id: orderId,
+            buyer_id: user.id
+          },
+          created_at: new Date().toISOString()
+        }]);
+
+      if (notificationError) {
+        console.error('Error enviando notificación:', notificationError);
+      }
+
+      toast.success('¡Orden confirmada!', {
+        description: `Has confirmado que recibiste tu pedido de ${sellerName}.`,
+        duration: 4000,
+      });
+      
+      await refreshOrders();
+    } catch (error) {
+      console.error('Error confirming order received:', error);
+      toast.error('Error', {
+        description: 'No se pudo confirmar la recepción de la orden.',
+        duration: 5000,
+      });
+    } finally {
+      setConfirmingOrderId(null);
     }
   };
 
@@ -431,13 +491,35 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
                             </p>
                           )}
                         </div>
-                        <Button 
-                          onClick={() => handleViewOrder(order.id)}
-                          className="bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600"
-                        >
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver Seguimiento
-                        </Button>
+                        <div className="flex gap-2">
+                          {/* Botón "Orden Recibida" para órdenes entregadas */}
+                          {order.status === 'delivered' && (
+                            <Button 
+                              onClick={() => handleConfirmReceived(order.id, order.seller_name || 'Vendedor')}
+                              disabled={confirmingOrderId === order.id}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              {confirmingOrderId === order.id ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                  Confirmando...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Orden Recibida
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button 
+                            onClick={() => handleViewOrder(order.id)}
+                            className="bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Ver Seguimiento
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>

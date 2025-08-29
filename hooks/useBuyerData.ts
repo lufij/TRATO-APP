@@ -1,6 +1,30 @@
 import { useState, useEffect } from 'react';
 import { supabase, Product, Seller } from '../utils/supabase/client';
 import { getBusinessImageUrl } from '../utils/imageUtils';
+import { forceClearSupabaseCache, forceRefreshWithTimestamp } from '../utils/cacheBuster';
+
+// Hook for handling page visibility (optimize for mobile battery)
+const usePageVisibility = () => {
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return !document.hidden;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    
+    const handleVisibilityChange = () => {
+      setIsVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  return isVisible;
+};
 
 export interface DailyProduct {
   id: string;
@@ -48,6 +72,9 @@ export function useBuyerData() {
     dailyProducts: false,
     businesses: false,
   });
+
+  // Use page visibility to optimize polling for mobile battery
+  const isPageVisible = usePageVisibility();
 
   // Fetch regular products
   const fetchProducts = async (filters?: {
@@ -157,9 +184,9 @@ export function useBuyerData() {
           )
         `)
         .gt('stock_quantity', 0)
-        .gte('expires_at', new Date().toISOString())
+        .gte('expires_at', new Date().toISOString()) // Solo productos no expirados
         .lte('expires_at', endOfDay.toISOString())
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }); // Más recientes primero
 
       if (error) {
         const code = (error as any)?.code || '';
@@ -220,7 +247,14 @@ export function useBuyerData() {
         console.error('Error fetching daily products:', error);
         setDailyProducts([]);
       } else {
-        setDailyProducts(data || []);
+        // 🔧 NUEVO: Filtrar duplicados por nombre, mantener el más reciente
+        const uniqueProducts = data ? data.filter((product, index, self) =>
+          index === self.findIndex(p => p.name === product.name)
+        ) : [];
+
+        console.log(`📦 Productos del día cargados: ${data?.length || 0} total, ${uniqueProducts.length} únicos`);
+        
+        setDailyProducts(uniqueProducts);
       }
     } catch (error) {
       console.error('Error fetching daily products:', error);
@@ -387,7 +421,6 @@ export function useBuyerData() {
         `)
         .eq('seller_id', businessId)
         .eq('is_public', true)
-        .gt('stock_quantity', 0)
         .order('created_at', { ascending: false });
 
       let { data, error } = await q;
@@ -404,7 +437,6 @@ export function useBuyerData() {
             .select('*')
             .eq('seller_id', businessId)
             .eq('is_public', true)
-            .gt('stock_quantity', 0)
             .order('created_at', { ascending: false });
           data = r.data as any[] | null;
           error = r.error as any;
@@ -416,7 +448,35 @@ export function useBuyerData() {
         return [];
       }
 
-      return (data as any[]) || [];
+      // Procesar productos para agregar información de disponibilidad calculada
+      const processedProducts = (data as any[])?.map(product => ({
+        ...product,
+        // Usar la columna is_available real que ya existe en la base de datos
+        // Calcular disponibilidad real basada en is_available Y stock
+        is_actually_available: product.is_available && product.stock_quantity > 0,
+        // Información de stock para mostrar al usuario
+        stock_info: {
+          has_stock: product.stock_quantity > 0,
+          is_low_stock: product.stock_quantity <= 5 && product.stock_quantity > 0,
+          is_last_units: product.stock_quantity <= 3 && product.stock_quantity > 0,
+          count: product.stock_quantity
+        }
+      })) || [];
+
+      console.log('📦 Productos procesados (USANDO COLUMNA REAL):', {
+        total: processedProducts.length,
+        available: processedProducts.filter(p => p.is_actually_available).length,
+        with_stock: processedProducts.filter(p => p.stock_info.has_stock).length,
+        low_stock: processedProducts.filter(p => p.stock_info.is_low_stock).length,
+        products_sample: processedProducts.slice(0, 3).map(p => ({
+          name: p.name,
+          is_available: p.is_available,
+          stock_quantity: p.stock_quantity,
+          is_actually_available: p.is_actually_available
+        }))
+      });
+
+      return processedProducts;
     } catch (error) {
       console.error('Error fetching business products:', error);
       return [];
@@ -650,12 +710,130 @@ export function useBuyerData() {
     fetchBusinesses();
 
     // Set up interval to refresh daily products every 5 minutes
-    const interval = setInterval(() => {
-      fetchDailyProducts();
+    const dailyProductsInterval = setInterval(() => {
+      if (isPageVisible) {
+        console.log('🔥 Actualizando productos del día automáticamente...');
+        fetchDailyProducts();
+      } else {
+        console.log('⏸️ App en background - pausando actualización de productos del día');
+      }
     }, 5 * 60 * 1000);
 
-    return () => clearInterval(interval);
+    // Set up interval to refresh regular products every 30 seconds (más frecuente para stock)
+    const productsInterval = setInterval(() => {
+      if (isPageVisible) {
+        console.log('🔄 Actualizando productos automáticamente (stock en tiempo real)...');
+        fetchProducts();
+      } else {
+        console.log('⏸️ App en background - pausando actualización de productos');
+      }
+    }, 30 * 1000); // Cambiado de 3 minutos a 30 segundos
+
+    // Set up interval to refresh businesses every 10 minutes
+    const businessesInterval = setInterval(() => {
+      if (isPageVisible) {
+        console.log('🏪 Actualizando negocios automáticamente...');
+        fetchBusinesses();
+      } else {
+        console.log('⏸️ App en background - pausando actualización de negocios');
+      }
+    }, 10 * 60 * 1000);
+
+    return () => {
+      clearInterval(dailyProductsInterval);
+      clearInterval(productsInterval);
+      clearInterval(businessesInterval);
+    };
+  }, [isPageVisible]);
+
+  // Refresh data when app comes back to foreground
+  useEffect(() => {
+    if (isPageVisible) {
+      console.log('📱 App volvió a primer plano - refrescando datos...');
+      fetchProducts();
+      fetchDailyProducts();
+    }
+  }, [isPageVisible]);
+
+  // 🔄 NUEVO: Listener para actualizaciones de stock en tiempo real
+  useEffect(() => {
+    const handleStockUpdate = (event: CustomEvent) => {
+      console.log('🚨 Stock actualizado - refrescando datos:', event.detail);
+      refreshProductStock();
+      fetchDailyProducts(); // También refrescar productos del día
+    };
+
+    window.addEventListener('stockUpdated', handleStockUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('stockUpdated', handleStockUpdate as EventListener);
+    };
   }, []);
+
+  // Manual refresh function for pull-to-refresh or user action
+  const refreshAllData = async () => {
+    console.log('🔄 Refrescando todos los datos manualmente...');
+    await Promise.all([
+      fetchProducts(),
+      fetchDailyProducts(),
+      fetchBusinesses()
+    ]);
+  };
+
+  // 🔄 NUEVO: Función específica para refrescar stock rápidamente
+  const refreshProductStock = async () => {
+    console.log('📦 Refrescando stock de productos en tiempo real...');
+    
+    try {
+      setLoading(prev => ({ ...prev, products: true, dailyProducts: true }));
+      
+      // Refrescar productos regulares
+      const { data: freshData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_public', true)
+        .gt('stock_quantity', 0)
+        .order('created_at', { ascending: false });
+          
+      if (productsError) {
+        console.error('❌ Error al refrescar productos regulares:', productsError);
+      } else {
+        console.log('✅ Productos regulares refrescados:', freshData?.length || 0);
+        setProducts(freshData || []);
+      }
+
+      // Refrescar productos del día
+      const today = new Date();
+      const endOfDay = new Date(today);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const { data: dailyData, error: dailyError } = await supabase
+        .from('daily_products')
+        .select('*')
+        .gt('stock_quantity', 0)
+        .gte('expires_at', new Date().toISOString())
+        .lte('expires_at', endOfDay.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (dailyError && dailyError.code !== 'PGRST205') { // Ignorar si la tabla no existe
+        console.error('❌ Error al refrescar productos del día:', dailyError);
+      } else {
+        console.log('✅ Productos del día refrescados:', dailyData?.length || 0);
+        // Filtrar duplicados por nombre
+        const uniqueDailyProducts = dailyData ? dailyData.filter((product, index, self) =>
+          index === self.findIndex(p => p.name === product.name)
+        ) : [];
+        setDailyProducts(uniqueDailyProducts);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error crítico al refrescar stock:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, products: false, dailyProducts: false }));
+    }
+    
+    console.log('✅ Stock actualizado exitosamente');
+  };
 
   return {
     // Data
@@ -663,11 +841,14 @@ export function useBuyerData() {
     dailyProducts,
     businesses,
     loading,
+    isPageVisible, // Export visibility state
 
     // Functions
     fetchProducts,
     fetchDailyProducts,
     fetchBusinesses,
+    refreshAllData, // Manual refresh function
+    refreshProductStock, // 🆕 NUEVA: Refresco rápido de stock
     getBusinessProducts,
     getBusinessDailyProducts,
     getBusinessById,

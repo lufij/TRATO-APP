@@ -30,18 +30,22 @@ import {
   Eye,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { getProductImageUrl } from '../../utils/imageUtils';
+import { useImageModalContext } from '../../contexts/ImageModalContext';
+import { FloatingCart } from '../ui/FloatingCart';
 
 type ViewMode = 'grid' | 'list';
 
 interface BuyerHomeProps {
   onBusinessClick: (businessId: string) => void;
+  onShowCart?: () => void;
 }
 
-export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
+export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
   const { user } = useAuth();
   const { items: cartItems, addToCart, updateCartItem, removeFromCart } = useCart();
   const { 
@@ -49,10 +53,15 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
     dailyProducts, 
     businesses, 
     loading, 
+    isPageVisible,
     fetchProducts, 
     getBusinessProducts,
+    refreshAllData,
+    refreshProductStock,  // 🆕 NUEVA función de refresco rápido
     getTimeRemaining 
   } = useBuyerData();
+  
+  const { openImageModal } = useImageModalContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -60,6 +69,8 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
   const [selectedBusiness, setSelectedBusiness] = useState<string | null>(null);
   const [businessProducts, setBusinessProducts] = useState<Product[]>([]);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false); // Estado de refresco
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date()); // 🆕 Última actualización
 
   const categories = [
     'Comida',
@@ -144,12 +155,83 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
     }
   };
 
+  // 🆕 NUEVA: Función para refrescar stock manualmente
+  const handleRefreshStock = async () => {
+    setIsRefreshing(true);
+    try {
+      console.log('🔄 INICIANDO REFRESCO MANUAL DE STOCK...');
+      
+      // 🔥 FORZAR LIMPIEZA COMPLETA DE CACHE
+      await refreshProductStock();
+      
+      // 🔥 FORZAR RE-RENDER forzando cambio de estado
+      setLastUpdated(new Date());
+      
+      console.log('✅ REFRESCO MANUAL COMPLETADO');
+      toast.success('✅ Stock actualizado - Productos refrescados');
+    } catch (error) {
+      console.error('❌ ERROR EN REFRESCO MANUAL:', error);
+      toast.error('❌ Error al actualizar stock - Intenta de nuevo');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // 🔄 Actualizar timestamp cuando cambian los productos
+  useEffect(() => {
+    if (products.length > 0) {
+      setLastUpdated(new Date());
+    }
+  }, [products]);
+
+  // ❌ REMOVIDO: Auto-refresh que causaba bucle infinito
+  // useEffect(() => {
+  //   if (isPageVisible) {
+  //     console.log('📱 Página visible - Refrescando stock automáticamente...');
+  //     refreshProductStock().catch(console.error);
+  //   }
+  // }, [isPageVisible, refreshProductStock]);
+
   const handleBusinessClick = (businessId: string) => {
     onBusinessClick(businessId);
   };
 
   return (
     <div className="space-y-6">
+      {/* Header with Manual Refresh */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Explorar Productos</h1>
+          <p className="text-sm text-gray-500">
+            Última actualización: {lastUpdated.toLocaleTimeString()}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {/* Refresco rápido de stock */}
+          <Button
+            onClick={handleRefreshStock}
+            disabled={isRefreshing}
+            size="sm"
+            variant="outline"
+            className="gap-2 border-green-300 text-green-600 hover:bg-green-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Stock
+          </Button>
+          {/* Refresco completo */}
+          <Button
+            onClick={refreshAllData}
+            disabled={Object.values(loading).some(Boolean)}
+            size="sm"
+            variant="outline"
+            className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${Object.values(loading).some(Boolean) ? 'animate-spin' : ''}`} />
+            Todo
+          </Button>
+        </div>
+      </div>
+
       {/* Search and Filters */}
       <Card className="border-orange-200 shadow-lg">
         <CardContent className="p-6">
@@ -226,6 +308,47 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                   dailyProducts.map((product) => {
                     const productImageUrl = getProductImageUrl(product);
                     
+                    // 🆕 NUEVA: Información de disponibilidad y stock para productos del día
+                    const dailyAvailabilityInfo = {
+                      isAvailable: product.stock_quantity > 0,
+                      hasStock: product.stock_quantity > 0,
+                      isLowStock: product.stock_quantity <= 5 && product.stock_quantity > 0,
+                      isLastUnits: product.stock_quantity <= 3 && product.stock_quantity > 0,
+                      stockCount: product.stock_quantity || 0,
+                      isOutOfStock: product.stock_quantity === 0
+                    };
+
+                    // 🆕 NUEVA: Función para obtener el badge de stock para productos del día
+                    const getDailyStockBadge = () => {
+                      if (dailyAvailabilityInfo.isOutOfStock) {
+                        return { text: "Agotado", className: "bg-red-100 text-red-700", icon: "❌" };
+                      }
+                      if (dailyAvailabilityInfo.isLastUnits) {
+                        return { 
+                          text: `¡Últimas ${dailyAvailabilityInfo.stockCount}!`, 
+                          className: "bg-red-100 text-red-700 animate-pulse", 
+                          icon: "🔥" 
+                        };
+                      }
+                      if (dailyAvailabilityInfo.isLowStock) {
+                        return { 
+                          text: `${dailyAvailabilityInfo.stockCount} disponibles`, 
+                          className: "bg-orange-100 text-orange-700", 
+                          icon: "⚠️" 
+                        };
+                      }
+                      if (dailyAvailabilityInfo.hasStock) {
+                        return { 
+                          text: `${dailyAvailabilityInfo.stockCount} disponibles`, 
+                          className: "bg-green-100 text-green-700", 
+                          icon: "✅" 
+                        };
+                      }
+                      return { text: "Sin stock", className: "bg-gray-100 text-gray-600", icon: "❌" };
+                    };
+
+                    const dailyStockBadge = getDailyStockBadge();
+                    
                     return (
                       <div key={product.id} className="flex-none w-72">
                         <Card className="hover:shadow-xl transition-all duration-300 border-orange-200">
@@ -234,7 +357,10 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               src={productImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=160&fit=crop'}
                               alt={product.name}
                               className="w-full h-40 object-cover rounded-t-lg"
+                              expandable={true}
+                              onExpand={openImageModal}
                             />
+                            {/* Badges superiores - tiempo y tipo */}
                             <Badge className="absolute top-2 right-2 bg-red-500 text-white animate-pulse">
                               <Clock className="w-3 h-3 mr-1" />
                               {product.expires_at ? getTimeRemaining(product.expires_at) : 'Hoy'}
@@ -242,6 +368,25 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                             <Badge className="absolute top-2 left-2 bg-orange-500 text-white">
                               Hoy únicamente
                             </Badge>
+                            
+                            {/* 🆕 NUEVA: Badges de stock para productos del día */}
+                            <div className="absolute bottom-2 right-2">
+                              {dailyAvailabilityInfo.isOutOfStock && (
+                                <Badge className="bg-red-500 text-white text-xs px-2 py-1 shadow-lg">
+                                  Agotado
+                                </Badge>
+                              )}
+                              {dailyAvailabilityInfo.isLastUnits && (
+                                <Badge className="bg-red-500 text-white text-xs px-2 py-1 shadow-lg animate-pulse">
+                                  🔥 ¡Últimas {dailyAvailabilityInfo.stockCount}!
+                                </Badge>
+                              )}
+                              {dailyAvailabilityInfo.isLowStock && !dailyAvailabilityInfo.isLastUnits && (
+                                <Badge className="bg-orange-500 text-white text-xs px-2 py-1 shadow-lg">
+                                  ⚠️ Stock bajo
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <CardContent className="p-4">
                             <h4 className="font-semibold mb-1 truncate">{product.name}</h4>
@@ -259,21 +404,37 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               </div>
                             </div>
 
+                            {/* 🆕 NUEVA: Badge de stock detallado para productos del día */}
+                            <div className="mb-3">
+                              <Badge className={`text-xs font-medium ${dailyStockBadge.className}`}>
+                                <span className="mr-1">{dailyStockBadge.icon}</span>
+                                {dailyStockBadge.text}
+                              </Badge>
+                            </div>
+
                             {getCartItemQuantity(product.id) === 0 ? (
                               <Button 
                                 onClick={() => handleAddToCart(product.id, true, product.name)}
                                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                                disabled={product.stock_quantity === 0 || addingToCart === product.id}
+                                disabled={!dailyAvailabilityInfo.isAvailable || addingToCart === product.id}
                               >
                                 {addingToCart === product.id ? (
                                   <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                     Agregando...
                                   </>
-                                ) : (
+                                ) : dailyAvailabilityInfo.isAvailable ? (
                                   <>
                                     <Plus className="w-4 h-4 mr-2" />
                                     Agregar
+                                  </>
+                                ) : dailyAvailabilityInfo.isOutOfStock ? (
+                                  <>
+                                    Agotado
+                                  </>
+                                ) : (
+                                  <>
+                                    No disponible
                                   </>
                                 )}
                               </Button>
@@ -294,7 +455,7 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateCartQuantity(product.id, getCartItemQuantity(product.id) + 1)}
-                                  disabled={getCartItemQuantity(product.id) >= product.stock_quantity}
+                                  disabled={getCartItemQuantity(product.id) >= dailyAvailabilityInfo.stockCount}
                                   className="h-8 w-8 p-0"
                                 >
                                   <Plus className="w-3 h-3" />
@@ -383,6 +544,51 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                     products.map((product) => {
                       const productImageUrl = getProductImageUrl(product);
                       
+                      // Información mejorada de disponibilidad y stock (igual que BusinessProfile)
+                      const availabilityInfo = {
+                        isAvailable: product.is_available && product.stock_quantity > 0,
+                        hasStock: product.stock_quantity > 0,
+                        isLowStock: product.stock_quantity <= 5 && product.stock_quantity > 0,
+                        isLastUnits: product.stock_quantity <= 3 && product.stock_quantity > 0,
+                        stockCount: product.stock_quantity || 0,
+                        isDisabledByVendor: product.is_available === false,
+                        isOutOfStock: product.stock_quantity === 0
+                      };
+
+                      // Función para obtener el texto del badge de stock
+                      const getStockBadge = () => {
+                        if (availabilityInfo.isOutOfStock) {
+                          return { text: "Agotado", className: "bg-red-100 text-red-700", icon: "❌" };
+                        }
+                        if (availabilityInfo.isDisabledByVendor) {
+                          return { text: "No disponible", className: "bg-gray-100 text-gray-600", icon: "⏸️" };
+                        }
+                        if (availabilityInfo.isLastUnits) {
+                          return { 
+                            text: `¡Últimas ${availabilityInfo.stockCount}!`, 
+                            className: "bg-red-100 text-red-700 animate-pulse", 
+                            icon: "🔥" 
+                          };
+                        }
+                        if (availabilityInfo.isLowStock) {
+                          return { 
+                            text: `${availabilityInfo.stockCount} disponibles`, 
+                            className: "bg-orange-100 text-orange-700", 
+                            icon: "⚠️" 
+                          };
+                        }
+                        if (availabilityInfo.hasStock) {
+                          return { 
+                            text: `${availabilityInfo.stockCount} disponibles`, 
+                            className: "bg-green-100 text-green-700", 
+                            icon: "✅" 
+                          };
+                        }
+                        return { text: "Sin stock", className: "bg-gray-100 text-gray-600", icon: "❌" };
+                      };
+
+                      const stockBadge = getStockBadge();
+                      
                       return (
                         <Card key={product.id} className="hover:shadow-xl transition-all duration-300 border-gray-200">
                           <div className="relative">
@@ -390,17 +596,32 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               src={productImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop'}
                               alt={product.name}
                               className="w-full h-48 object-cover rounded-t-lg"
+                              expandable={true}
+                              onExpand={openImageModal}
                             />
-                            {product.stock_quantity < 10 && product.stock_quantity > 0 && (
-                              <Badge variant="destructive" className="absolute top-2 right-2">
-                                ¡Últimas {product.stock_quantity}!
-                              </Badge>
-                            )}
-                            {product.stock_quantity === 0 && (
-                              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-t-lg">
-                                <Badge variant="destructive">Agotado</Badge>
-                              </div>
-                            )}
+                            {/* Badges de stock mejorados */}
+                            <div className="absolute top-2 right-2 space-y-1">
+                              {availabilityInfo.isOutOfStock && (
+                                <Badge className="bg-red-500 text-white text-xs px-2 py-1 shadow-lg">
+                                  Agotado
+                                </Badge>
+                              )}
+                              {availabilityInfo.isDisabledByVendor && (
+                                <Badge className="bg-gray-500 text-white text-xs px-2 py-1 shadow-lg">
+                                  No disponible
+                                </Badge>
+                              )}
+                              {availabilityInfo.isLastUnits && (
+                                <Badge className="bg-red-500 text-white text-xs px-2 py-1 shadow-lg animate-pulse">
+                                  🔥 ¡Últimas {availabilityInfo.stockCount}!
+                                </Badge>
+                              )}
+                              {availabilityInfo.isLowStock && !availabilityInfo.isLastUnits && (
+                                <Badge className="bg-orange-500 text-white text-xs px-2 py-1 shadow-lg">
+                                  ⚠️ Stock bajo
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <CardContent className="p-4">
                             <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
@@ -429,22 +650,36 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               <Badge variant="outline">{product.category}</Badge>
                             </div>
 
+                            {/* Badge de stock mejorado */}
+                            <div className="mb-3">
+                              <Badge className={`text-xs font-medium ${stockBadge.className}`}>
+                                <span className="mr-1">{stockBadge.icon}</span>
+                                {stockBadge.text}
+                              </Badge>
+                            </div>
+
                             {getCartItemQuantity(product.id) === 0 ? (
                               <Button 
                                 onClick={() => handleAddToCart(product.id, false, product.name)}
                                 className="w-full bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600"
-                                disabled={product.stock_quantity === 0 || addingToCart === product.id}
+                                disabled={!availabilityInfo.isAvailable || addingToCart === product.id}
                               >
                                 {addingToCart === product.id ? (
                                   <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                     Agregando...
                                   </>
-                                ) : (
+                                ) : availabilityInfo.isAvailable ? (
                                   <>
                                     <Plus className="w-4 h-4 mr-2" />
                                     Agregar al carrito
                                   </>
+                                ) : availabilityInfo.isOutOfStock ? (
+                                  'Agotado'
+                                ) : availabilityInfo.isDisabledByVendor ? (
+                                  'No disponible'
+                                ) : (
+                                  'Sin stock'
                                 )}
                               </Button>
                             ) : (
@@ -463,7 +698,7 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateCartQuantity(product.id, getCartItemQuantity(product.id) + 1)}
-                                  disabled={getCartItemQuantity(product.id) >= product.stock_quantity}
+                                  disabled={getCartItemQuantity(product.id) >= availabilityInfo.stockCount || !availabilityInfo.isAvailable}
                                 >
                                   <Plus className="w-3 h-3" />
                                 </Button>
@@ -480,6 +715,50 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                   {products.map((product) => {
                     const productImageUrl = getProductImageUrl(product);
                     
+                    // Misma lógica de disponibilidad para vista de lista
+                    const availabilityInfo = {
+                      isAvailable: product.is_available && product.stock_quantity > 0,
+                      hasStock: product.stock_quantity > 0,
+                      isLowStock: product.stock_quantity <= 5 && product.stock_quantity > 0,
+                      isLastUnits: product.stock_quantity <= 3 && product.stock_quantity > 0,
+                      stockCount: product.stock_quantity || 0,
+                      isDisabledByVendor: product.is_available === false,
+                      isOutOfStock: product.stock_quantity === 0
+                    };
+
+                    const getStockBadge = () => {
+                      if (availabilityInfo.isOutOfStock) {
+                        return { text: "Agotado", className: "bg-red-100 text-red-700", icon: "❌" };
+                      }
+                      if (availabilityInfo.isDisabledByVendor) {
+                        return { text: "No disponible", className: "bg-gray-100 text-gray-600", icon: "⏸️" };
+                      }
+                      if (availabilityInfo.isLastUnits) {
+                        return { 
+                          text: `¡Últimas ${availabilityInfo.stockCount}!`, 
+                          className: "bg-red-100 text-red-700 animate-pulse", 
+                          icon: "🔥" 
+                        };
+                      }
+                      if (availabilityInfo.isLowStock) {
+                        return { 
+                          text: `${availabilityInfo.stockCount} disponibles`, 
+                          className: "bg-orange-100 text-orange-700", 
+                          icon: "⚠️" 
+                        };
+                      }
+                      if (availabilityInfo.hasStock) {
+                        return { 
+                          text: `${availabilityInfo.stockCount} disponibles`, 
+                          className: "bg-green-100 text-green-700", 
+                          icon: "✅" 
+                        };
+                      }
+                      return { text: "Sin stock", className: "bg-gray-100 text-gray-600", icon: "❌" };
+                    };
+
+                    const stockBadge = getStockBadge();
+                    
                     return (
                       <Card key={product.id} className="hover:shadow-lg transition-shadow">
                         <CardContent className="p-4">
@@ -488,6 +767,8 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               src={productImageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120&h=120&fit=crop'}
                               alt={product.name}
                               className="w-20 h-20 object-cover rounded-lg"
+                              expandable={true}
+                              onExpand={openImageModal}
                             />
                             <div className="flex-1">
                               <div className="flex items-start justify-between">
@@ -501,6 +782,13 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                     </span>
                                     <Badge variant="outline">{product.category}</Badge>
                                   </div>
+                                  {/* Badge de stock en vista de lista */}
+                                  <div className="mt-2">
+                                    <Badge className={`text-xs font-medium ${stockBadge.className}`}>
+                                      <span className="mr-1">{stockBadge.icon}</span>
+                                      {stockBadge.text}
+                                    </Badge>
+                                  </div>
                                 </div>
                                 <div className="text-right">
                                   <div className="text-2xl font-bold text-green-600 mb-2">
@@ -509,14 +797,22 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                   {getCartItemQuantity(product.id) === 0 ? (
                                     <Button 
                                       onClick={() => handleAddToCart(product.id, false, product.name)}
-                                      disabled={product.stock_quantity === 0 || addingToCart === product.id}
+                                      disabled={!availabilityInfo.isAvailable || addingToCart === product.id}
                                     >
                                       {addingToCart === product.id ? (
                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      ) : availabilityInfo.isAvailable ? (
+                                        <>
+                                          <Plus className="w-4 h-4 mr-2" />
+                                          Agregar
+                                        </>
+                                      ) : availabilityInfo.isOutOfStock ? (
+                                        'Agotado'
+                                      ) : availabilityInfo.isDisabledByVendor ? (
+                                        'No disponible'
                                       ) : (
-                                        <Plus className="w-4 h-4 mr-2" />
+                                        'Sin stock'
                                       )}
-                                      Agregar
                                     </Button>
                                   ) : (
                                     <div className="flex items-center gap-2">
@@ -532,7 +828,7 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                         size="sm"
                                         variant="outline"
                                         onClick={() => updateCartQuantity(product.id, getCartItemQuantity(product.id) + 1)}
-                                        disabled={getCartItemQuantity(product.id) >= product.stock_quantity}
+                                        disabled={getCartItemQuantity(product.id) >= availabilityInfo.stockCount || !availabilityInfo.isAvailable}
                                       >
                                         <Plus className="w-3 h-3" />
                                       </Button>
@@ -611,6 +907,8 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                               src={businessCoverUrl}
                               alt={`Portada de ${business.business_name}`}
                               className="w-full h-32 object-cover rounded-t-lg"
+                              expandable={true}
+                              onExpand={openImageModal}
                             />
                           ) : (
                             <div className="w-full h-32 bg-gradient-to-r from-orange-400 to-green-400 flex items-center justify-center rounded-t-lg">
@@ -635,6 +933,8 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
                                   src={businessLogoUrl}
                                   alt={`Logo de ${business.business_name}`}
                                   className="w-full h-full object-cover rounded-full"
+                                  expandable={true}
+                                  onExpand={openImageModal}
                                 />
                               </div>
                             </div>
@@ -680,6 +980,16 @@ export function BuyerHome({ onBusinessClick }: BuyerHomeProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Carrito flotante */}
+      <FloatingCart onCartClick={() => {
+        console.log('🛒 Carrito flotante clicked desde BuyerHome!');
+        if (onShowCart) {
+          onShowCart();
+        } else {
+          alert('🛒 Carrito flotante funcional desde Home! Navegación no configurada.');
+        }
+      }} />
     </div>
   );
 }

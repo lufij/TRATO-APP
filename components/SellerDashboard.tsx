@@ -37,13 +37,12 @@ import {
   DollarSign,
   Users,
   Star,
-  Bell,
   Settings,
   LogOut,
   ShoppingCart,
   MapPin
 } from 'lucide-react';
-import { NotificationManager } from './ui/NotificationManager';
+import { MobileToastNotifications } from './notifications/MobileToastNotifications';
 
 interface Product {
   id: string;
@@ -71,7 +70,7 @@ interface DailyProduct {
   created_at: string;
 }
 
-type MainView = 'dashboard' | 'products' | 'orders' | 'profile' | 'marketplace' | 'notifications';
+type MainView = 'dashboard' | 'products' | 'orders' | 'profile' | 'marketplace';
 type ProductView = 'list' | 'add-product' | 'add-daily' | 'edit-product' | 'edit-daily';
 
 export function SellerDashboard() {
@@ -562,14 +561,6 @@ export function SellerDashboard() {
       notificationCount: newOrdersCount
     },
     {
-      id: 'notifications',
-      label: 'Notificaciones',
-      icon: Bell,
-      description: 'Centro de notificaciones',
-      hasNotification: newOrdersCount > 0,
-      notificationCount: newOrdersCount
-    },
-    {
       id: 'profile',
       label: 'Perfil',
       icon: User,
@@ -792,7 +783,7 @@ export function SellerDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="w-5 h-5" />
+            <Clock className="w-5 h-5" />
             Actividad Reciente
           </CardTitle>
         </CardHeader>
@@ -1222,10 +1213,6 @@ export function SellerDashboard() {
               <SellerOrderManagement />
             </TabsContent>
 
-            <TabsContent value="notifications" className="space-y-6">
-              <NotificationManager />
-            </TabsContent>
-
             <TabsContent value="profile" className="space-y-6">
               <SellerBusinessProfile />
             </TabsContent>
@@ -1241,7 +1228,6 @@ export function SellerDashboard() {
           {currentView === 'dashboard' && renderDashboard()}
           {currentView === 'products' && renderProducts()}
           {currentView === 'orders' && <SellerOrderManagement />}
-          {currentView === 'notifications' && <NotificationManager />}
           {currentView === 'profile' && <SellerBusinessProfile />}
           {currentView === 'marketplace' && <SellerMarketplace />}
         </div>
@@ -1268,6 +1254,16 @@ export function SellerDashboard() {
 
       {/* Indicador de repartidores online */}
       <OnlineDriversIndicator />
+
+      {/* Mobile Toast Notifications */}
+      <MobileToastNotifications 
+        onNewOrder={() => {
+          // Refresh orders when new order comes in
+          if (currentView === 'orders') {
+            window.location.reload(); // Simple refresh for now
+          }
+        }}
+      />
     </div>
   );
 }

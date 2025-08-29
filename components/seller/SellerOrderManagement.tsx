@@ -1,217 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase/client';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from '../ui/card';
+import { updateProductStock } from '../../utils/stockManager';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Textarea } from '../ui/textarea';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Separator } from '../ui/separator';
-import { ScrollArea } from '../ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { 
-  ShoppingCart, 
   Clock, 
   CheckCircle, 
   XCircle, 
-  Truck, 
-  Store, 
-  UtensilsCrossed,
+  AlertCircle,
+  Package,
+  Truck,
+  MapPin,
   User,
   Phone,
-  MapPin,
-  Eye,
-  ThumbsUp,
-  ThumbsDown,
-  Package,
-  AlertCircle,
+  MessageSquare,
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface OrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  product_image?: string;
+  notes?: string;
+}
+
 interface Order {
   id: string;
-  buyer_id: string;
-  customer_name: string;
-  customer_phone: string;
-  phone_number: string;
+  order_number: string;
+  buyer_name: string;
+  buyer_phone?: string;
   total: number;
-  total_amount: number; // Campo adicional para compatibilidad
-  subtotal: number;
   delivery_fee: number;
-  delivery_type: 'pickup' | 'dine-in' | 'delivery';
+  status: 'pending' | 'accepted' | 'ready' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
+  delivery_method: 'pickup' | 'delivery' | 'dine_in';
   delivery_address?: string;
-  customer_notes?: string;
-  status: string;
-  payment_method: string;
-  estimated_time: number;
+  notes?: string;
   created_at: string;
-  updated_at: string;
-  order_items: Array<{
-    id: string;
-    product_name: string;
-    quantity: number;
-    price_per_unit: number;
-    total_price: number;
-    notes?: string;
-  }>;
+  estimated_delivery?: string;
+  items: OrderItem[];
+  driver_id?: string;
+  driver_name?: string;
 }
+
+const STATUS_COLORS = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  accepted: 'bg-blue-100 text-blue-800',
+  confirmed: 'bg-blue-100 text-blue-800',
+  preparing: 'bg-orange-100 text-orange-800',
+  ready: 'bg-purple-100 text-purple-800',
+  assigned: 'bg-indigo-100 text-indigo-800',
+  picked_up: 'bg-green-100 text-green-800',
+  in_transit: 'bg-cyan-100 text-cyan-800',
+  delivered: 'bg-green-100 text-green-800',
+  completed: 'bg-green-100 text-green-800',  // 🔧 AGREGADO
+  cancelled: 'bg-red-100 text-red-800',
+  rejected: 'bg-red-100 text-red-800'
+};
+
+const STATUS_LABELS = {
+  pending: 'Pendiente',
+  accepted: 'Aceptado',
+  confirmed: 'Confirmado',
+  preparing: 'Preparando',
+  ready: 'Listo',
+  assigned: 'Asignado',
+  picked_up: 'Recogido',
+  in_transit: 'En camino',
+  delivered: 'Entregado',
+  completed: 'Completado',  // 🔧 AGREGADO
+  cancelled: 'Cancelado',
+  rejected: 'Rechazado'
+};
 
 export function SellerOrderManagement() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderDetail, setShowOrderDetail] = useState(false);
-  const [estimatedTime, setEstimatedTime] = useState<number>(30);
-  const [rejectionReason, setRejectionReason] = useState<string>('');
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [processingOrders, setProcessingOrders] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState('pending');
 
-  // Helper function para obtener el total correcto
-  const getOrderTotal = (order: Order): number => {
-    return order.total_amount || order.total || 0;
-  };
+  useEffect(() => {
+    if (user?.id) {
+      loadOrders();
+      setupRealTimeSubscription();
+    }
+  }, [user?.id]);
 
-  const runDiagnostic = async () => {
-    if (!user) return;
-    
-    console.log('🔍 EJECUTANDO DIAGNÓSTICO DE ÓRDENES');
-    console.log('=====================================');
-    
-    try {
-      // 1. Verificar perfil del usuario
-      console.log('👤 Usuario actual:', { id: user.id, email: user.email, role: user.role });
-      
-      // 2. Verificar todas las órdenes recientes
-      const { data: allOrders, error: allError } = await supabase
-        .from('orders')
-        .select('id, seller_id, buyer_id, customer_name, total, total_amount, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (allError) {
-        console.error('❌ Error consultando todas las órdenes:', allError);
-      } else {
-        console.log(`📊 Total órdenes recientes encontradas: ${allOrders?.length || 0}`);
-        allOrders?.forEach((order, index) => {
-          console.log(`${index + 1}. ID: ${order.id}`);
-          console.log(`   Seller: ${order.seller_id || 'NULL'}`);
-          console.log(`   Buyer: ${order.buyer_id || 'NULL'}`);
-          console.log(`   Customer: ${order.customer_name || 'N/A'}`);
-          console.log(`   Status: ${order.status || 'N/A'}`);
-          console.log('   ---');
-        });
-      }
-      
-      // 3. Verificar órdenes sin seller_id
-      const { data: orphanOrders, error: orphanError } = await supabase
-        .from('orders')
-        .select('*')
-        .is('seller_id', null)
-        .order('created_at', { ascending: false });
-      
-      if (orphanError) {
-        console.error('❌ Error consultando órdenes huérfanas:', orphanError);
-      } else {
-        console.log(`🚨 Órdenes sin seller_id: ${orphanOrders?.length || 0}`);
-        
-        if (orphanOrders && orphanOrders.length > 0) {
-          const shouldAssign = confirm(`Se encontraron ${orphanOrders.length} órdenes sin vendedor asignado. ¿Quieres asignarlas a tu cuenta?`);
-          
-          if (shouldAssign) {
-            console.log('🔧 Asignando órdenes huérfanas...');
-            
-            for (const order of orphanOrders) {
-              try {
-                const { error: updateError } = await supabase
-                  .from('orders')
-                  .update({ seller_id: user.id })
-                  .eq('id', order.id);
-                
-                if (updateError) {
-                  console.error(`❌ Error asignando orden ${order.id}:`, updateError);
-                } else {
-                  console.log(`✅ Orden ${order.id} asignada exitosamente`);
-                }
-              } catch (err) {
-                console.error(`❌ Error:`, err);
-              }
-            }
-            
-            toast.success(`${orphanOrders.length} órdenes fueron asignadas a tu cuenta`);
-            
-            // Recargar órdenes
-            setTimeout(() => {
-              fetchOrders();
-            }, 1000);
-          }
+  const setupRealTimeSubscription = () => {
+    if (!user?.id) return;
+
+    const subscription = supabase
+      .channel('seller-orders-management')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `seller_id=eq.${user.id}`
+        },
+        () => {
+          loadOrders();
         }
-      }
-      
-      // 4. Verificar productos del vendedor
-      const { data: myProducts, error: productsError } = await supabase
-        .from('products')
-        .select('id, name, seller_id')
-        .eq('seller_id', user.id);
-      
-      if (productsError) {
-        console.error('❌ Error consultando productos:', productsError);
-      } else {
-        console.log(`📦 Mis productos: ${myProducts?.length || 0}`);
-      }
-      
-      console.log('🎉 Diagnóstico completado. Revisa la consola para más detalles.');
-      toast.success('Diagnóstico completado. Revisa la consola del navegador.');
-      
-    } catch (error) {
-      console.error('❌ Error en diagnóstico:', error);
-      toast.error('Error durante el diagnóstico');
-    }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   };
 
-  const fetchOrders = async () => {
-    if (!user) {
-      console.log('❌ No hay usuario autenticado');
-      return;
-    }
-
+  const loadOrders = async () => {
     try {
-      setLoading(true);
-      console.log('🔍 Cargando órdenes para vendedor:', user.id);
-      console.log('👤 Datos del usuario:', { id: user.id, email: user.email, role: user.role });
-      
-      // Primero verificar TODAS las órdenes (para debug)
-      const { data: allOrdersDebug, error: debugError } = await supabase
-        .from('orders')
-        .select('id, seller_id, buyer_id, customer_name, total, total_amount, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (debugError) {
-        console.error('❌ Error en consulta debug:', debugError);
-      } else {
-        console.log('🔍 DEBUG - Últimas 10 órdenes en la BD:');
-        allOrdersDebug?.forEach((order, index) => {
-          console.log(`${index + 1}. ID: ${order.id}`);
-          console.log(`   Seller ID: ${order.seller_id || 'NULL'}`);
-          console.log(`   Buyer ID: ${order.buyer_id || 'NULL'}`);
-          console.log(`   Customer: ${order.customer_name || 'Sin nombre'}`);
-          console.log(`   Total: ${order.total_amount || order.total || 0}`);
-          console.log(`   Status: ${order.status || 'Sin status'}`);
-          console.log('   ---');
-        });
-      }
-      
-      // Consulta principal para el vendedor
-      const { data, error } = await supabase
+      const { data: ordersData, error } = await supabase
         .from('orders')
         .select(`
           *,
@@ -219,398 +127,361 @@ export function SellerOrderManagement() {
             id,
             product_name,
             quantity,
-            price,
-            price_per_unit,
-            total_price,
+            unit_price,
+            product_image,
             notes
+          ),
+          users!orders_buyer_id_fkey (
+            name,
+            phone
+          ),
+          drivers:users!orders_driver_id_fkey (
+            name
           )
         `)
-        .eq('seller_id', user.id)
+        .eq('seller_id', user?.id)
+        // 🔧 ARREGLADO: Cargar TODAS las órdenes, no solo las activas
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('❌ Error en consulta principal de órdenes:', error);
-        throw error;
-      }
-      
-      console.log('✅ Órdenes encontradas para este vendedor:', data?.length || 0);
-      
-      // Si no hay órdenes, intentar buscar órdenes sin seller_id
-      if (!data || data.length === 0) {
-        console.log('⚠️  No se encontraron órdenes para este vendedor. Buscando órdenes sin seller_id...');
-        
-        const { data: orphanOrders, error: orphanError } = await supabase
-          .from('orders')
-          .select('*')
-          .is('seller_id', null)
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        if (orphanError) {
-          console.error('❌ Error buscando órdenes huérfanas:', orphanError);
-        } else {
-          console.log(`🔍 Órdenes sin seller_id encontradas: ${orphanOrders?.length || 0}`);
-          if (orphanOrders && orphanOrders.length > 0) {
-            console.log('💡 Asignando órdenes huérfanas a este vendedor...');
-            
-            // Asignar las órdenes huérfanas a este vendedor
-            for (const orphanOrder of orphanOrders) {
-              try {
-                const { error: updateError } = await supabase
-                  .from('orders')
-                  .update({ seller_id: user.id })
-                  .eq('id', orphanOrder.id);
-                
-                if (updateError) {
-                  console.error(`❌ Error asignando orden ${orphanOrder.id}:`, updateError);
-                } else {
-                  console.log(`✅ Orden ${orphanOrder.id} asignada exitosamente`);
-                }
-              } catch (err) {
-                console.error(`❌ Error en asignación:`, err);
-              }
-            }
-            
-            // Volver a cargar las órdenes después de la asignación
-            setTimeout(() => {
-              fetchOrders();
-            }, 1000);
-            return;
-          }
-        }
-      }
-      
-      setOrders(data || []);
+      if (error) throw error;
+
+      const formattedOrders = ordersData?.map(order => ({
+        ...order,
+        buyer_name: order.users?.name || 'Cliente',
+        buyer_phone: order.users?.phone,
+        driver_name: order.drivers?.name,
+        items: order.order_items || []
+      })) || [];
+
+      setOrders(formattedOrders);
     } catch (error) {
-      console.error('❌ Error general fetchOrders:', error);
+      console.error('Error loading orders:', error);
       toast.error('Error al cargar las órdenes');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-    
-    // Suscribirse a cambios en tiempo real
-    const subscription = supabase
-      .channel('seller_orders')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'orders',
-        filter: `seller_id=eq.${user?.id}`
-      }, () => {
-        fetchOrders();
-      })
-      .subscribe();
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadOrders();
+  };
 
-    return () => {
-      subscription.unsubscribe();
+  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    if (processingOrders.has(orderId)) return;
+
+    // Mapear a estados válidos según el constraint de la BD
+    // Estados válidos: 'pending', 'accepted', 'ready', 'assigned', 'picked_up', 'in_transit', 'delivered', 'cancelled'
+    const validStatuses = {
+      'confirmed': 'accepted',   // Aceptar la orden
+      'preparing': 'ready',      // Orden lista para recoger
+      'ready': 'ready',          // Orden lista para recoger
+      'delivered': 'delivered',  // Orden entregada
+      'cancelled': 'cancelled'   // Orden cancelada
     };
-  }, [user?.id]);
 
-  const updateOrderStatus = async (orderId: string, newStatus: string, notes?: string) => {
-    setProcessingOrderId(orderId);
-    
+    const finalStatus = validStatuses[newStatus as keyof typeof validStatuses] || newStatus;
+
+    setProcessingOrders(prev => new Set([...prev, orderId]));
+
     try {
-      console.log('🔄 Actualizando orden:', orderId, 'a estado:', newStatus);
-      
-      // Actualización directa usando update en lugar de RPC
-      const updateData: any = {
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      // Agregar campos específicos según el estado
-      if (newStatus === 'accepted') {
-        updateData.accepted_at = new Date().toISOString();
-      } else if (newStatus === 'ready') {
-        updateData.ready_at = new Date().toISOString();
-      } else if (newStatus === 'rejected') {
-        updateData.rejection_reason = notes || 'Rechazado por el vendedor';
-        updateData.rejected_at = new Date().toISOString();
-      }
-
-      console.log('📝 Datos a actualizar:', updateData);
-
-      const { data, error } = await supabase
+      // 1. Actualizar el estado de la orden
+      const { error } = await supabase
         .from('orders')
-        .update(updateData)
-        .eq('id', orderId)
-        .eq('seller_id', user?.id) // Verificar que pertenece al vendedor
-        .select();
-
-      console.log('📊 Resultado de actualización:', { data, error });
+        .update({ 
+          status: finalStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
 
       if (error) {
-        console.error('❌ Error en actualización:', error);
+        console.error('Database error:', error);
         throw error;
       }
 
-      if (data && data.length > 0) {
-        let message = '';
-        switch (newStatus) {
-          case 'accepted':
-            message = 'Orden aceptada exitosamente';
-            break;
-          case 'ready':
-            message = 'Orden marcada como lista';
-            break;
-          case 'rejected':
-            message = 'Orden rechazada';
-            break;
-          default:
-            message = 'Estado actualizado exitosamente';
+      // 2. 🚀 NUEVO: Si se está aceptando la orden, descontar stock automáticamente
+      if (finalStatus === 'accepted') {
+        console.log('🛒 Orden aceptada, descontando stock automáticamente...');
+        
+        // Obtener los items de la orden para descontar stock
+        const { data: orderItems, error: itemsError } = await supabase
+          .from('order_items')
+          .select('product_id, daily_product_id, quantity, product_name, product_type')
+          .eq('order_id', orderId);
+
+        if (itemsError) {
+          console.error('Error obteniendo items de la orden:', itemsError);
+          toast.error('Error al obtener productos de la orden');
+        } else if (orderItems && orderItems.length > 0) {
+          // Descontar stock usando el stockManager
+          const stockResult = await updateProductStock(orderItems, orderId);
+          
+          if (stockResult.success) {
+            console.log('✅ Stock descontado exitosamente:', stockResult.updatedProducts);
+            toast.success(`Orden aceptada y stock actualizado (${stockResult.updatedProducts?.length || 0} productos)`);
+            
+            // 3. 🔄 Forzar actualización de datos en tiempo real para todos los usuarios
+            // Esto actualizará el stock visible tanto para compradores como vendedores
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('stockUpdated', { 
+                detail: { 
+                  orderId, 
+                  updatedProducts: stockResult.updatedProducts 
+                } 
+              }));
+            }, 1000);
+          } else {
+            console.error('❌ Error descontando stock:', stockResult.message);
+            toast.error(`Orden aceptada pero error en stock: ${stockResult.message}`);
+          }
+        } else {
+          toast.warning('Orden aceptada pero no se encontraron productos para actualizar stock');
         }
-        toast.success(message);
-        await fetchOrders();
       } else {
-        toast.error('No se pudo actualizar la orden');
+        toast.success(`Orden ${STATUS_LABELS[finalStatus as keyof typeof STATUS_LABELS] || finalStatus}`);
       }
+
+      loadOrders();
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Error al actualizar el estado de la orden');
     } finally {
-      setProcessingOrderId(null);
-      setShowRejectDialog(false);
-      setRejectionReason('');
+      setProcessingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
     }
   };
 
-  const acceptOrder = async (orderId: string) => {
-    await updateOrderStatus(orderId, 'accepted');
-  };
+  const rejectOrder = async (orderId: string, reason: string) => {
+    if (processingOrders.has(orderId)) return;
 
-  const rejectOrder = async (orderId: string) => {
-    if (!rejectionReason.trim()) {
-      toast.error('Ingresa una razón para el rechazo');
-      return;
+    setProcessingOrders(prev => new Set([...prev, orderId]));
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'rejected',
+          rejection_reason: reason,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast.success('Orden rechazada');
+      loadOrders();
+    } catch (error) {
+      console.error('Error rejecting order:', error);
+      toast.error('Error al rechazar la orden');
+    } finally {
+      setProcessingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
     }
-    await updateOrderStatus(orderId, 'rejected', rejectionReason);
   };
 
-  const markOrderReady = async (orderId: string) => {
-    await updateOrderStatus(orderId, 'ready');
-  };
-
-  const getStatusInfo = (status: string) => {
-    const statusMap = {
-      pending: { 
-        label: 'Pendiente', 
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
-        icon: Clock,
-        description: 'Esperando tu confirmación'
-      },
-      accepted: { 
-        label: 'Aceptado', 
-        color: 'bg-blue-100 text-blue-800 border-blue-200', 
-        icon: CheckCircle,
-        description: 'En preparación'
-      },
-      ready: { 
-        label: 'Listo', 
-        color: 'bg-green-100 text-green-800 border-green-200', 
-        icon: Package,
-        description: 'Listo para entrega/recogida'
-      },
-      assigned: { 
-        label: 'Asignado', 
-        color: 'bg-purple-100 text-purple-800 border-purple-200', 
-        icon: Truck,
-        description: 'Repartidor asignado'
-      },
-      'picked-up': { 
-        label: 'Recogido', 
-        color: 'bg-indigo-100 text-indigo-800 border-indigo-200', 
-        icon: Truck,
-        description: 'En camino al cliente'
-      },
-      delivered: { 
-        label: 'Entregado', 
-        color: 'bg-green-100 text-green-800 border-green-200', 
-        icon: CheckCircle,
-        description: 'Entregado exitosamente'
-      },
-      completed: { 
-        label: 'Completado', 
-        color: 'bg-gray-100 text-gray-800 border-gray-200', 
-        icon: CheckCircle,
-        description: 'Orden completada'
-      },
-      cancelled: { 
-        label: 'Cancelado', 
-        color: 'bg-red-100 text-red-800 border-red-200', 
-        icon: XCircle,
-        description: 'Cancelado por el cliente'
-      },
-      rejected: { 
-        label: 'Rechazado', 
-        color: 'bg-red-100 text-red-800 border-red-200', 
-        icon: XCircle,
-        description: 'No se pudo procesar'
-      }
-    };
-
-    return statusMap[status as keyof typeof statusMap] || statusMap.pending;
-  };
-
-  const getDeliveryIcon = (type: string) => {
-    switch (type) {
-      case 'pickup': return Store;
-      case 'dine-in': return UtensilsCrossed;
-      case 'delivery': return Truck;
-      default: return Store;
+  const formatTime = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleString('es-GT', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
     }
+  };
+
+  const getOrdersByStatus = (status: string) => {
+    if (status === 'active') {
+      return orders.filter(order => 
+        ['accepted', 'ready', 'assigned', 'picked_up', 'in_transit'].includes(order.status)
+      );
+    }
+    if (status === 'completed') {
+      return orders.filter(order => 
+        ['delivered', 'completed'].includes(order.status)  // 🔧 ARREGLADO: Incluir 'completed'
+      );
+    }
+    if (status === 'cancelled') {
+      return orders.filter(order => 
+        ['cancelled', 'rejected'].includes(order.status)
+      );
+    }
+    return orders.filter(order => order.status === status);
   };
 
   const renderOrderCard = (order: Order) => {
-    const statusInfo = getStatusInfo(order.status);
-    const StatusIcon = statusInfo.icon;
-    const DeliveryIcon = getDeliveryIcon(order.delivery_type);
-    const canAccept = order.status === 'pending';
-    const canMarkReady = order.status === 'accepted';
-    const isProcessing = processingOrderId === order.id;
-
+    const isProcessing = processingOrders.has(order.id);
+    
     return (
-      <Card key={order.id} className="mb-4 hover:shadow-md transition-shadow">
+      <Card key={order.id} className="border-l-4 border-l-orange-500">
         <CardHeader className="pb-3">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-4 h-4" />
-                {order.customer_name}
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">
+                Orden #{order.order_number}
               </CardTitle>
-              <p className="text-sm text-gray-600 flex items-center gap-1">
-                <Phone className="w-3 h-3" />
-                {order.phone_number}
+              <p className="text-sm text-gray-600 mt-1">
+                {formatTime(order.created_at)}
               </p>
             </div>
-            <Badge className={`${statusInfo.color} border`}>
-              <StatusIcon className="w-3 h-3 mr-1" />
-              {statusInfo.label}
+            <Badge className={STATUS_COLORS[order.status]}>
+              {STATUS_LABELS[order.status]}
             </Badge>
           </div>
         </CardHeader>
-
+        
         <CardContent className="space-y-4">
-          {/* Información de entrega */}
-          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-            <DeliveryIcon className="w-4 h-4 text-orange-500" />
-            <div className="flex-1">
-              <span className="font-medium">
-                {order.delivery_type === 'pickup' ? 'Recoger en tienda' :
-                 order.delivery_type === 'dine-in' ? 'Comer en el lugar' : 'Servicio a domicilio'}
-              </span>
-              {order.delivery_type === 'delivery' && order.delivery_address && (
-                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                  <MapPin className="w-3 h-3" />
-                  {order.delivery_address}
-                </p>
-              )}
-            </div>
+          {/* Customer Info */}
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-500" />
+            <span className="font-medium">{order.buyer_name}</span>
+            {order.buyer_phone && (
+              <>
+                <Phone className="w-4 h-4 text-gray-500 ml-2" />
+                <span className="text-sm text-gray-600">{order.buyer_phone}</span>
+              </>
+            )}
           </div>
 
-          {/* Resumen de productos */}
-          <div className="space-y-2">
-            <h4 className="font-medium flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" />
-              Productos ({order.order_items?.length || 0})
-            </h4>
-            <div className="space-y-1">
-              {order.order_items?.slice(0, 3).map((item, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>{item.quantity}x {item.product_name}</span>
-                  <span>Q{item.total_price.toFixed(2)}</span>
-                </div>
-              ))}
-              {(order.order_items?.length || 0) > 3 && (
-                <p className="text-sm text-gray-500">
-                  +{(order.order_items?.length || 0) - 3} productos más
-                </p>
-              )}
-            </div>
+          {/* Delivery Info */}
+          <div className="flex items-center gap-2">
+            {order.delivery_method === 'delivery' ? (
+              <Truck className="w-4 h-4 text-blue-500" />
+            ) : (
+              <Package className="w-4 h-4 text-green-500" />
+            )}
+            <span className="text-sm">
+              {order.delivery_method === 'delivery' ? 'Entrega a domicilio' : 
+               order.delivery_method === 'pickup' ? 'Recoger en tienda' : 'Comer en el lugar'}
+            </span>
           </div>
 
-          <Separator />
-
-          {/* Total y acciones */}
-          <div className="flex justify-between items-center">
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-green-600">Q{getOrderTotal(order).toFixed(2)}</p>
-              <p className="text-xs text-gray-500">
-                Hace {new Date(order.created_at).toLocaleString('es-GT')}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedOrder(order);
-                  setShowOrderDetail(true);
-                }}
-              >
-                <Eye className="w-4 h-4 mr-1" />
-                Ver detalles
-              </Button>
-
-              {canAccept && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setRejectingOrderId(order.id);
-                      setShowRejectDialog(true);
-                    }}
-                    disabled={isProcessing}
-                    className="border-red-200 text-red-600 hover:bg-red-50"
-                  >
-                    <ThumbsDown className="w-4 h-4 mr-1" />
-                    Rechazar
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => acceptOrder(order.id)}
-                    disabled={isProcessing}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {isProcessing ? (
-                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                    ) : (
-                      <ThumbsUp className="w-4 h-4 mr-1" />
-                    )}
-                    Aceptar
-                  </Button>
-                </>
-              )}
-
-              {canMarkReady && (
-                <Button
-                  size="sm"
-                  onClick={() => markOrderReady(order.id)}
-                  disabled={isProcessing}
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  {isProcessing ? (
-                    <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                  ) : (
-                    <Package className="w-4 h-4 mr-1" />
-                  )}
-                  Marcar listo
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {order.customer_notes && (
-            <div className="bg-blue-50 p-3 rounded-lg">
-              <p className="text-sm font-medium text-blue-700">Notas del cliente:</p>
-              <p className="text-sm text-blue-600">{order.customer_notes}</p>
+          {order.delivery_address && (
+            <div className="flex items-start gap-2">
+              <MapPin className="w-4 h-4 text-red-500 mt-0.5" />
+              <span className="text-sm text-gray-600">{order.delivery_address}</span>
             </div>
           )}
+
+          {/* Items */}
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">Productos:</h4>
+            {order.items.map((item, index) => (
+              <div key={index} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                <span>{item.quantity}x {item.product_name}</span>
+                <span className="font-medium">Q{(item.quantity * item.unit_price).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Notes */}
+          {order.notes && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <MessageSquare className="w-4 h-4 text-blue-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Notas:</p>
+                  <p className="text-sm text-blue-700">{order.notes}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Total */}
+          <div className="border-t pt-3">
+            <div className="flex justify-between items-center">
+              <span className="font-medium">Total:</span>
+              <span className="text-lg font-bold text-green-600">
+                Q{order.total.toFixed(2)}
+              </span>
+            </div>
+            {order.delivery_fee > 0 && (
+              <p className="text-sm text-gray-500">
+                Incluye Q{order.delivery_fee.toFixed(2)} de entrega
+              </p>
+            )}
+          </div>
+
+          {/* Driver Info */}
+          {order.driver_name && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  Repartidor: {order.driver_name}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            {order.status === 'pending' && (
+              <>
+                <Button
+                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                  disabled={isProcessing}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                  )}
+                  Aceptar
+                </Button>
+                <Button
+                  onClick={() => rejectOrder(order.id, 'No disponible')}
+                  disabled={isProcessing}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Rechazar
+                </Button>
+              </>
+            )}
+
+            {order.status === 'accepted' && (
+              <Button
+                onClick={() => updateOrderStatus(order.id, 'ready')}
+                disabled={isProcessing}
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Marcar Orden Lista
+              </Button>
+            )}
+
+            {order.status === 'ready' && (
+              <Button
+                onClick={() => updateOrderStatus(order.id, 'delivered')}
+                disabled={isProcessing}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Package className="w-4 h-4 mr-2" />
+                )}
+                Marcar Entregado
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -618,166 +489,122 @@ export function SellerOrderManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-        <span>Cargando órdenes...</span>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestión de Órdenes</h2>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={fetchOrders}
-            disabled={loading}
-            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={runDiagnostic}
-            disabled={loading}
-            className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
-          >
-            <AlertCircle className="w-4 h-4 mr-2" />
-            Diagnóstico
-          </Button>
-        </div>
-      </div>
-
-      {orders.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No tienes órdenes aún
-            </h3>
-            <p className="text-gray-600">
-              Las órdenes de tus clientes aparecerán aquí.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {orders.map(renderOrderCard)}
-        </div>
-      )}
-
-      {/* Dialog para detalles de la orden */}
-      <Dialog open={showOrderDetail} onOpenChange={setShowOrderDetail}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalles de la Orden</DialogTitle>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-6">
-              {/* Información del cliente */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Información del cliente</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <p><strong>Nombre:</strong> {selectedOrder.customer_name}</p>
-                  <p><strong>Teléfono:</strong> {selectedOrder.phone_number}</p>
-                  {selectedOrder.customer_notes && (
-                    <p><strong>Notas:</strong> {selectedOrder.customer_notes}</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Productos */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Productos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {selectedOrder.order_items?.map((item, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{item.product_name}</p>
-                          <p className="text-sm text-gray-600">
-                            Q{item.price_per_unit.toFixed(2)} x {item.quantity}
-                          </p>
-                        </div>
-                        <span className="font-bold">Q{item.total_price.toFixed(2)}</span>
-                      </div>
-                    ))}
-                    
-                    <Separator />
-                    
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>Q{selectedOrder.subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Entrega:</span>
-                        <span>{selectedOrder.delivery_fee > 0 ? `Q${selectedOrder.delivery_fee.toFixed(2)}` : 'Gratis'}</span>
-                      </div>
-                      <div className="flex justify-between text-lg font-bold border-t pt-2">
-                        <span>Total:</span>
-                        <span className="text-green-600">Q{getOrderTotal(selectedOrder).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog para rechazar orden */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rechazar Orden</DialogTitle>
-            <DialogDescription>
-              Indica el motivo por el cual no puedes procesar esta orden.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="rejection-reason">Motivo del rechazo</Label>
-              <Textarea
-                id="rejection-reason"
-                placeholder="Ej: No tenemos los ingredientes disponibles..."
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowRejectDialog(false)}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={() => rejectingOrderId && rejectOrder(rejectingOrderId)}
-                disabled={!rejectionReason.trim() || processingOrderId === rejectingOrderId}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {processingOrderId === rejectingOrderId ? (
-                  <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <XCircle className="w-4 h-4 mr-1" />
-                )}
-                Rechazar orden
-              </Button>
-            </div>
+      {/* Header */}
+      <Card className="border-orange-200 shadow-lg">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-orange-500" />
+              Gestión de Órdenes
+            </CardTitle>
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              size="sm"
+            >
+              {refreshing ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              Actualizar
+            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </CardHeader>
+      </Card>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Pendientes
+            {getOrdersByStatus('pending').length > 0 && (
+              <Badge variant="destructive" className="ml-1 px-1.5 py-0.5 text-xs">
+                {getOrdersByStatus('pending').length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Activas
+            {getOrdersByStatus('active').length > 0 && (
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0.5 text-xs">
+                {getOrdersByStatus('active').length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            Completadas
+          </TabsTrigger>
+          <TabsTrigger value="cancelled" className="flex items-center gap-2">
+            <XCircle className="w-4 h-4" />
+            Canceladas
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="space-y-4">
+          {getOrdersByStatus('pending').length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay órdenes pendientes</p>
+              </CardContent>
+            </Card>
+          ) : (
+            getOrdersByStatus('pending').map(renderOrderCard)
+          )}
+        </TabsContent>
+
+        <TabsContent value="active" className="space-y-4">
+          {getOrdersByStatus('active').length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay órdenes activas</p>
+              </CardContent>
+            </Card>
+          ) : (
+            getOrdersByStatus('active').map(renderOrderCard)
+          )}
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          {getOrdersByStatus('completed').length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay órdenes completadas</p>
+              </CardContent>
+            </Card>
+          ) : (
+            getOrdersByStatus('completed').map(renderOrderCard)
+          )}
+        </TabsContent>
+
+        <TabsContent value="cancelled" className="space-y-4">
+          {getOrdersByStatus('cancelled').length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-8">
+                <XCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No hay órdenes canceladas</p>
+              </CardContent>
+            </Card>
+          ) : (
+            getOrdersByStatus('cancelled').map(renderOrderCard)
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

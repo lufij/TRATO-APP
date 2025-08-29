@@ -28,9 +28,9 @@ export function ImageModal({ isOpen, onClose, imageUrl, imageAlt }: ImageModalPr
     }
   }, [isOpen]);
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts - Solo en desktop
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || window.innerWidth < 768) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
@@ -126,8 +126,8 @@ export function ImageModal({ isOpen, onClose, imageUrl, imageAlt }: ImageModalPr
           <DialogTitle>Imagen ampliada: {imageAlt}</DialogTitle>
         </VisuallyHidden>
 
-        {/* Toolbar */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/70 backdrop-blur-sm rounded-lg p-2 flex items-center gap-2">
+        {/* Toolbar - Solo visible en desktop */}
+        <div className="hidden md:absolute md:top-4 md:left-1/2 md:transform md:-translate-x-1/2 md:z-50 md:bg-black/70 md:backdrop-blur-sm md:rounded-lg md:p-2 md:flex md:items-center md:gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -197,28 +197,30 @@ export function ImageModal({ isOpen, onClose, imageUrl, imageAlt }: ImageModalPr
         {/* Image container */}
         <div 
           className={`relative max-w-[90vw] max-h-[90vh] flex items-center justify-center ${
-            zoom > 1 ? 'cursor-grab' : 'cursor-auto'
+            zoom > 1 && window.innerWidth >= 768 ? 'cursor-grab' : 'cursor-auto'
           } ${isDragging ? 'cursor-grabbing' : ''}`}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
+          onMouseDown={window.innerWidth >= 768 ? handleMouseDown : undefined}
+          onMouseMove={window.innerWidth >= 768 ? handleMouseMove : undefined}
+          onMouseUp={window.innerWidth >= 768 ? handleMouseUp : undefined}
+          onMouseLeave={window.innerWidth >= 768 ? handleMouseUp : undefined}
+          onWheel={window.innerWidth >= 768 ? handleWheel : undefined}
         >
           <ImageWithFallback
             src={imageUrl}
             alt={imageAlt}
             className="max-w-full max-h-full object-contain select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${position.x}px, ${position.y}px)`,
+              transform: window.innerWidth >= 768 
+                ? `scale(${zoom}) rotate(${rotation}deg) translate(${position.x}px, ${position.y}px)`
+                : 'none',
               transition: isDragging ? 'none' : 'transform 0.2s ease-out'
             }}
             draggable={false}
           />
         </div>
 
-        {/* Help text */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-1">
+        {/* Help text - Solo visible en desktop */}
+        <div className="hidden md:absolute md:bottom-4 md:left-1/2 md:transform md:-translate-x-1/2 md:z-50 md:bg-black/70 md:backdrop-blur-sm md:rounded-lg md:px-3 md:py-1">
           <p className="text-white/70 text-xs text-center">
             Scroll para zoom • Arrastra para mover • R para rotar • Esc para cerrar
           </p>

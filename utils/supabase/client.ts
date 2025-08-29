@@ -52,6 +52,7 @@ export interface Product {
   category: string;
   is_public: boolean;
   stock_quantity: number;
+  is_available?: boolean; // Nueva propiedad agregada
   created_at: string;
   updated_at: string;
   seller?: Seller;
