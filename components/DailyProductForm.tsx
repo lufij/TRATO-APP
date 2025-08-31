@@ -43,8 +43,8 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
   const [formData, setFormData] = useState({
     name: dailyProduct?.name || '',
     description: dailyProduct?.description || '',
-    price: dailyProduct?.price || 0,
-    stock_quantity: dailyProduct?.stock_quantity || 0
+    price: dailyProduct?.price ? String(dailyProduct.price) : '',
+    stock_quantity: dailyProduct?.stock_quantity ? String(dailyProduct.stock_quantity) : ''
   });
   
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -203,8 +203,8 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
       const productData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        price: formData.price,
-        stock_quantity: formData.stock_quantity,
+        price: parseFloat(formData.price) || 0,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
         image_url: imageUrl,
         seller_id: user?.id,
         expires_at: getExpirationTime()

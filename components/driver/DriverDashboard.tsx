@@ -232,7 +232,7 @@ export function DriverDashboard() {
     
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
       const coords = `${lat},${lng}`;
-      const businessName = seller_business.business_name || 'Negocio';
+      const businessName = seller_business?.business_name || 'Negocio';
       const url = `https://www.google.com/maps/dir/?api=1&destination=${coords}&destination_place_id=${encodeURIComponent(businessName)}`;
       window.open(url, '_blank');
       console.log('✅ NAVEGANDO CON COORDENADAS GPS:', coords);
@@ -268,16 +268,35 @@ export function DriverDashboard() {
     setProcessingOrderId(orderId);
     
     try {
-      console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
+      console.log('🔧 BYPASS UPDATE - ORDEN:', orderId, 'NUEVO STATUS:', newStatus);
       
-      // Actualización directa con formato correcto de status
+      // MÉTODO DIRECTO SIN CONSTRAINTS
       const { data, error } = await supabase
         .from('orders')
         .update({ 
-          status: newStatus, // Usar formato con underscore: picked_up, in_transit
+          status: newStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
+        .eq('driver_id', user.id)
+        .select();
+
+      if (error) {
+        console.error('❌ Error actualizando estado:', error);
+        throw error;
+      }
+
+      console.log('✅ Estado actualizado exitosamente:', data);
+
+      const messages = {
+        'picked_up': 'Pedido marcado como recogido',
+        'in_transit': 'Pedido en camino al cliente', 
+        'delivered': 'Pedido entregado exitosamente'
+      };
+      toast.success(messages[newStatus as keyof typeof messages] || 'Estado actualizado');
+      
+      // Refrescar datos inmediatamente
+      await fetchData();
         .eq('driver_id', user.id)
         .select();
 
@@ -314,13 +333,13 @@ export function DriverDashboard() {
         icon: Truck,
         description: 'Ve a recoger el pedido'
       },
-      'picked-up': { 
+      picked_up: { 
         label: 'Recogido', 
         color: 'bg-orange-100 text-orange-800', 
         icon: Package,
         description: 'En camino al cliente'
       },
-      'in-transit': { 
+      in_transit: { 
         label: 'En camino', 
         color: 'bg-purple-100 text-purple-800', 
         icon: Navigation,
@@ -429,8 +448,8 @@ export function DriverDashboard() {
     const isProcessing = processingOrderId === order.id;
     
     const canPickup = order.status === 'assigned';
-    const canMarkInTransit = order.status === 'picked-up';
-    const canDeliver = order.status === 'in-transit';
+    const canMarkInTransit = order.status === 'picked_up';
+    const canDeliver = order.status === 'in_transit';
 
     return (
       <Card key={order.id} className="mb-4 hover:shadow-md transition-shadow">

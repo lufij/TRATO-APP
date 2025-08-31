@@ -2,7 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase/client';
 import { updateProductStock } from '../../utils/stockManager';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { C        // 🔥 CRITICAL: Actualizar stock cuando el vendedor acepta la orden
+        console.log('🔄 Orden aceptada, actualizando stock...');
+        console.log('📦 Order ID:', orderId);
+        
+        // Obtener los items de la orden
+        const { data: orderItems, error: itemsError } = await supabase
+          .from('order_items')
+          .select('product_id, daily_product_id, quantity, product_name, product_type')
+          .eq('order_id', orderId);
+
+        console.log('📋 Order Items Query Result:', { orderItems, itemsError });
+
+        if (itemsError) {
+          console.error('❌ Error obteniendo items de la orden:', itemsError);ntent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -33,6 +46,7 @@ interface OrderItem {
 interface Order {
   id: string;
   order_number: string;
+  buyer_id: string; // Required for notifications
   buyer_name: string;
   buyer_phone?: string;
   total: number;
@@ -118,6 +132,11 @@ export function SellerOrderManagement() {
   };
 
   const loadOrders = async () => {
+    // 🐞 FIX: Limpiar el estado de las órdenes antes de recargar para evitar
+    // la re-ejecución de la lógica de actualización de stock por efectos
+    // secundarios no deseados del renderizado.
+    setOrders([]); 
+
     try {
       const { data: ordersData, error } = await supabase
         .from('orders')
@@ -145,13 +164,27 @@ export function SellerOrderManagement() {
 
       if (error) throw error;
 
-      const formattedOrders = ordersData?.map(order => ({
-        ...order,
-        buyer_name: order.users?.name || 'Cliente',
-        buyer_phone: order.users?.phone,
-        driver_name: order.drivers?.name,
-        items: order.order_items || []
-      })) || [];
+      // 🔍 DEBUG: Verificar los datos que llegan
+      console.log('📊 Órdenes cargadas:', ordersData?.length || 0);
+      console.log('📋 Datos de órdenes:', ordersData);
+
+      const formattedOrders = ordersData?.map(order => {
+        console.log(`🔍 Orden ${order.order_number}:`, {
+          id: order.id,
+          status: order.status,
+          delivery_method: order.delivery_method,
+          buyer_id: order.buyer_id
+        });
+        
+        return {
+          ...order,
+          buyer_id: order.buyer_id,
+          buyer_name: order.users?.name || 'Cliente',
+          buyer_phone: order.users?.phone,
+          driver_name: order.drivers?.name,
+          items: order.order_items || []
+        };
+      }) || [];
 
       setOrders(formattedOrders);
     } catch (error) {
@@ -197,52 +230,76 @@ export function SellerOrderManagement() {
 
       if (error) {
         console.error('Database error:', error);
-        throw error;
+        toast.error('Error al actualizar el estado de la orden');
+        // Ensure we stop processing if the update fails
+        setProcessingOrders(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(orderId);
+          return newSet;
+        });
+        return; 
       }
 
-      // 2. 🚀 NUEVO: Si se está aceptando la orden, descontar stock automáticamente
-      if (finalStatus === 'accepted') {
-        console.log('🛒 Orden aceptada, descontando stock automáticamente...');
+      // 🔔 NOTIFICATION LOGIC: Send notification on acceptance
+      const order = orders.find(o => o.id === orderId);
+      if (order && finalStatus === 'accepted') {
+        await supabase.from('notifications').insert({
+          user_id: order.buyer_id,
+          order_id: order.id,
+          message: `Tu orden #${order.order_number} ha sido aceptada.`,
+          type: 'order_accepted'
+        });
         
-        // Obtener los items de la orden para descontar stock
+        // � CRITICAL: Actualizar stock cuando el vendedor acepta la orden
+        console.log('🔄 Orden aceptada, actualizando stock...');
+        
+        // Obtener los items de la orden
         const { data: orderItems, error: itemsError } = await supabase
           .from('order_items')
           .select('product_id, daily_product_id, quantity, product_name, product_type')
           .eq('order_id', orderId);
 
         if (itemsError) {
-          console.error('Error obteniendo items de la orden:', itemsError);
-          toast.error('Error al obtener productos de la orden');
+          console.error('❌ Error obteniendo items de la orden:', itemsError);
+          toast.error('Orden aceptada pero error al actualizar stock');
         } else if (orderItems && orderItems.length > 0) {
-          // Descontar stock usando el stockManager
+          console.log('📦 Items encontrados:', orderItems.length);
+          orderItems.forEach((item, index) => {
+            console.log(`   ${index + 1}. ${item.product_name} - Cantidad: ${item.quantity} - Tipo: ${item.product_type}`);
+          });
+          
+          console.log('🚀 Llamando updateProductStock...');
+          
+          // Llamar al stockManager para actualizar el inventario
           const stockResult = await updateProductStock(orderItems, orderId);
           
+          console.log('📊 Resultado del stock manager:', stockResult);
+          
           if (stockResult.success) {
-            console.log('✅ Stock descontado exitosamente:', stockResult.updatedProducts);
-            toast.success(`Orden aceptada y stock actualizado (${stockResult.updatedProducts?.length || 0} productos)`);
-            
-            // 3. 🔄 Forzar actualización de datos en tiempo real para todos los usuarios
-            // Esto actualizará el stock visible tanto para compradores como vendedores
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent('stockUpdated', { 
-                detail: { 
-                  orderId, 
-                  updatedProducts: stockResult.updatedProducts 
-                } 
-              }));
-            }, 1000);
+            console.log('✅ Stock actualizado exitosamente:', stockResult.updatedProducts);
+            toast.success('Orden aceptada y stock actualizado');
           } else {
-            console.error('❌ Error descontando stock:', stockResult.message);
-            toast.error(`Orden aceptada pero error en stock: ${stockResult.message}`);
+            console.error('❌ Error actualizando stock:', stockResult.message);
+            toast.error(`Orden aceptada pero ${stockResult.message}`);
           }
         } else {
-          toast.warning('Orden aceptada pero no se encontraron productos para actualizar stock');
+          console.log('⚠️ No se encontraron items en la orden');
+          toast.success('Orden aceptada (sin items para actualizar stock)');
         }
-      } else {
-        toast.success(`Orden ${STATUS_LABELS[finalStatus as keyof typeof STATUS_LABELS] || finalStatus}`);
       }
 
+      toast.success(`Orden actualizada a ${STATUS_LABELS[finalStatus as keyof typeof STATUS_LABELS] || finalStatus}.`);
+      
+      // Refrescar la lista de órdenes
       loadOrders();
+      
+      // Clean up processing state
+      setProcessingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
+
     } catch (error) {
       console.error('Error updating order status:', error);
       toast.error('Error al actualizar el estado de la orden');
@@ -271,6 +328,17 @@ export function SellerOrderManagement() {
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // 🚀 NOTIFICATION LOGIC: Send notification on rejection
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        await supabase.from('notifications').insert({
+          user_id: order.buyer_id,
+          order_id: order.id,
+          message: `Tu orden #${order.order_number} fue rechazada.`,
+          type: 'order_rejected'
+        });
+      }
 
       toast.success('Orden rechazada');
       loadOrders();
@@ -322,6 +390,24 @@ export function SellerOrderManagement() {
   const renderOrderCard = (order: Order) => {
     const isProcessing = processingOrders.has(order.id);
     
+    // 🔍 DEBUG: Log DETALLADO de cada orden que se renderiza
+    console.log(`🎨 Renderizando orden ${order.order_number}:`, {
+      id: order.id,
+      status: order.status,
+      delivery_method: order.delivery_method,
+      buyer_id: order.buyer_id,
+      isProcessing,
+      orderObject: order
+    });
+    
+    // 🔍 DEBUG: Verificar condiciones específicas
+    console.log(`❓ Status actual: "${order.status}" (tipo: ${typeof order.status})`);
+    console.log(`❓ Delivery method actual: "${order.delivery_method}" (tipo: ${typeof order.delivery_method})`);
+    console.log(`❓ ¿Status === 'pending'? ${order.status === 'pending'}`);
+    console.log(`❓ ¿Delivery method === 'delivery'? ${order.delivery_method === 'delivery'}`);
+    console.log(`❓ ¿Status incluye pending? ${String(order.status).includes('pending')}`);
+    console.log(`❓ ¿Delivery incluye delivery? ${String(order.delivery_method).includes('delivery')}`);
+    
     return (
       <Card key={order.id} className="border-l-4 border-l-orange-500">
         <CardHeader className="pb-3">
@@ -354,20 +440,47 @@ export function SellerOrderManagement() {
           </div>
 
           {/* Delivery Info */}
-          <div className="flex items-center gap-2">
-            {order.delivery_method === 'delivery' ? (
-              <Truck className="w-4 h-4 text-blue-500" />
-            ) : (
-              <Package className="w-4 h-4 text-green-500" />
-            )}
-            <span className="text-sm">
-              {order.delivery_method === 'delivery' ? 'Entrega a domicilio' : 
-               order.delivery_method === 'pickup' ? 'Recoger en tienda' : 'Comer en el lugar'}
-            </span>
+          <div className={`p-4 rounded-lg border-2 ${
+            String(order.delivery_method || '').trim().toLowerCase() === 'delivery' 
+              ? 'bg-blue-50 border-blue-300' 
+              : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' 
+                ? 'bg-green-50 border-green-300' 
+                : 'bg-blue-50 border-blue-300'
+          }`}>
+            <div className="flex items-center gap-3">
+              {String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method ? (
+                <Truck className="w-8 h-8 text-blue-600" />
+              ) : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' ? (
+                <Package className="w-8 h-8 text-green-600" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                  <path d="M17 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                  <path d="M12 2v20"/>
+                  <path d="M6 12h.01"/>
+                  <path d="M18 12h.01"/>
+                </svg>
+              )}
+              <div>
+                <span className={`text-xl font-bold ${
+                  String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method
+                    ? 'text-blue-800' 
+                    : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' 
+                      ? 'text-green-800' 
+                      : 'text-orange-800'
+                }`}>
+                  {String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method ? 'SERVICIO A DOMICILIO' : 
+                   String(order.delivery_method || '').trim().toLowerCase() === 'pickup' ? 'RECOGER EN TIENDA' : 'COMER EN EL LUGAR'}
+                </span>
+                <p className="text-sm text-gray-600 mt-1">
+                  Método de entrega: {order.delivery_method || 'No especificado'}
+                </p>
+              </div>
+            </div>
           </div>
 
           {order.delivery_address && (
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 mt-2">
               <MapPin className="w-4 h-4 text-red-500 mt-0.5" />
               <span className="text-sm text-gray-600">{order.delivery_address}</span>
             </div>
@@ -425,9 +538,10 @@ export function SellerOrderManagement() {
           )}
 
           {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            {order.status === 'pending' && (
-              <>
+          <div className="space-y-2 pt-2">
+            {/* Botones solo para órdenes PENDIENTES */}
+            {String(order.status).trim().toLowerCase() === 'pending' && (
+              <div className="flex gap-2">
                 <Button
                   onClick={() => updateOrderStatus(order.id, 'confirmed')}
                   disabled={isProcessing}
@@ -438,25 +552,29 @@ export function SellerOrderManagement() {
                   ) : (
                     <CheckCircle className="w-4 h-4 mr-2" />
                   )}
-                  Aceptar
+                  Aceptar Orden
                 </Button>
+                
+                {/* 🔴 BOTÓN RECHAZAR FORZADO */}
                 <Button
                   onClick={() => rejectOrder(order.id, 'No disponible')}
                   disabled={isProcessing}
                   variant="destructive"
-                  className="flex-1"
+                  size="lg" 
+                  className="px-6 bg-red-600 hover:bg-red-700 text-white border-red-600"
+                  style={{backgroundColor: '#dc2626', borderColor: '#dc2626'}}
                 >
                   <XCircle className="w-4 h-4 mr-2" />
                   Rechazar
                 </Button>
-              </>
+              </div>
             )}
 
             {order.status === 'accepted' && (
               <Button
                 onClick={() => updateOrderStatus(order.id, 'ready')}
                 disabled={isProcessing}
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-purple-600 hover:bg-purple-700"
               >
                 {isProcessing ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -468,18 +586,42 @@ export function SellerOrderManagement() {
             )}
 
             {order.status === 'ready' && (
-              <Button
-                onClick={() => updateOrderStatus(order.id, 'delivered')}
-                disabled={isProcessing}
-                className="flex-1 bg-green-600 hover:bg-green-700"
-              >
-                {isProcessing ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Package className="w-4 h-4 mr-2" />
-                )}
-                Marcar Entregado
-              </Button>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Orden lista para recoger</p>
+                    <p className="text-sm text-blue-600">El repartidor recogerá y entregará esta orden</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {order.status === 'delivered' && (
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                  disabled={isProcessing}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  {isProcessing ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                  )}
+                  Re-procesar
+                </Button>
+                <Button
+                  onClick={() => rejectOrder(order.id, 'Orden rechazada')}
+                  disabled={isProcessing}
+                  variant="destructive"
+                  size="lg"
+                  className="px-6"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Rechazar
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>

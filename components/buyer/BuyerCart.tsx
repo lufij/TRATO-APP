@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
@@ -40,6 +41,8 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [tempQuantity, setTempQuantity] = useState<string>('');
 
   const subtotal = getCartTotal();
 
@@ -67,6 +70,36 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
       } else {
         await updateCartItem(cartItem.id, newQuantity);
       }
+    }
+  };
+
+  const handleQuantityClick = (itemId: string, currentQuantity: number) => {
+    setEditingQuantity(itemId);
+    setTempQuantity(currentQuantity.toString());
+  };
+
+  const handleQuantityChange = (value: string) => {
+    const numValue = parseInt(value);
+    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 999)) {
+      setTempQuantity(value);
+    }
+  };
+
+  const handleQuantitySubmit = async (productId: string) => {
+    const quantity = parseInt(tempQuantity);
+    if (!isNaN(quantity) && quantity >= 0) {
+      await updateCartQuantity(productId, quantity);
+    }
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityKeyDown = async (e: React.KeyboardEvent, productId: string) => {
+    if (e.key === 'Enter') {
+      await handleQuantitySubmit(productId);
+    } else if (e.key === 'Escape') {
+      setEditingQuantity(null);
+      setTempQuantity('');
     }
   };
 
@@ -141,7 +174,24 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="px-2 font-medium text-sm">{item.quantity}</span>
+                        {editingQuantity === item.id ? (
+                          <Input
+                            value={tempQuantity}
+                            onChange={(e) => handleQuantityChange(e.target.value)}
+                            onBlur={() => handleQuantitySubmit(item.product_id)}
+                            onKeyDown={(e) => handleQuantityKeyDown(e, item.product_id)}
+                            className="w-12 h-8 text-center text-sm font-medium p-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            className="px-2 font-medium text-sm cursor-pointer hover:bg-gray-100 rounded min-w-[2rem] text-center"
+                            onClick={() => handleQuantityClick(item.id, item.quantity)}
+                            title="Haz clic para editar cantidad"
+                          >
+                            {item.quantity}
+                          </span>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"

@@ -64,9 +64,9 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
-    price: product?.price || 0,
+    price: product?.price || '',
     category: product?.category || '',
-    stock_quantity: product?.stock_quantity || 0,
+    stock_quantity: product?.stock_quantity || '',
     is_public: product?.is_public !== false
   });
   
@@ -191,7 +191,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       return;
     }
 
-    if (formData.price <= 0) {
+    if (!formData.price || parseFloat(formData.price.toString()) <= 0) {
       setError('El precio debe ser mayor a 0');
       return;
     }
@@ -201,8 +201,8 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       return;
     }
 
-    if (formData.stock_quantity < 0) {
-      setError('La cantidad no puede ser negativa');
+    if (!formData.stock_quantity || parseInt(formData.stock_quantity.toString()) < 0) {
+      setError('La cantidad debe ser mayor a 0');
       return;
     }
 
@@ -229,9 +229,9 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       const productData = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        price: formData.price,
+        price: parseFloat(formData.price.toString()) || 0,
         category: formData.category,
-        stock_quantity: formData.stock_quantity,
+        stock_quantity: parseInt(formData.stock_quantity.toString()) || 1,
         is_public: formData.is_public,
         image_url: imageUrl,
         seller_id: user?.id
@@ -403,7 +403,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     step="0.01"
                     min="0"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0.00"
                     required
                   />
@@ -416,8 +416,8 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     type="number"
                     min="0"
                     value={formData.stock_quantity}
-                    onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
-                    placeholder="0"
+                    onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                    placeholder="1"
                   />
                 </div>
               </div>

@@ -30,7 +30,7 @@ export function getOrderSteps(order: Order): OrderStep[] {
       key: 'accepted',
       label: 'Pedido aceptado',
       icon: <CheckCircle className="w-4 h-4" />,
-      completed: ['accepted', 'ready', 'assigned', 'picked-up', 'in-transit', 'delivered', 'completed'].includes(order.status),
+      completed: ['accepted', 'ready', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'].includes(order.status),
       current: order.status === 'accepted',
       timestamp: (order as any).accepted_at
     },
@@ -38,7 +38,7 @@ export function getOrderSteps(order: Order): OrderStep[] {
       key: 'ready',
       label: order.delivery_type === 'pickup' ? 'Listo para recoger' : 'Pedido listo',
       icon: order.delivery_type === 'pickup' ? <Store className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />,
-      completed: ['ready', 'assigned', 'picked-up', 'in-transit', 'delivered', 'completed'].includes(order.status),
+      completed: ['ready', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'].includes(order.status),
       current: order.status === 'ready',
       timestamp: (order as any).ready_at
     }
@@ -50,25 +50,25 @@ export function getOrderSteps(order: Order): OrderStep[] {
         key: 'assigned',
         label: 'Repartidor asignado',
         icon: <Truck className="w-4 h-4" />,
-        completed: ['assigned', 'picked-up', 'in-transit', 'delivered', 'completed'].includes(order.status),
+        completed: ['assigned', 'picked_up', 'in_transit', 'delivered', 'completed'].includes(order.status),
         current: order.status === 'assigned',
         timestamp: order.status === 'assigned' ? (order as any).updated_at : undefined
       },
       {
-        key: 'picked-up',
+        key: 'picked_up',
         label: 'Pedido recogido',
         icon: <Package className="w-4 h-4" />,
-        completed: ['picked-up', 'in-transit', 'delivered', 'completed'].includes(order.status),
-        current: order.status === 'picked-up',
+        completed: ['picked_up', 'in_transit', 'delivered', 'completed'].includes(order.status),
+        current: order.status === 'picked_up',
         timestamp: (order as any).picked_up_at
       },
       {
-        key: 'in-transit',
+        key: 'in_transit',
         label: 'En camino',
         icon: <Truck className="w-4 h-4" />,
-        completed: ['in-transit', 'delivered', 'completed'].includes(order.status),
-        current: order.status === 'in-transit',
-        timestamp: order.status === 'in-transit' ? (order as any).updated_at : undefined
+        completed: ['in_transit', 'delivered', 'completed'].includes(order.status),
+        current: order.status === 'in_transit',
+        timestamp: order.status === 'in_transit' ? (order as any).updated_at : undefined
       }
     );
   }

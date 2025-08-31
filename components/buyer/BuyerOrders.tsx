@@ -168,7 +168,7 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
         icon: Truck,
         description: 'Un repartidor fue asignado'
       },
-      'picked-up': { 
+      'picked_up': { 
         label: 'En camino', 
         color: 'bg-orange-100 text-orange-800', 
         icon: Truck,
@@ -223,8 +223,8 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
       accepted: 25,
       ready: 50,
       assigned: 60,
-      'picked-up': 75,
-      'in-transit': 85,
+      'picked_up': 75,
+      'in_transit': 85,
       delivered: 95,
       completed: 100,
       cancelled: 0,

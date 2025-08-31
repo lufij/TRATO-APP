@@ -71,6 +71,8 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false); // Estado de refresco
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date()); // 🆕 Última actualización
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [tempQuantity, setTempQuantity] = useState<string>('');
 
   const categories = [
     'Comida',
@@ -152,6 +154,36 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
       } else {
         await updateCartItem(cartItem.id, newQuantity);
       }
+    }
+  };
+
+  const handleQuantityClick = (productId: string, currentQuantity: number) => {
+    setEditingQuantity(productId);
+    setTempQuantity(currentQuantity.toString());
+  };
+
+  const handleQuantityChange = (value: string) => {
+    const numValue = parseInt(value);
+    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 999)) {
+      setTempQuantity(value);
+    }
+  };
+
+  const handleQuantitySubmit = async (productId: string) => {
+    const quantity = parseInt(tempQuantity);
+    if (!isNaN(quantity) && quantity >= 0) {
+      await updateCartQuantity(productId, quantity);
+    }
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityKeyDown = async (e: React.KeyboardEvent, productId: string) => {
+    if (e.key === 'Enter') {
+      await handleQuantitySubmit(productId);
+    } else if (e.key === 'Escape') {
+      setEditingQuantity(null);
+      setTempQuantity('');
     }
   };
 
@@ -448,9 +480,24 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                                 >
                                   <Minus className="w-3 h-3" />
                                 </Button>
-                                <span className="px-4 font-semibold text-sm">
-                                  {getCartItemQuantity(product.id)}
-                                </span>
+                                {editingQuantity === product.id ? (
+                                  <Input
+                                    value={tempQuantity}
+                                    onChange={(e) => handleQuantityChange(e.target.value)}
+                                    onBlur={() => handleQuantitySubmit(product.id)}
+                                    onKeyDown={(e) => handleQuantityKeyDown(e, product.id)}
+                                    className="w-16 h-8 text-center text-sm font-semibold mx-2 p-1"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span 
+                                    className="px-4 font-semibold text-sm cursor-pointer hover:bg-gray-100 rounded min-w-[3rem] text-center"
+                                    onClick={() => handleQuantityClick(product.id, getCartItemQuantity(product.id))}
+                                    title="Haz clic para editar cantidad"
+                                  >
+                                    {getCartItemQuantity(product.id)}
+                                  </span>
+                                )}
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -691,9 +738,24 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                                 >
                                   <Minus className="w-3 h-3" />
                                 </Button>
-                                <span className="px-4 font-semibold">
-                                  {getCartItemQuantity(product.id)} en carrito
-                                </span>
+                                {editingQuantity === product.id ? (
+                                  <Input
+                                    value={tempQuantity}
+                                    onChange={(e) => handleQuantityChange(e.target.value)}
+                                    onBlur={() => handleQuantitySubmit(product.id)}
+                                    onKeyDown={(e) => handleQuantityKeyDown(e, product.id)}
+                                    className="w-20 h-8 text-center text-sm font-semibold mx-2 p-1"
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span 
+                                    className="px-4 font-semibold cursor-pointer hover:bg-gray-100 rounded min-w-[4rem] text-center"
+                                    onClick={() => handleQuantityClick(product.id, getCartItemQuantity(product.id))}
+                                    title="Haz clic para editar cantidad"
+                                  >
+                                    {getCartItemQuantity(product.id)} en carrito
+                                  </span>
+                                )}
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -823,7 +885,24 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                                       >
                                         <Minus className="w-3 h-3" />
                                       </Button>
-                                      <span className="px-2">{getCartItemQuantity(product.id)}</span>
+                                      {editingQuantity === product.id ? (
+                                        <Input
+                                          value={tempQuantity}
+                                          onChange={(e) => handleQuantityChange(e.target.value)}
+                                          onBlur={() => handleQuantitySubmit(product.id)}
+                                          onKeyDown={(e) => handleQuantityKeyDown(e, product.id)}
+                                          className="w-14 h-8 text-center text-sm font-medium p-1"
+                                          autoFocus
+                                        />
+                                      ) : (
+                                        <span 
+                                          className="px-2 cursor-pointer hover:bg-gray-100 rounded min-w-[2rem] text-center"
+                                          onClick={() => handleQuantityClick(product.id, getCartItemQuantity(product.id))}
+                                          title="Haz clic para editar cantidad"
+                                        >
+                                          {getCartItemQuantity(product.id)}
+                                        </span>
+                                      )}
                                       <Button
                                         size="sm"
                                         variant="outline"

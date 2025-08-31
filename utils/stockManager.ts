@@ -37,6 +37,13 @@ export interface OrderItem {
 
 /**
  * Actualiza el stock de productos cuando se confirma una orden
+ * 
+ * ⚠️ ESTRUCTURA DE DATOS IMPORTANTE:
+ * - Productos del día: Se almacenan en 'daily_products' table
+ * - Los order_items de productos del día usan: product_type='daily' + product_id apunta a daily_products
+ * - Los order_items NO usan daily_product_id (campo legacy/unused)
+ * - Productos regulares: Se almacenan en 'products' table con product_type='regular' o null
+ * 
  * @param orderItems - Items de la orden que afectan el inventario
  * @param orderId - ID de la orden para logging
  * @returns Resultado de la actualización
@@ -47,7 +54,16 @@ export async function updateProductStock(
 ): Promise<StockUpdateResult> {
   
   console.log('🔄 Iniciando actualización de stock para orden:', orderId);
-  console.log('📦 Items a procesar:', JSON.stringify(orderItems, null, 2));
+  console.log('📦 Items a procesar:', orderItems.length);
+  
+  // Mostrar cada item de forma legible
+  orderItems.forEach((item, index) => {
+    console.log(`   ${index + 1}. ${item.product_name}`);
+    console.log(`      - Cantidad: ${item.quantity}`);
+    console.log(`      - Tipo: ${item.product_type || 'regular'}`);
+    console.log(`      - Product ID: ${item.product_id}`);
+    console.log(`      - Daily Product ID: ${item.daily_product_id || 'N/A'}`);
+  });
 
   if (!orderItems || orderItems.length === 0) {
     console.log('⚠️ No hay items para procesar');
@@ -73,53 +89,114 @@ export async function updateProductStock(
 
       const isDaily = item.product_type === 'daily' || !!item.daily_product_id;
       const tableName = isDaily ? 'daily_products' : 'products';
-      const productId = isDaily && item.daily_product_id ? item.daily_product_id : item.product_id;
+      
+      let currentProduct = null;
+      let fetchError = null;
 
-      // 1. Obtener el stock actual del producto
-      let { data: currentProduct, error: fetchError } = await supabase
-        .from(tableName)
-        .select('id, name, stock_quantity, is_available')
-        .eq('id', productId)
-        .single();
+      // ESTRATEGIA MÚLTIPLE DE BÚSQUEDA - CORREGIDA PARA ESTRUCTURA REAL
+      
+      // OPCIÓN 1: Para productos del día, buscar por product_id en daily_products
+      // (La estructura real usa product_type='daily' + product_id apuntando a daily_products)
+      if (isDaily && item.product_id) {
+        console.log(`🔍 OPCIÓN 1: Buscando producto del día por product_id: ${item.product_id}`);
+        const { data: productByDailyId, error: dailyIdError } = await supabase
+          .from('daily_products')
+          .select('id, name, stock_quantity, is_available')
+          .eq('id', item.product_id)
+          .single();
 
-      // 🔧 NUEVO: Si no encuentra por ID y es producto del día, buscar por nombre (para manejar duplicados)
-      if ((fetchError || !currentProduct) && isDaily && item.product_name) {
-        console.log(`⚠️ No se encontró producto por ID ${productId}, buscando por nombre: ${item.product_name}`);
-        console.log(`❌ Error original:`, fetchError);
-        
-        const { data: productsByName, error: nameSearchError } = await supabase
-          .from(tableName)
-          .select('id, name, stock_quantity, is_available, expires_at, created_at')
-          .eq('name', item.product_name)
-          .gte('expires_at', new Date().toISOString()) // Solo no expirados
-          .order('created_at', { ascending: false }) // Más reciente primero
-          .limit(1);
-
-        console.log(`🔍 Búsqueda por nombre resultado:`, { productsByName, nameSearchError });
-
-        if (!nameSearchError && productsByName && productsByName.length > 0) {
-          currentProduct = productsByName[0];
-          console.log(`✅ Producto encontrado por nombre: ${currentProduct.id}`);
+        if (!dailyIdError && productByDailyId) {
+          currentProduct = productByDailyId;
+          console.log(`✅ ENCONTRADO por product_id en daily_products: ${currentProduct.name}`);
         } else {
-          console.log(`❌ No se encontró producto por nombre. Error:`, nameSearchError);
-          fetchError = nameSearchError;
+          console.log(`❌ No encontrado por product_id en daily_products:`, dailyIdError?.message);
         }
       }
 
-      if (fetchError || !currentProduct) {
-      console.log(`❌ Error obteniendo producto ${productId} de ${tableName}:`, fetchError);
+      // OPCIÓN 2: Buscar por daily_product_id si existe (legacy)
+      if (!currentProduct && isDaily && item.daily_product_id) {
+        console.log(`🔍 OPCIÓN 2: Buscando por daily_product_id (legacy): ${item.daily_product_id}`);
+        const { data: productByDailyId, error: dailyIdError } = await supabase
+          .from('daily_products')
+          .select('id, name, stock_quantity, is_available')
+          .eq('id', item.daily_product_id)
+          .single();
+
+        if (!dailyIdError && productByDailyId) {
+          currentProduct = productByDailyId;
+          console.log(`✅ ENCONTRADO por daily_product_id: ${currentProduct.name}`);
+        } else {
+          console.log(`❌ No encontrado por daily_product_id:`, dailyIdError?.message);
+        }
+      }
+
+      // OPCIÓN 3: Para productos regulares, buscar por product_id en products
+      if (!currentProduct && !isDaily && item.product_id) {
+        console.log(`🔍 OPCIÓN 3: Buscando producto regular por product_id: ${item.product_id}`);
+        const { data: productById, error: idError } = await supabase
+          .from('products')
+          .select('id, name, stock_quantity, is_available')
+          .eq('id', item.product_id)
+          .single();
+
+        if (!idError && productById) {
+          currentProduct = productById;
+          console.log(`✅ ENCONTRADO por product_id en products: ${currentProduct.name}`);
+        } else {
+          console.log(`❌ No encontrado por product_id en products:`, idError?.message);
+        }
+      }
+
+      // OPCIÓN 4: Buscar por nombre en daily_products (para productos del día)
+      if (!currentProduct && isDaily && item.product_name) {
+        console.log(`🔍 OPCIÓN 4: Buscando por nombre en daily_products: ${item.product_name}`);
+        const { data: productsByName, error: nameError } = await supabase
+          .from('daily_products')
+          .select('id, name, stock_quantity, is_available, expires_at')
+          .eq('name', item.product_name)
+          .gte('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!nameError && productsByName && productsByName.length > 0) {
+          currentProduct = productsByName[0];
+          console.log(`✅ ENCONTRADO por nombre: ${currentProduct.name}`);
+        } else {
+          console.log(`❌ No encontrado por nombre:`, nameError?.message);
+        }
+      }
+
+      // OPCIÓN 5: Buscar por nombre en products (para productos regulares)
+      if (!currentProduct && !isDaily && item.product_name) {
+        console.log(`🔍 OPCIÓN 5: Buscando por nombre en products: ${item.product_name}`);
+        const { data: productsByName, error: nameError } = await supabase
+          .from('products')
+          .select('id, name, stock_quantity, is_available')
+          .eq('name', item.product_name)
+          .limit(1);
+
+        if (!nameError && productsByName && productsByName.length > 0) {
+          currentProduct = productsByName[0];
+          console.log(`✅ ENCONTRADO por nombre: ${currentProduct.name}`);
+        } else {
+          console.log(`❌ No encontrado por nombre:`, nameError?.message);
+        }
+      }
+
+      // Si aún no se encuentra, error crítico
+      if (!currentProduct) {
+        console.log(`❌ PRODUCTO NO ENCONTRADO EN NINGUNA BÚSQUEDA`);
         console.log(`🔍 Detalles del item:`, {
           product_id: item.product_id,
           daily_product_id: item.daily_product_id,
           product_name: item.product_name,
           product_type: item.product_type,
           isDaily,
-          tableName,
-          productId
+          tableName
         });
         return {
           success: false,
-          message: `Error al obtener información del producto ${item.product_name || productId} (${isDaily ? 'producto del día' : 'producto regular'}). Error: ${fetchError?.message || 'No encontrado'}`
+          message: `Error al obtener información del producto ${item.product_name}. Producto no encontrado en ninguna tabla.`
         };
       }
 
@@ -137,7 +214,12 @@ export async function updateProductStock(
         };
       }
 
-      // 3. Actualizar el stock en la base de datos
+      // 3. Determinar la tabla correcta para la actualización
+      const updateTableName = isDaily ? 'daily_products' : 'products';
+      
+      console.log(`🔄 Actualizando en tabla: ${updateTableName}, ID: ${currentProduct.id}`);
+
+      // 4. Actualizar el stock en la base de datos
       const updateData: any = {
         stock_quantity: newStock,
         updated_at: new Date().toISOString()
@@ -149,9 +231,9 @@ export async function updateProductStock(
       }
 
       const { error: updateError } = await supabase
-        .from(tableName)
+        .from(updateTableName)
         .update(updateData)
-        .eq('id', currentProduct.id); // ✅ USAR EL ID DEL PRODUCTO ENCONTRADO
+        .eq('id', currentProduct.id);
 
       if (updateError) {
         console.error(`❌ Error actualizando stock para ${currentProduct.id}:`, updateError);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ImageModalProvider } from './contexts/ImageModalContext';
 import { CartProvider } from './contexts/CartContext';
@@ -30,6 +31,7 @@ import { AlertCircle, Database, Loader2, CheckCircle, Stethoscope, Download, Ref
 import { useServiceWorker } from './hooks/useServiceWorker';
 import { useSoundNotifications } from './hooks/useSoundNotifications';
 import { toast } from 'sonner';
+import { Header } from './components/layout/Header';
 import { Toaster } from './components/ui/sonner';
 
 type AppState = 'welcome' | 'role-selection' | 'register' | 'diagnostic' | 'orphaned-diagnostic' | 'setup';
@@ -845,10 +847,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ImageModalProvider>
-        {/* Estilos móviles críticos */}
-        <style>{`
+    <Router>
+      <AuthProvider>
+        <ImageModalProvider>
+          {/* Estilos móviles críticos */}
+          <style>{`
           /* ESTILOS MÓVILES CRÍTICOS PARA TRATO APP */
           input, textarea, select {
             background-color: #ffffff !important;
@@ -1184,9 +1187,11 @@ export default function App() {
         `}</style>
         <PWAMetaTags />
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div><p className="text-gray-600">Cargando…</p></div></div>}>
+          <Header />
           <AppContent />
         </Suspense>
       </ImageModalProvider>
     </AuthProvider>
+  </Router>
   );
 }

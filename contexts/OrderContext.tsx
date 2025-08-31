@@ -23,7 +23,7 @@ export interface Order {
   customer_notes?: string;
   phone_number: string;
   customer_name: string;
-  status: 'pending' | 'accepted' | 'ready' | 'assigned' | 'picked-up' | 'in-transit' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
+  status: 'pending' | 'accepted' | 'ready' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
   estimated_time: number;
   driver_id?: string;
   seller_rating?: number;

@@ -7,9 +7,9 @@ import { Button } from '../ui/button';
 const initialState = {
   name: '',
   description: '',
-  price: '',
+  price: '', // Campo vacío para mejor UX móvil
   image_url: '',
-  stock_quantity: 1,
+  stock_quantity: '', // Campo vacío para mejor UX móvil
 };
 
 interface Props {
@@ -39,11 +39,11 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
         seller_id: user.id,
         name: form.name,
         description: form.description,
-  price: parseFloat(form.price),
-  image_url: form.image_url,
-  stock_quantity: Number(form.stock_quantity),
-  expires_at: expires_at.toISOString(),
-  is_available: true,
+        price: parseFloat(form.price) || 0,
+        image_url: form.image_url,
+        stock_quantity: Number(form.stock_quantity) || 0,
+        expires_at: expires_at.toISOString(),
+        is_available: true,
       });
       if (error) throw error;
       setForm(initialState);
@@ -63,9 +63,9 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input name="name" value={form.name} onChange={handleChange} placeholder="Nombre del producto" required />
       <Input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" required />
-      <Input name="price" value={form.price} onChange={handleChange} placeholder="Precio" type="number" required />
+      <Input name="price" value={form.price} onChange={handleChange} placeholder="0.00" type="number" step="0.01" min="0" required />
       <Input name="image_url" value={form.image_url} onChange={handleChange} placeholder="URL de imagen" required />
-      <Input name="stock_quantity" value={form.stock_quantity} onChange={handleChange} placeholder="Cantidad" type="number" min={1} required />
+      <Input name="stock_quantity" value={form.stock_quantity} onChange={handleChange} placeholder="1" type="number" min="1" required />
       <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Crear producto del día'}</Button>
       {error && <div className="text-red-500">{error}</div>}
     </form>
