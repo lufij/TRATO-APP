@@ -2,20 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase/client';
 import { updateProductStock } from '../../utils/stockManager';
-import { C        // 🔥 CRITICAL: Actualizar stock cuando el vendedor acepta la orden
-        console.log('🔄 Orden aceptada, actualizando stock...');
-        console.log('📦 Order ID:', orderId);
-        
-        // Obtener los items de la orden
-        const { data: orderItems, error: itemsError } = await supabase
-          .from('order_items')
-          .select('product_id, daily_product_id, quantity, product_name, product_type')
-          .eq('order_id', orderId);
-
-        console.log('📋 Order Items Query Result:', { orderItems, itemsError });
-
-        if (itemsError) {
-          console.error('❌ Error obteniendo items de la orden:', itemsError);ntent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
