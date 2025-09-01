@@ -7,7 +7,6 @@ import { OrderTracking } from './OrderTracking';
 import { toast } from 'sonner';
 
 // Importar componentes refactorizados
-import { OrderFilters } from './orders/OrderFilters';
 import { OrderList } from './orders/OrderList';
 import { OrderStats } from './orders/OrderStats';
 
@@ -19,18 +18,12 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
   const { orders, loading, refreshOrders, deleteUnconfirmedOrder } = useOrder();
   const { user } = useAuth();
   
-  // Estados para filtros y búsqueda
+  // Estados para manejo de órdenes
   const [activeTab, setActiveTab] = useState('orders');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null);
-  
-  // Estados de filtros
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [deliveryTypeFilter, setDeliveryTypeFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -138,61 +131,12 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
     });
   };
 
-  // Función para filtrar por fecha
-  const filterByDate = (order: any) => {
-    if (dateFilter === 'all') return true;
-    
-    const orderDate = new Date(order.created_at);
-    const now = new Date();
-    
-    switch (dateFilter) {
-      case 'today':
-        return orderDate.toDateString() === now.toDateString();
-      case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return orderDate >= weekAgo;
-      case 'month':
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return orderDate >= monthAgo;
-      case '3months':
-        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        return orderDate >= threeMonthsAgo;
-      default:
-        return true;
-    }
-  };
-
-  // Filtrar órdenes
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      // Filtro de búsqueda
-      const matchesSearch = !searchQuery || 
-        order.seller_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.items?.some(item => 
-          item.product_name?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-      // Filtro de estado
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-
-      // Filtro de tipo de entrega
-      const matchesDeliveryType = deliveryTypeFilter === 'all' || 
-        order.delivery_type === deliveryTypeFilter;
-
-      // Filtro de fecha
-      const matchesDate = filterByDate(order);
-
-      return matchesSearch && matchesStatus && matchesDeliveryType && matchesDate;
-    });
-  }, [orders, searchQuery, statusFilter, deliveryTypeFilter, dateFilter]);
-
   // Separar órdenes activas y historial
-  const activeOrders = filteredOrders.filter(order => 
+  const activeOrders = orders.filter(order => 
     !['delivered', 'completed', 'cancelled', 'rejected'].includes(order.status)
   );
 
-  const historyOrders = filteredOrders.filter(order => 
+  const historyOrders = orders.filter(order => 
     ['delivered', 'completed', 'cancelled', 'rejected'].includes(order.status)
   );
 
@@ -257,23 +201,6 @@ export function BuyerOrders({ onViewOrder }: BuyerOrdersProps) {
 
   return (
     <div className="space-y-6">
-      {/* Filtros y búsqueda */}
-      <OrderFilters
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        deliveryTypeFilter={deliveryTypeFilter}
-        setDeliveryTypeFilter={setDeliveryTypeFilter}
-        dateFilter={dateFilter}
-        setDateFilter={setDateFilter}
-        onRefresh={handleRefresh}
-        isRefreshing={refreshing}
-        activeOrdersCount={activeOrders.length}
-        historyOrdersCount={historyOrders.length}
-        filteredCount={filteredOrders.length}
-      />
-
       {/* Tabs principales */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 lg:w-[400px] mx-auto bg-white border border-orange-200">

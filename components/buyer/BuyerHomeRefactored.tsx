@@ -25,6 +25,7 @@ import { FloatingCart } from '../ui/FloatingCart';
 
 // Importar nuevos componentes refactorizados
 import { SearchSection } from './home/SearchSection';
+import { FloatingSearch } from './home/FloatingSearch';
 import { ProductGrid } from './home/ProductGrid';
 import { DailyProductsSection } from './home/DailyProductsSection';
 
@@ -396,6 +397,17 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
           onShowCart();
         }
       }} />
+
+      {/* Búsqueda flotante */}
+      <FloatingSearch
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        categories={categories}
+        onSearch={handleSearch}
+        isLoading={loading.products || loading.dailyProducts || loading.businesses}
+      />
     </div>
   );
 }
