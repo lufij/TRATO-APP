@@ -396,6 +396,7 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
         price_per_unit: Number((item.product?.price || item.product_price || 0).toFixed(2)), 
         quantity: Number(item.quantity),
         total_price: Number(((item.product?.price || item.product_price || 0) * item.quantity).toFixed(2)),
+        product_type: item.product_type || 'regular', // ✅ CRÍTICO: Transferir product_type del carrito
         notes: null
       }));
 

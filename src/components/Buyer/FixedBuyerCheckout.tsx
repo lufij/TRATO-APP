@@ -120,6 +120,7 @@ export const FixedBuyerCheckout: React.FC<Props> = ({ onComplete }) => {
         price: parseFloat(item.product?.price || item.price || 0),
         unit_price: parseFloat(item.product?.price || item.price || 0),
         quantity: parseInt(item.quantity || 1),
+        product_type: item.product_type || 'regular', // ✅ CRÍTICO: Incluir product_type
         notes: ''
       }));
 

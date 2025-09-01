@@ -206,25 +206,45 @@ export function SellerOrderManagement() {
     setProcessingOrders(prev => new Set([...prev, orderId]));
 
     try {
-      // 1. Actualizar el estado de la orden
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: finalStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      let rpcResult;
+      
+      // Usar funciones específicas del vendedor
+      if (finalStatus === 'accepted') {
+        rpcResult = await supabase.rpc('seller_accept_order', {
+          p_order_id: orderId,
+          p_seller_id: user?.id
+        });
+      } else if (finalStatus === 'ready') {
+        rpcResult = await supabase.rpc('seller_mark_ready', {
+          p_order_id: orderId,
+          p_seller_id: user?.id
+        });
+      } else {
+        // Para otros estados, usar actualización directa
+        const { error } = await supabase
+          .from('orders')
+          .update({ 
+            status: finalStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', orderId);
+          
+        if (error) {
+          throw error;
+        }
+      }
 
-      if (error) {
-        console.error('Database error:', error);
-        toast.error('Error al actualizar el estado de la orden');
-        // Ensure we stop processing if the update fails
+      // Verificar resultado de las funciones RPC
+      if (rpcResult && (rpcResult.error || (rpcResult.data && rpcResult.data[0] && !rpcResult.data[0].success))) {
+        const errorMsg = rpcResult.error?.message || rpcResult.data[0]?.message || 'Error al actualizar el estado';
+        console.error('RPC error:', errorMsg);
+        toast.error(errorMsg);
         setProcessingOrders(prev => {
           const newSet = new Set(prev);
           newSet.delete(orderId);
           return newSet;
         });
-        return; 
+        return;
       }
 
       // 🔔 NOTIFICATION LOGIC: Send notification on acceptance
@@ -435,9 +455,9 @@ export function SellerOrderManagement() {
                 : 'bg-blue-50 border-blue-300'
           }`}>
             <div className="flex items-center gap-3">
-              {String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method ? (
+              {String((order as any).delivery_type || '').trim().toLowerCase() === 'delivery' || !(order as any).delivery_type ? (
                 <Truck className="w-8 h-8 text-blue-600" />
-              ) : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' ? (
+              ) : String((order as any).delivery_type || '').trim().toLowerCase() === 'pickup' ? (
                 <Package className="w-8 h-8 text-green-600" />
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -450,17 +470,17 @@ export function SellerOrderManagement() {
               )}
               <div>
                 <span className={`text-xl font-bold ${
-                  String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method
+                  String((order as any).delivery_type || '').trim().toLowerCase() === 'delivery' || !(order as any).delivery_type
                     ? 'text-blue-800' 
-                    : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' 
+                    : String((order as any).delivery_type || '').trim().toLowerCase() === 'pickup' 
                       ? 'text-green-800' 
                       : 'text-orange-800'
                 }`}>
-                  {String(order.delivery_method || '').trim().toLowerCase() === 'delivery' || !order.delivery_method ? 'SERVICIO A DOMICILIO' : 
-                   String(order.delivery_method || '').trim().toLowerCase() === 'pickup' ? 'RECOGER EN TIENDA' : 'COMER EN EL LUGAR'}
+                  {String((order as any).delivery_type || '').trim().toLowerCase() === 'delivery' || !(order as any).delivery_type ? 'SERVICIO A DOMICILIO' : 
+                   String((order as any).delivery_type || '').trim().toLowerCase() === 'pickup' ? 'RECOGER EN TIENDA' : 'COMER EN EL LUGAR'}
                 </span>
                 <p className="text-sm text-gray-600 mt-1">
-                  Método de entrega: {order.delivery_method || 'No especificado'}
+                  Método de entrega: {(order as any).delivery_type || 'No especificado'}
                 </p>
               </div>
             </div>
