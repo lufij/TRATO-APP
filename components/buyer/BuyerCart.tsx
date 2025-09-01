@@ -122,92 +122,103 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
 
   return (
     <>
-      <ScrollArea className="flex-1 px-4">
-        <div className="space-y-6 pb-24">
-          {/* Multiple sellers warning */}
+      <ScrollArea className="flex-1 mobile-scroll">
+        <div className="mobile-space-y pb-24">
+          {/* Multiple sellers warning - móvil optimizado */}
           {hasMultipleSellers && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 text-red-700">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">Solo un vendedor por pedido</span>
+            <Card className="mobile-card border-red-200 bg-red-50">
+              <CardContent className="mobile-card-content">
+                <div className="flex items-start gap-3 text-red-700">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <span className="mobile-text font-medium block mb-1">Solo un vendedor por pedido</span>
+                    <p className="mobile-text-small text-red-600">
+                      Actualmente tienes productos de {sellerIds.length} vendedores. 
+                      Debes ordenar de un solo vendedor a la vez.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-red-600 mt-1">
-                  Actualmente tienes productos de {sellerIds.length} vendedores. 
-                  Debes ordenar de un solo vendedor a la vez.
-                </p>
               </CardContent>
             </Card>
           )}
 
-          {/* Cart Items */}
-          <div className="space-y-4">
+          {/* Cart Items - móvil optimizado */}
+          <div className="mobile-space-y">
             {Object.entries(groupedBySeller).map(([sellerId, { seller, items }]) => (
-              <Card key={sellerId} className="border-orange-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Store className="w-4 h-4 text-orange-500" />
-                    {seller?.business_name || 'Vendedor'}
+              <Card key={sellerId} className="mobile-card border-orange-200">
+                <CardHeader className="mobile-card-header">
+                  <CardTitle className="mobile-heading-3 flex items-center gap-2">
+                    <Store className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                    <span className="truncate">{seller?.business_name || 'Vendedor'}</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="mobile-card-content space-y-3">
                   {items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <ImageWithFallback
-                        src={item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop'}
-                        alt={item.product?.name || 'Producto'}
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
+                    <div key={item.id} className="mobile-product-card border border-gray-200">
+                      <div className="flex gap-3 p-3">
+                        <ImageWithFallback
+                          src={item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop'}
+                          alt={item.product?.name || 'Producto'}
+                          className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-lg flex-shrink-0"
+                        />
                       
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{item.product?.name}</h4>
-                        <p className="text-green-600 font-semibold">Q{item.product?.price?.toFixed(2)}</p>
-                        <p className="text-xs text-gray-500">{item.product?.category}</p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </Button>
-                        {editingQuantity === item.id ? (
-                          <Input
-                            value={tempQuantity}
-                            onChange={(e) => handleQuantityChange(e.target.value)}
-                            onBlur={() => handleQuantitySubmit(item.product_id)}
-                            onKeyDown={(e) => handleQuantityKeyDown(e, item.product_id)}
-                            className="w-12 h-8 text-center text-sm font-medium p-1"
-                            autoFocus
-                          />
-                        ) : (
-                          <span 
-                            className="px-2 font-medium text-sm cursor-pointer hover:bg-gray-100 rounded min-w-[2rem] text-center"
-                            onClick={() => handleQuantityClick(item.id, item.quantity)}
-                            title="Haz clic para editar cantidad"
+                        <div className="flex-1 min-w-0">
+                          <h4 className="mobile-product-title mb-1">{item.product?.name}</h4>
+                          <p className="mobile-product-price">Q{item.product?.price?.toFixed(2)}</p>
+                          <p className="mobile-text-small text-gray-500">{item.product?.category}</p>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-2">
+                          {/* Controles de cantidad móviles */}
+                          <div className="mobile-quantity-controls">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}
+                              className="mobile-quantity-button"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            
+                            {editingQuantity === item.id ? (
+                              <Input
+                                value={tempQuantity}
+                                onChange={(e) => handleQuantityChange(e.target.value)}
+                                onBlur={() => handleQuantitySubmit(item.product_id)}
+                                onKeyDown={(e) => handleQuantityKeyDown(e, item.product_id)}
+                                className="mobile-quantity-display w-12 h-8 text-center"
+                                autoFocus
+                              />
+                            ) : (
+                              <span 
+                                className="mobile-quantity-display cursor-pointer hover:bg-gray-100"
+                                onClick={() => handleQuantityClick(item.id, item.quantity)}
+                                title="Toca para editar cantidad"
+                              >
+                                {item.quantity}
+                              </span>
+                            )}
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}
+                              className="mobile-quantity-button"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Botón eliminar */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => removeFromCart(item.id)}
+                            className="mobile-button-sm text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
-                            {item.quantity}
-                          </span>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => removeFromCart(item.id)}
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -216,28 +227,28 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
             ))}
           </div>
 
-          {/* Order Summary */}
+          {/* Order Summary - móvil optimizado */}
           {!hasMultipleSellers && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+            <Card className="mobile-card border-orange-200 bg-orange-50">
+              <CardHeader className="mobile-card-header">
+                <CardTitle className="mobile-heading-3 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
                   Resumen del pedido
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
+              <CardContent className="mobile-card-content space-y-3">
+                <div className="flex justify-between mobile-text">
                   <span>Subtotal ({getCartItemCount()} productos)</span>
-                  <span>Q{subtotal.toFixed(2)}</span>
+                  <span className="font-medium">Q{subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between mobile-text">
                   <span>Entrega</span>
-                  <span>Gratis</span>
+                  <span className="font-medium text-green-600">Gratis</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-semibold">
+                <div className="flex justify-between mobile-heading-3 text-orange-600">
                   <span>Total</span>
-                  <span className="text-green-600">Q{subtotal.toFixed(2)}</span>
+                  <span>Q{subtotal.toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -245,40 +256,43 @@ export function BuyerCart({ onClose, onProceedToCheckout }: BuyerCartProps) {
         </div>
       </ScrollArea>
 
-      {/* Fixed Bottom Actions */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 space-y-3">
-        {hasMultipleSellers ? (
-          <Button 
-            onClick={() => clearCart()} 
-            variant="outline" 
-            className="w-full border-red-200 text-red-600 hover:bg-red-50"
-          >
-            Limpiar carrito
-          </Button>
-        ) : (
-          <>
+      {/* Fixed Bottom Actions - móvil optimizado */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 mobile-safe-bottom"
+           style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        <div className="space-y-3">
+          {hasMultipleSellers ? (
             <Button 
-              onClick={onProceedToCheckout}
-              disabled={isSubmitting || cartItems.length === 0}
-              className="w-full bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 h-12"
+              onClick={() => clearCart()} 
+              variant="outline" 
+              className="mobile-button w-full border-red-200 text-red-600 hover:bg-red-50"
             >
-              {isSubmitting ? (
-                <>
-                  <Clock className="w-4 h-4 mr-2 animate-spin" />
-                  Procesando pedido...
-                </>
-              ) : (
-                <>
-                  Proceder al Checkout
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
+              Limpiar carrito
             </Button>
-            <p className="text-xs text-gray-500 text-center">
-              Revisa tu pedido antes de confirmar
-            </p>
-          </>
-        )}
+          ) : (
+            <>
+              <Button 
+                onClick={onProceedToCheckout}
+                disabled={isSubmitting || cartItems.length === 0}
+                className="mobile-button-lg w-full bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    Proceder al Checkout
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+              <p className="mobile-text-small text-gray-500 text-center">
+                Revisa tu pedido antes de confirmar
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Success Dialog */}

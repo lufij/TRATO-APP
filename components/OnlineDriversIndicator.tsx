@@ -102,36 +102,36 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
   }
 
   return (
-    <div className={`fixed top-20 right-4 z-50 ${className}`}>
-      <div className="flex flex-col gap-2">
+    <div className="fixed top-16 right-4 z-50">
+      <div className="flex flex-col gap-1">
         <Badge 
           variant="default" 
-          className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 shadow-lg flex items-center gap-2 text-sm font-medium cursor-pointer"
+          className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 shadow-md flex items-center gap-1.5 text-xs font-medium cursor-pointer transition-all duration-200 hover:scale-105"
           onClick={loadOnlineDriversCount} // Click para refrescar manualmente
         >
-          <div className="flex items-center gap-1">
-            <Truck className="w-4 h-4" />
-            <Users className="w-4 h-4" />
+          <div className="flex items-center gap-0.5">
+            <Truck className="w-3 h-3" />
+            <Users className="w-3 h-3" />
           </div>
-          <span>
-            {onlineCount} repartidor{onlineCount !== 1 ? 'es' : ''} en línea
+          <span className="text-xs leading-tight">
+            {onlineCount} en línea
           </span>
           {onlineCount > 0 && (
-            <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse ml-1" />
+            <div className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse ml-0.5" />
           )}
         </Badge>
         
-        {/* Debug info - solo en desarrollo */}
+        {/* Debug info - solo en desarrollo - MÁS PEQUEÑO */}
         {process.env.NODE_ENV === 'development' && (
           <Badge 
             variant="outline" 
-            className="text-xs text-gray-600 cursor-pointer"
+            className="text-xs text-gray-500 cursor-pointer px-1.5 py-0.5 h-5"
             onClick={() => {
               console.log('🔄 Refrescando conteo manualmente...');
               loadOnlineDriversCount();
             }}
           >
-            Click para refrescar
+            ↻
           </Badge>
         )}
       </div>

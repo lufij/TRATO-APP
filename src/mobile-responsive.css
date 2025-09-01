@@ -1,0 +1,645 @@
+/* TRATO APP - MOBILE-FIRST RESPONSIVE FRAMEWORK */
+/* Optimizado para dispositivos móviles */
+
+/* ========================================
+   1. VARIABLES CSS PARA CONSISTENCIA
+======================================== */
+:root {
+  /* Espaciado móvil optimizado */
+  --mobile-padding: 1rem;
+  --mobile-margin: 0.75rem;
+  --desktop-padding: 1.5rem;
+  --desktop-margin: 1rem;
+  
+  /* Typography móvil */
+  --mobile-text-sm: 0.8125rem;   /* 13px */
+  --mobile-text-base: 0.875rem;  /* 14px */
+  --mobile-text-lg: 1rem;        /* 16px */
+  --mobile-text-xl: 1.125rem;    /* 18px */
+  --mobile-text-2xl: 1.25rem;    /* 20px */
+  
+  /* Desktop typography */
+  --desktop-text-sm: 0.875rem;   /* 14px */
+  --desktop-text-base: 1rem;     /* 16px */
+  --desktop-text-lg: 1.125rem;   /* 18px */
+  --desktop-text-xl: 1.25rem;    /* 20px */
+  --desktop-text-2xl: 1.5rem;    /* 24px */
+  
+  /* Touch targets */
+  --min-touch-target: 44px;
+  --mobile-button-height: 44px;
+  --mobile-button-padding: 12px 16px;
+  
+  /* Layout */
+  --mobile-container-padding: 16px;
+  --mobile-card-padding: 12px;
+  --mobile-gap: 12px;
+}
+
+/* ========================================
+   2. RESET Y BASE MOBILE-FIRST
+======================================== */
+
+/* Asegurar que todo se vea bien en móvil primero */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-size: var(--mobile-text-base);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ========================================
+   3. LAYOUT CONTAINERS RESPONSIVE
+======================================== */
+
+/* Container principal móvil */
+.container {
+  padding-left: var(--mobile-container-padding) !important;
+  padding-right: var(--mobile-container-padding) !important;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-left: var(--desktop-padding) !important;
+    padding-right: var(--desktop-padding) !important;
+  }
+}
+
+/* ========================================
+   4. CARDS Y COMPONENTES MÓVILES
+======================================== */
+
+/* Cards optimizadas para móvil */
+.mobile-card {
+  padding: var(--mobile-card-padding) !important;
+  margin-bottom: var(--mobile-margin) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-card {
+    padding: var(--desktop-padding) !important;
+    margin-bottom: var(--desktop-margin) !important;
+  }
+}
+
+/* Card headers móviles */
+.mobile-card-header {
+  padding: 12px !important;
+  padding-bottom: 8px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-card-header {
+    padding: 16px !important;
+    padding-bottom: 12px !important;
+  }
+}
+
+/* Card content móvil */
+.mobile-card-content {
+  padding: 8px 12px 12px 12px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-card-content {
+    padding: 12px 16px 16px 16px !important;
+  }
+}
+
+/* ========================================
+   5. GRIDS RESPONSIVE MEJORADOS
+======================================== */
+
+/* Grid para stats/métricas - siempre 2 columnas en móvil */
+.mobile-stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: var(--mobile-gap) !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+}
+
+/* Grid para productos - 1 columna en móvil */
+.mobile-products-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: var(--mobile-gap) !important;
+}
+
+@media (min-width: 480px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* Grid para órdenes - stack en móvil */
+.mobile-orders-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: var(--mobile-gap) !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-orders-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1.5rem !important;
+  }
+}
+
+/* ========================================
+   6. TYPOGRAPHY MOBILE-FIRST
+======================================== */
+
+/* Headings responsive */
+.mobile-heading-1 {
+  font-size: var(--mobile-text-xl) !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-heading-1 {
+    font-size: var(--desktop-text-2xl) !important;
+    line-height: 1.25 !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+.mobile-heading-2 {
+  font-size: var(--mobile-text-lg) !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-heading-2 {
+    font-size: var(--desktop-text-xl) !important;
+    line-height: 1.3 !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+.mobile-heading-3 {
+  font-size: var(--mobile-text-base) !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-heading-3 {
+    font-size: var(--desktop-text-lg) !important;
+    line-height: 1.3 !important;
+    margin-bottom: 0.5rem !important;
+  }
+}
+
+/* Body text responsive */
+.mobile-text {
+  font-size: var(--mobile-text-sm) !important;
+  line-height: 1.5 !important;
+  color: #374151 !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-text {
+    font-size: var(--desktop-text-base) !important;
+    line-height: 1.6 !important;
+  }
+}
+
+.mobile-text-small {
+  font-size: 0.75rem !important; /* 12px */
+  line-height: 1.4 !important;
+  color: #6b7280 !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-text-small {
+    font-size: var(--desktop-text-sm) !important;
+    line-height: 1.5 !important;
+  }
+}
+
+/* ========================================
+   7. BOTONES TOUCH-FRIENDLY
+======================================== */
+
+/* Botones optimizados para touch */
+.mobile-button {
+  min-height: var(--min-touch-target) !important;
+  padding: var(--mobile-button-padding) !important;
+  font-size: var(--mobile-text-base) !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-button {
+    min-height: 40px !important;
+    padding: 8px 16px !important;
+    font-size: var(--desktop-text-base) !important;
+  }
+}
+
+/* Botón pequeño para móvil */
+.mobile-button-sm {
+  min-height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: var(--mobile-text-sm) !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+}
+
+/* Botón grande para acciones principales */
+.mobile-button-lg {
+  min-height: 48px !important;
+  padding: 14px 20px !important;
+  font-size: var(--mobile-text-lg) !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+}
+
+/* ========================================
+   8. NAVEGACIÓN MÓVIL
+======================================== */
+
+/* Header móvil optimizado */
+.mobile-header {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: white !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-header {
+    padding: 16px 24px !important;
+  }
+}
+
+/* Bottom navigation mejorada */
+.mobile-bottom-nav {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: white !important;
+  border-top: 2px solid #e5e7eb !important;
+  padding: 8px 12px 12px 12px !important;
+  z-index: 50 !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15) !important;
+  /* Padding bottom para dispositivos con home indicator */
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+}
+
+/* Botones de navegación bottom */
+.mobile-nav-button {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 8px 4px !important;
+  border-radius: 8px !important;
+  min-height: var(--min-touch-target) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  transition: all 0.2s ease !important;
+  touch-action: manipulation !important;
+}
+
+.mobile-nav-button.active {
+  background-color: #fef3c7 !important;
+  color: #f97316 !important;
+}
+
+.mobile-nav-button:not(.active) {
+  color: #6b7280 !important;
+}
+
+/* Iconos en navegación móvil */
+.mobile-nav-icon {
+  width: 20px !important;
+  height: 20px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ========================================
+   9. FORMULARIOS MÓVILES
+======================================== */
+
+/* Inputs touch-friendly */
+.mobile-input {
+  min-height: var(--min-touch-target) !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important; /* Evita zoom en iOS */
+  border-radius: 8px !important;
+  border: 2px solid #e5e7eb !important;
+  width: 100% !important;
+}
+
+.mobile-input:focus {
+  border-color: #f97316 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+}
+
+/* Labels móviles */
+.mobile-label {
+  font-size: var(--mobile-text-base) !important;
+  font-weight: 500 !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+  color: #374151 !important;
+}
+
+/* ========================================
+   10. MODALES Y OVERLAYS MÓVILES
+======================================== */
+
+/* Sliding panels móviles */
+.mobile-slide-panel {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+  background: white !important;
+  z-index: 50 !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.3s ease !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+@media (min-width: 640px) {
+  .mobile-slide-panel {
+    width: 400px !important;
+    max-width: 400px !important;
+  }
+}
+
+.mobile-slide-panel.open {
+  transform: translateX(0) !important;
+}
+
+/* Overlay para modales */
+.mobile-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  z-index: 40 !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.mobile-overlay.open {
+  opacity: 1 !important;
+}
+
+/* ========================================
+   11. UTILIDADES ESPECÍFICAS MÓVILES
+======================================== */
+
+/* Espaciado responsivo */
+.mobile-space-y {
+  > * + * {
+    margin-top: var(--mobile-margin) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-space-y {
+    > * + * {
+      margin-top: var(--desktop-margin) !important;
+    }
+  }
+}
+
+/* Padding de contenido principal con espacio para bottom nav */
+.mobile-main-content {
+  padding-bottom: 80px !important; /* Espacio para bottom nav */
+}
+
+@media (min-width: 768px) {
+  .mobile-main-content {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* Ocultar elementos en móvil */
+.hide-mobile {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .hide-mobile {
+    display: flex !important;
+  }
+}
+
+/* Mostrar solo en móvil */
+.show-mobile {
+  display: flex !important;
+}
+
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none !important;
+  }
+}
+
+/* ========================================
+   12. PERFORMANCE Y SCROLL MÓVIL
+======================================== */
+
+/* Scroll suave en móvil */
+.mobile-scroll {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+/* Optimización de imágenes móviles */
+.mobile-image {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover !important;
+  border-radius: 8px !important;
+}
+
+/* ========================================
+   13. ESTADOS DE LOADING MÓVILES
+======================================== */
+
+.mobile-loading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 2rem !important;
+  font-size: var(--mobile-text-base) !important;
+  color: #6b7280 !important;
+  gap: 0.5rem !important;
+}
+
+/* ========================================
+   14. FIXES ESPECÍFICOS PARA DASHBOARDS
+======================================== */
+
+/* Dashboard de comprador */
+.buyer-dashboard-fix {
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #fff7ed 0%, #f0fdf4 100%) !important;
+}
+
+/* Dashboard de vendedor */
+.seller-dashboard-fix {
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #fff7ed 0%, #f0fdf4 100%) !important;
+}
+
+/* Dashboard de repartidor */
+.driver-dashboard-fix {
+  min-height: 100vh !important;
+  background: linear-gradient(135deg, #fff7ed 0%, #f0fdf4 100%) !important;
+}
+
+/* Stats cards específicas */
+.stats-card-mobile {
+  background: white !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  text-align: center !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+@media (min-width: 768px) {
+  .stats-card-mobile {
+    padding: 16px !important;
+  }
+}
+
+/* ========================================
+   15. SAFE AREAS PARA DISPOSITIVOS CON NOTCH
+======================================== */
+
+/* Soporte para safe areas en iOS */
+.mobile-safe-top {
+  padding-top: env(safe-area-inset-top) !important;
+}
+
+.mobile-safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+.mobile-safe-left {
+  padding-left: env(safe-area-inset-left) !important;
+}
+
+.mobile-safe-right {
+  padding-right: env(safe-area-inset-right) !important;
+}
+
+/* ========================================
+   16. ANIMACIONES MÓVILES OPTIMIZADAS
+======================================== */
+
+/* Reducir animaciones en móviles con preferencia reducida */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Animaciones optimizadas para móvil */
+.mobile-transition {
+  transition: all 0.2s ease !important;
+}
+
+/* ========================================
+   17. DEBUG Y DESARROLLO
+======================================== */
+
+/* Helper para visualizar breakpoints en desarrollo */
+.debug-breakpoint::before {
+  content: "Mobile";
+  position: fixed;
+  top: 0;
+  right: 0;
+  background: red;
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  z-index: 9999;
+}
+
+@media (min-width: 480px) {
+  .debug-breakpoint::before {
+    content: "SM";
+    background: orange;
+  }
+}
+
+@media (min-width: 768px) {
+  .debug-breakpoint::before {
+    content: "MD";
+    background: green;
+  }
+}
+
+@media (min-width: 1024px) {
+  .debug-breakpoint::before {
+    content: "LG";
+    background: blue;
+  }
+}
+
+@media (min-width: 1280px) {
+  .debug-breakpoint::before {
+    content: "XL";
+    background: purple;
+  }
+}

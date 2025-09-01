@@ -1,0 +1,621 @@
+/* OPTIMIZACIONES MÓVILES ESPECÍFICAS PARA BUYERHOME */
+
+/* ========================================
+   1. FIXES ESPECÍFICOS PARA GRIDS DE PRODUCTOS
+======================================== */
+
+/* Grid de productos - móvil first */
+.buyer-home-products-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+
+@media (min-width: 480px) {
+  .buyer-home-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .buyer-home-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .buyer-home-products-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .buyer-home-products-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* ========================================
+   2. CARDS DE PRODUCTOS MÓVILES
+======================================== */
+
+.mobile-product-card {
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden !important;
+  transition: all 0.2s ease !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.mobile-product-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.mobile-product-card-image {
+  width: 100% !important;
+  height: 160px !important;
+  object-fit: cover !important;
+  background-color: #f3f4f6 !important;
+}
+
+@media (min-width: 480px) {
+  .mobile-product-card-image {
+    height: 180px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-product-card-image {
+    height: 200px !important;
+  }
+}
+
+.mobile-product-card-content {
+  padding: 12px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-product-card-content {
+    padding: 16px !important;
+  }
+}
+
+.mobile-product-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  color: #1f2937 !important;
+  margin-bottom: 4px !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-height: 36px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-product-title {
+    font-size: 16px !important;
+    min-height: 42px !important;
+  }
+}
+
+.mobile-product-price {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #f97316 !important;
+  margin-bottom: 8px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-product-price {
+    font-size: 18px !important;
+    margin-bottom: 12px !important;
+  }
+}
+
+.mobile-product-business {
+  font-size: 12px !important;
+  color: #6b7280 !important;
+  margin-bottom: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.mobile-product-stock {
+  font-size: 11px !important;
+  color: #6b7280 !important;
+  margin-bottom: 12px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-product-stock {
+    font-size: 12px !important;
+  }
+}
+
+/* ========================================
+   3. BOTONES DE CANTIDAD MÓVILES
+======================================== */
+
+.mobile-quantity-controls {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.mobile-quantity-button {
+  min-height: 36px !important;
+  min-width: 36px !important;
+  padding: 8px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  touch-action: manipulation !important;
+}
+
+.mobile-quantity-display {
+  min-width: 40px !important;
+  text-align: center !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  background: #f3f4f6 !important;
+  border-radius: 6px !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.mobile-add-to-cart-button {
+  flex: 1 !important;
+  min-height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  background: #f97316 !important;
+  color: white !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-add-to-cart-button {
+    font-size: 14px !important;
+    padding: 10px 16px !important;
+  }
+}
+
+/* ========================================
+   4. SEARCH Y FILTROS MÓVILES
+======================================== */
+
+.mobile-search-section {
+  background: white !important;
+  padding: 16px !important;
+  border-radius: 12px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mobile-search-input {
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important; /* Evita zoom en iOS */
+  border-radius: 8px !important;
+  border: 2px solid #e5e7eb !important;
+  background: white !important;
+}
+
+.mobile-search-input:focus {
+  border-color: #f97316 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+}
+
+.mobile-filters-row {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin-top: 12px !important;
+}
+
+@media (min-width: 640px) {
+  .mobile-filters-row {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+}
+
+.mobile-category-select {
+  flex: 1 !important;
+  min-height: 44px !important;
+}
+
+.mobile-view-toggle {
+  display: flex !important;
+  gap: 4px !important;
+  background: #f3f4f6 !important;
+  padding: 4px !important;
+  border-radius: 8px !important;
+  flex-shrink: 0 !important;
+}
+
+.mobile-view-button {
+  min-height: 36px !important;
+  min-width: 36px !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #6b7280 !important;
+  transition: all 0.2s ease !important;
+}
+
+.mobile-view-button.active {
+  background: #f97316 !important;
+  color: white !important;
+}
+
+/* ========================================
+   5. TABS MÓVILES OPTIMIZADAS
+======================================== */
+
+.mobile-home-tabs {
+  background: white !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mobile-home-tabs-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  background: #f3f4f6 !important;
+  margin: 0 !important;
+  padding: 4px !important;
+  gap: 0 !important;
+  border-radius: 0 !important;
+  height: auto !important;
+}
+
+.mobile-home-tab-trigger {
+  min-height: 44px !important;
+  padding: 12px 16px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  font-size: 14px !important;
+}
+
+.mobile-home-tab-trigger[data-state="active"] {
+  background: white !important;
+  color: #f97316 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ========================================
+   6. SCROLL HORIZONTAL MÓVIL
+======================================== */
+
+.mobile-horizontal-scroll {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.mobile-horizontal-scroll::-webkit-scrollbar {
+  display: none !important;
+}
+
+.mobile-horizontal-cards {
+  display: flex !important;
+  gap: 12px !important;
+  padding: 0 16px 16px 16px !important;
+  min-width: max-content !important;
+}
+
+.mobile-horizontal-card {
+  flex: 0 0 280px !important;
+  max-width: 280px !important;
+}
+
+@media (min-width: 480px) {
+  .mobile-horizontal-card {
+    flex: 0 0 320px !important;
+    max-width: 320px !important;
+  }
+}
+
+/* ========================================
+   7. LOADING STATES MÓVILES
+======================================== */
+
+.mobile-loading-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+}
+
+@media (min-width: 480px) {
+  .mobile-loading-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-loading-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-loading-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+.mobile-loading-card {
+  background: white !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+.mobile-loading-image {
+  width: 100% !important;
+  height: 160px !important;
+  background: #e5e7eb !important;
+  border-radius: 8px !important;
+  margin-bottom: 12px !important;
+}
+
+.mobile-loading-text {
+  height: 16px !important;
+  background: #e5e7eb !important;
+  border-radius: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.mobile-loading-text-short {
+  height: 14px !important;
+  background: #e5e7eb !important;
+  border-radius: 4px !important;
+  width: 60% !important;
+}
+
+/* ========================================
+   8. ESTADOS DE ERROR Y VACÍO MÓVILES
+======================================== */
+
+.mobile-empty-state {
+  text-align: center !important;
+  padding: 32px 16px !important;
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.mobile-empty-icon {
+  width: 48px !important;
+  height: 48px !important;
+  color: #d1d5db !important;
+  margin: 0 auto 16px auto !important;
+}
+
+.mobile-empty-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  margin-bottom: 8px !important;
+}
+
+.mobile-empty-description {
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  line-height: 1.5 !important;
+}
+
+/* ========================================
+   9. BUSINESSES SECTION MÓVIL
+======================================== */
+
+.mobile-business-card {
+  background: white !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e5e7eb !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.mobile-business-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.mobile-business-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.mobile-business-avatar {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 8px !important;
+  background: #f3f4f6 !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.mobile-business-info {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.mobile-business-name {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #1f2937 !important;
+  margin-bottom: 4px !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 1 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+.mobile-business-category {
+  font-size: 12px !important;
+  color: #6b7280 !important;
+  margin-bottom: 4px !important;
+}
+
+.mobile-business-rating {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 12px !important;
+  color: #6b7280 !important;
+}
+
+.mobile-business-stats {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+.mobile-business-stat {
+  text-align: center !important;
+  padding: 8px !important;
+  background: #f9fafb !important;
+  border-radius: 6px !important;
+}
+
+.mobile-business-stat-number {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #f97316 !important;
+  display: block !important;
+}
+
+.mobile-business-stat-label {
+  font-size: 10px !important;
+  color: #6b7280 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* ========================================
+   10. RESPONSIVE UTILITIES
+======================================== */
+
+/* Utilidades para ocultar elementos en móvil */
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Utilidades para mostrar solo en móvil */
+@media (min-width: 768px) {
+  .show-on-mobile {
+    display: none !important;
+  }
+}
+
+/* Contenedor con padding seguro para móvil */
+.mobile-container {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  max-width: 100% !important;
+}
+
+@media (min-width: 640px) {
+  .mobile-container {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-container {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+
+/* ========================================
+   11. FLOATING ACTION BUTTON MÓVIL
+======================================== */
+
+.mobile-floating-cart {
+  position: fixed !important;
+  bottom: 80px !important; /* Espacio para bottom nav */
+  right: 16px !important;
+  z-index: 40 !important;
+  background: #f97316 !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 56px !important;
+  height: 56px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4) !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+@media (min-width: 768px) {
+  .mobile-floating-cart {
+    bottom: 16px !important;
+  }
+}
+
+.mobile-floating-cart:hover {
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.5) !important;
+}
+
+.mobile-floating-cart-badge {
+  position: absolute !important;
+  top: -4px !important;
+  right: -4px !important;
+  background: #dc2626 !important;
+  color: white !important;
+  border-radius: 50% !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  border: 2px solid white !important;
+}

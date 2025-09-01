@@ -31,7 +31,6 @@ import { AlertCircle, Database, Loader2, CheckCircle, Stethoscope, Download, Ref
 import { useServiceWorker } from './hooks/useServiceWorker';
 import { useSoundNotifications } from './hooks/useSoundNotifications';
 import { toast } from 'sonner';
-import { Header } from './components/layout/Header';
 import { Toaster } from './components/ui/sonner';
 
 type AppState = 'welcome' | 'role-selection' | 'register' | 'diagnostic' | 'orphaned-diagnostic' | 'setup';
@@ -1187,7 +1186,6 @@ export default function App() {
         `}</style>
         <PWAMetaTags />
         <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-green-50"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div><p className="text-gray-600">Cargando…</p></div></div>}>
-          <Header />
           <AppContent />
         </Suspense>
       </ImageModalProvider>

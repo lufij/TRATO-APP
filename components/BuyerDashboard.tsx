@@ -127,169 +127,262 @@ export function BuyerDashboard() {
   // Main dashboard view
   return (
     <OrderProvider>
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
-        {/* Fixed Header */}
-        <header className="bg-white shadow-lg border-b border-orange-100 sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
+      <div className="buyer-dashboard-fix mobile-main-content">
+        {/* Mobile-Optimized Header */}
+        <header className="mobile-header bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 mb-2">
+          <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
-              {/* Logo y Saludo */}
-              <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-r from-orange-500 to-green-500 p-3 rounded-xl shadow-lg">
-                  <Store className="w-7 h-7 text-white" />
+              {/* Logo y Saludo - Responsivo */}
+              <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+                <div className="bg-gradient-to-r from-orange-500 to-green-500 p-1.5 md:p-2 rounded-lg flex-shrink-0">
+                  <Store className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent">
+                <div className="min-w-0 flex-1">
+                  <h1 className="mobile-heading-2 bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent mb-0">
                     TRATO
                   </h1>
-                  <p className="text-sm text-gray-600">¡Hola, {user?.name}! 👋</p>
+                  <p className="mobile-text-small truncate">
+                    ¡Hola, {user?.email?.split('@')[0] || 'Usuario'}!
+                  </p>
                 </div>
               </div>
-              
-              {/* Actions */}
-              <div className="flex items-center space-x-3">
-                {/* User Status */}
-                <CurrentUserStatus />
-                
-                {/* Notifications */}
+
+              {/* Header Actions - Touch Friendly */}
+              <div className="flex items-center space-x-1 md:space-x-3 flex-shrink-0">
+                {/* Notifications - Móvil optimizado */}
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative bg-white hover:bg-orange-50 border-orange-200"
+                  className="mobile-button-sm relative bg-white hover:bg-orange-50 border-orange-200 p-2 md:px-3"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Bell className="w-4 h-4 md:mr-1" />
+                  <span className="hidden md:inline">Alertas</span>
                   {notificationCount > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs bg-red-500">
-                      {notificationCount}
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white border-2 border-white">
+                      {notificationCount > 9 ? '9+' : notificationCount}
                     </Badge>
                   )}
                 </Button>
 
-                {/* Cart */}
+                {/* Cart - Móvil optimizado */}
                 <Button 
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowCart(!showCart)}
-                  className="relative bg-white hover:bg-orange-50 border-orange-200"
+                  className="mobile-button-sm relative bg-white hover:bg-orange-50 border-orange-200 p-2 md:px-3"
                 >
-                  <ShoppingCart className="w-4 h-4 mr-2" />
-                  Carrito
+                  <ShoppingCart className="w-4 h-4 md:mr-1" />
+                  <span className="hidden md:inline">Carrito</span>
                   {getCartItemCount() > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs bg-orange-500">
-                      {getCartItemCount()}
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-orange-500 text-white border-2 border-white">
+                      {getCartItemCount() > 9 ? '9+' : getCartItemCount()}
                     </Badge>
                   )}
                 </Button>
                 
-                {/* Profile Menu */}
+                {/* Profile Menu - Mejorado para móvil */}
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={signOut} 
-                  className="text-gray-600 hover:text-gray-800"
+                  className="mobile-button-sm text-gray-600 hover:text-gray-800 p-2"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Salir
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden md:inline ml-1">Salir</span>
                 </Button>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Sliding Cart Panel */}
+        {/* Mobile-Optimized Sliding Cart Panel */}
         {showCart && (
-          <div className="fixed inset-0 z-50 overflow-hidden">
-            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowCart(false)} />
-            <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  Mi Carrito
-                </h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowCart(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
+          <>
+            <div className="mobile-overlay open" onClick={() => setShowCart(false)} />
+            <div className="mobile-slide-panel open">
+              <div className="mobile-header border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="mobile-heading-2 flex items-center gap-2 mb-0">
+                    <ShoppingCart className="w-5 h-5" />
+                    Mi Carrito
+                  </h2>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowCart(false)}
+                    className="mobile-button-sm p-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="h-full overflow-hidden">
+              <div className="flex-1 overflow-y-auto mobile-scroll">
                 <BuyerCart 
                   onClose={() => setShowCart(false)}
                   onProceedToCheckout={handleProceedToCheckout}
                 />
               </div>
             </div>
-          </div>
+          </>
         )}
 
-                {/* Sliding Notifications Panel */}
+        {/* Mobile-Optimized Sliding Notifications Panel */}
         {showNotifications && (
-          <div className="fixed inset-0 z-50 overflow-hidden">
-            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowNotifications(false)} />
-            <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl">
-              <div className="h-full overflow-hidden p-6">
+          <>
+            <div className="mobile-overlay open" onClick={() => setShowNotifications(false)} />
+            <div className="mobile-slide-panel open">
+              <div className="mobile-header border-b">
+                <div className="flex items-center justify-between">
+                  <h2 className="mobile-heading-2 flex items-center gap-2 mb-0">
+                    <Bell className="w-5 h-5" />
+                    Notificaciones
+                  </h2>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setShowNotifications(false)}
+                    className="mobile-button-sm p-2"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto mobile-scroll p-4">
                 <NotificationManager 
                   onClose={() => setShowNotifications(false)}
                 />
               </div>
             </div>
-          </div>
+          </>
         )}
 
-        {/* Main Content */}
-        <div className="container mx-auto px-4 py-6">
-          <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
-            {/* Navigation Tabs */}
-            <TabsList className="grid w-full grid-cols-3 lg:w-96 mx-auto bg-white border border-orange-200 shadow-lg">
-              <TabsTrigger 
-                value="home" 
-                className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
-              >
-                <Home className="w-4 h-4 mr-2" />
-                Inicio
-              </TabsTrigger>
-              <TabsTrigger 
-                value="orders" 
-                className="data-[state=active]:bg-orange-100 data-[state=active]:text-orange-700 font-medium"
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                Pedidos
-              </TabsTrigger>
-              <TabsTrigger 
-                value="profile" 
-                className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700 font-medium"
-              >
-                <User className="w-4 h-4 mr-2" />
-                Perfil
-              </TabsTrigger>
-            </TabsList>
+        {/* Main Content with bottom padding for mobile nav - SAME AS SELLERS */}
+        <div className="main-content container mx-auto px-4 py-4 md:py-6" style={{
+          paddingBottom: window.innerWidth <= 768 ? '80px' : '24px'
+        }}>
+          {/* Mobile Navigation - IDENTICAL TO SELLERS */}
+          <div className="block md:hidden">
+            <div className="mobile-bottom-nav" style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: 'white',
+              borderTop: '2px solid #e5e7eb',
+              padding: '12px',
+              zIndex: 50,
+              boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }}>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'home', label: 'Inicio', icon: Home },
+                  { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
+                  { id: 'profile', label: 'Perfil', icon: User }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setCurrentTab(item.id)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px',
+                        padding: '8px',
+                        borderRadius: '8px',
+                        minHeight: '60px',
+                        fontSize: '10px',
+                        fontWeight: '500',
+                        backgroundColor: isActive ? '#fef3c7' : 'transparent',
+                        color: isActive ? '#f97316' : '#6b7280',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span style={{ fontSize: '10px', fontWeight: '500', lineHeight: '1.2' }}>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-            {/* Tab Contents */}
-            <TabsContent value="home" className="space-y-6">
+          {/* Desktop Navigation */}
+          <div className="hidden md:block">
+            <Tabs value={currentTab} onValueChange={setCurrentTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3 lg:w-2/3 mx-auto bg-white border border-gray-200">
+                {[
+                  { id: 'home', label: 'Inicio', icon: Home },
+                  { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
+                  { id: 'profile', label: 'Perfil', icon: User }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <TabsTrigger 
+                      key={item.id} 
+                      value={item.id}
+                      className="flex flex-col items-center gap-1 p-4 data-[state=active]:bg-green-100 data-[state=active]:text-green-700 relative"
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-xs font-medium">{item.label}</span>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+
+              {/* Desktop Content */}
+              <TabsContent value="home" className="space-y-6">
+                <BuyerHome 
+                  onBusinessClick={handleBusinessClick} 
+                  onShowCart={() => setShowCart(true)}
+                />
+              </TabsContent>
+
+              <TabsContent value="orders" className="space-y-6">
+                <BuyerOrders onViewOrder={handleViewOrder} />
+              </TabsContent>
+
+              <TabsContent value="profile" className="space-y-6">
+                <BuyerProfile onShowCart={() => setShowCart(true)} />
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Mobile Content - SAME STRUCTURE AS SELLERS */}
+          <div className="block md:hidden">
+            {currentTab === 'home' && (
               <BuyerHome 
                 onBusinessClick={handleBusinessClick} 
                 onShowCart={() => setShowCart(true)}
               />
-            </TabsContent>
+            )}
 
-            <TabsContent value="orders" className="space-y-6">
+            {currentTab === 'orders' && (
               <BuyerOrders onViewOrder={handleViewOrder} />
-            </TabsContent>
+            )}
 
-            <TabsContent value="profile" className="space-y-6">
+            {currentTab === 'profile' && (
               <BuyerProfile onShowCart={() => setShowCart(true)} />
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         </div>
 
-        {/* Success Toast for Orders */}
-  {currentView === ('order-tracking' as ViewState) && (
-          <div className="fixed top-4 right-4 z-50">
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                  <div>
-                    <p className="font-medium text-green-800">¡Orden creada exitosamente!</p>
-                    <p className="text-sm text-green-600">Puedes seguir el estado de tu pedido aquí</p>
+        {/* Mobile-Optimized Success Toast for Orders */}
+        {currentView === ('order-tracking' as ViewState) && (
+          <div className="fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-auto z-50">
+            <Card className="mobile-card border-green-200 bg-green-50">
+              <CardContent className="mobile-card-content">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="mobile-text font-medium text-green-800 mb-1">¡Orden creada exitosamente!</p>
+                    <p className="mobile-text-small text-green-600">Puedes seguir el estado de tu pedido aquí</p>
                   </div>
                 </div>
               </CardContent>

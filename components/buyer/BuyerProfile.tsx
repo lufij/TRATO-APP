@@ -58,7 +58,7 @@ interface BuyerProfileProps {
 
 export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
   const { user, updateProfile } = useAuth();
-  const { getCartItemCount, addToCart, items } = useCart(); // Agregar items para debug
+  const { getCartItemCount } = useCart();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,48 +72,6 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
     total_spent: 0,
     average_rating: 0
   });
-
-  // Función de prueba para agregar producto directamente
-  const addTestProductDirect = async () => {
-    if (!user) {
-      alert('❌ No hay usuario logueado');
-      return;
-    }
-
-    try {
-      console.log('🧪 Agregando producto directamente a cart_items...');
-      
-      // Insertar directamente en la tabla cart_items
-      const { data, error } = await supabase
-        .from('cart_items')
-        .insert({
-          user_id: user.id,
-          product_id: 'test-product-' + Date.now(),
-          product_type: 'regular',
-          quantity: 1,
-          product_name: 'Producto de Prueba',
-          product_price: 10.00,
-          seller_id: 'test-seller'
-        })
-        .select();
-
-      if (error) {
-        console.error('❌ Error insertando:', error);
-        alert('❌ Error: ' + error.message);
-        return;
-      }
-
-      console.log('✅ Producto insertado:', data);
-      alert('✅ Producto agregado directamente. Refrescando carrito...');
-      
-      // Forzar actualización del carrito
-      window.location.reload();
-      
-    } catch (error) {
-      console.error('💥 Error completo:', error);
-      alert('❌ Error: ' + error);
-    }
-  };
 
   useEffect(() => {
     if (user) {
@@ -183,7 +141,7 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
     });
   };
 
-  // 🚀 FUNCIÓN PARA SUBIR AVATAR
+  // 🚀 FUNCIÓN MEJORADA PARA SUBIR AVATAR
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
@@ -193,28 +151,40 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
       setError('');
       setSuccess('');
 
-      console.log('🚀 SUBIENDO AVATAR:', file.name);
+      // Validaciones mejoradas
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
 
-      // Validación básica
-      if (!file.type.startsWith('image/')) {
-        setError('Solo se permiten imágenes');
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        setError('Solo se permiten imágenes JPG, PNG o WebP');
         return;
       }
 
-      // Redimensionar a 400x400 para avatars
-      const resizedBlob = await resizeImage(file, 400, 400, 0.9);
+      if (file.size > maxSize) {
+        setError('La imagen debe ser menor a 5MB');
+        return;
+      }
+
+      // Redimensionar imagen a 400x400 manteniendo proporción
+      const resizedBlob = await resizeImage(file, 400, 400, 0.85);
+      if (!resizedBlob) {
+        setError('Error al procesar la imagen');
+        return;
+      }
+
       const fileName = `${user.id}/avatar-${Date.now()}.jpg`;
 
-      console.log('📤 Subiendo a user-avatars...');
-
-      // Subir archivo
+      // Subir archivo a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('user-avatars')
-        .upload(fileName, resizedBlob, { upsert: true });
+        .upload(fileName, resizedBlob, { 
+          upsert: true,
+          contentType: 'image/jpeg'
+        });
 
       if (uploadError) {
-        console.error('❌ Error upload:', uploadError);
-        setError(`Error subiendo: ${uploadError.message}`);
+        console.error('Upload error:', uploadError);
+        setError(`Error subiendo imagen: ${uploadError.message}`);
         return;
       }
 
@@ -222,8 +192,6 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
       const { data: urlData } = supabase.storage
         .from('user-avatars')
         .getPublicUrl(fileName);
-
-      console.log('🔗 URL generada:', urlData.publicUrl);
 
       // Actualizar en base de datos
       const { error: updateError } = await supabase
@@ -235,23 +203,26 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
         .eq('id', user.id);
 
       if (updateError) {
-        console.error('❌ Error BD:', updateError);
-        setError(`Error guardando: ${updateError.message}`);
+        setError(`Error guardando en base de datos: ${updateError.message}`);
         return;
       }
 
-      console.log('✅ AVATAR GUARDADO EXITOSAMENTE');
-      
-      // Actualizar estado local
+      // Actualizar estado local y contexto
       setProfile(prev => prev ? { ...prev, avatar_url: urlData.publicUrl } : null);
-      setSuccess('✅ Foto de perfil actualizada correctamente');
+      await updateProfile({ avatar_url: urlData.publicUrl });
       
+      setSuccess('✅ Foto de perfil actualizada correctamente');
       setTimeout(() => setSuccess(''), 3000);
+      
     } catch (error: any) {
-      console.error('💥 ERROR COMPLETO:', error);
-      setError(`Error: ${error.message}`);
+      console.error('Avatar upload error:', error);
+      setError(`Error: ${error.message || 'Error desconocido'}`);
     } finally {
       setUploadingAvatar(false);
+      // Reset input para permitir subir la misma imagen de nuevo
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = '';
+      }
     }
   };
 
@@ -259,60 +230,71 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
     if (!user) return;
 
     try {
-      // Intento 1: esquemas con total_amount
-      let orders: any[] | null = null;
-      let error: any = null;
-      {
-        const res = await supabase
-          .from('orders')
-          .select('total_amount, status, seller_rating')
-          .eq('buyer_id', user.id);
-        orders = res.data as any[] | null;
-        error = res.error;
+      // Cargar estadísticas de órdenes del usuario
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('total, status, seller_rating, created_at, delivery_type')
+        .eq('buyer_id', user.id);
+
+      if (error) {
+        console.error('Error loading orders:', error);
+        return;
       }
 
-      // Si falla por columna inexistente, reintenta con total
-      if (error && (error.code === '42703' || /column .* does not exist/i.test(error.message))) {
-        const res2 = await supabase
-          .from('orders')
-          .select('total, status, seller_rating')
-          .eq('buyer_id', user.id);
-        orders = res2.data as any[] | null;
-        error = res2.error;
+      if (!orders || orders.length === 0) {
+        setOrderStats({
+          total_orders: 0,
+          completed_orders: 0,
+          total_spent: 0,
+          average_rating: 0
+        });
+        return;
       }
 
-      if (error) throw error;
-
-      const stats = orders?.reduce((acc, order) => {
+      // Calcular estadísticas reales
+      const stats = orders.reduce((acc, order) => {
         acc.total_orders++;
+        
+        const orderTotal = Number(order.total) || 0;
+        
         if (order.status === 'completed') {
           acc.completed_orders++;
-          const amount = (order.total_amount ?? order.total ?? 0) as number;
-          acc.total_spent += Number(amount) || 0;
+          acc.total_spent += orderTotal;
         }
-        if (order.seller_rating) {
-          acc.ratings.push(order.seller_rating);
+        
+        if (order.seller_rating && order.seller_rating > 0) {
+          acc.ratings.push(Number(order.seller_rating));
         }
+        
         return acc;
       }, {
         total_orders: 0,
         completed_orders: 0,
         total_spent: 0,
         ratings: [] as number[]
-      }) || { total_orders: 0, completed_orders: 0, total_spent: 0, ratings: [] };
+      });
 
+      // Calcular promedio de calificación
       const average_rating = stats.ratings.length > 0 
-        ? stats.ratings.reduce((a: number, b: number) => a + b, 0) / stats.ratings.length 
+        ? stats.ratings.reduce((sum, rating) => sum + rating, 0) / stats.ratings.length 
         : 0;
 
       setOrderStats({
         total_orders: stats.total_orders,
         completed_orders: stats.completed_orders,
         total_spent: stats.total_spent,
-        average_rating
+        average_rating: Math.round(average_rating * 10) / 10 // Redondear a 1 decimal
       });
+
     } catch (error) {
       console.error('Error loading order stats:', error);
+      // Establecer estadísticas por defecto en caso de error
+      setOrderStats({
+        total_orders: 0,
+        completed_orders: 0,
+        total_spent: 0,
+        average_rating: 0
+      });
     }
   };
 
@@ -375,27 +357,27 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-0">
       {/* Mostrar mensajes de éxito/error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
+          <p className="break-words">{error}</p>
         </div>
       )}
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          {success}
+          <p className="break-words">{success}</p>
         </div>
       )}
 
       {/* Profile Header */}
       <Card className="border-orange-200 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-6">
-            <div className="relative">
-              <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="relative flex-shrink-0">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-white shadow-lg">
                 <AvatarImage src={profile.avatar_url} className="object-cover" />
-                <AvatarFallback className="text-2xl bg-gradient-to-r from-orange-500 to-green-500 text-white">
+                <AvatarFallback className="text-xl sm:text-2xl bg-gradient-to-r from-orange-500 to-green-500 text-white">
                   {profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -437,39 +419,52 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
                 </Button>
               </div>
               
-              <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                <div className="flex items-center gap-1">
-                  <Mail className="w-4 h-4" />
-                  {profile.email}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-sm text-gray-600 mb-3 space-y-2 sm:space-y-0">
+                <div className="flex items-center gap-1 break-all">
+                  <Mail className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{profile.email}</span>
                 </div>
                 {profile.phone && (
                   <div className="flex items-center gap-1">
-                    <Phone className="w-4 h-4" />
-                    {profile.phone}
+                    <Phone className="w-4 h-4 flex-shrink-0" />
+                    <span>{profile.phone}</span>
                   </div>
                 )}
-                <Badge variant="outline" className="border-green-200 text-green-700">
+                <Badge variant="outline" className="border-green-200 text-green-700 w-fit">
                   <Shield className="w-3 h-3 mr-1" />
                   Comprador verificado
                 </Badge>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">{orderStats.total_orders}</div>
-                  <div className="text-xs text-gray-500">Pedidos realizados</div>
+              {/* Stats mejoradas - Mobile Responsive */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-100">
+                  <div className="text-xl sm:text-2xl font-bold text-orange-600">{orderStats.total_orders}</div>
+                  <div className="text-xs text-gray-600">Pedidos totales</div>
+                  {orderStats.completed_orders > 0 && (
+                    <div className="text-xs text-green-600 mt-1">
+                      {orderStats.completed_orders} completados
+                    </div>
+                  )}
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">Q{orderStats.total_spent.toFixed(0)}</div>
-                  <div className="text-xs text-gray-500">Total gastado</div>
+                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-100">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">Q{orderStats.total_spent.toFixed(0)}</div>
+                  <div className="text-xs text-gray-600">Total gastado</div>
+                  {orderStats.total_orders > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Promedio: Q{(orderStats.total_spent / orderStats.completed_orders || 0).toFixed(0)}
+                    </div>
+                  )}
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600 flex items-center justify-center gap-1">
-                    {orderStats.average_rating.toFixed(1)}
+                <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                  <div className="text-xl sm:text-2xl font-bold text-yellow-600 flex items-center justify-center gap-1">
+                    {orderStats.average_rating > 0 ? orderStats.average_rating.toFixed(1) : '0.0'}
                     <Star className="w-4 h-4 fill-current" />
                   </div>
-                  <div className="text-xs text-gray-500">Calificación promedio</div>
+                  <div className="text-xs text-gray-600">Tu calificación</div>
+                  {orderStats.average_rating === 0 && orderStats.total_orders > 0 && (
+                    <div className="text-xs text-gray-500 mt-1">Sin calificar aún</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -477,7 +472,7 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Personal Information */}
         <Card className="border-blue-200">
           <CardHeader>
@@ -569,63 +564,111 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="w-5 h-5 text-green-500" />
-              Mi Ubicación
+              Gestión de Direcciones
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Botón GPS */}
-              <button 
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
-                onClick={() => {
-                  if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                      (position) => {
-                        alert(`📍 Ubicación obtenida: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`);
-                      },
-                      (error) => {
-                        alert('Error al obtener ubicación. Verifica que el GPS esté activado.');
-                      }
-                    );
-                  } else {
-                    alert('GPS no disponible en este dispositivo');
-                  }
-                }}
-              >
-                <MapPin className="w-5 h-5" />
-                📍 Confirmar Ubicación GPS
-              </button>
-
-              {/* Espacio para dirección */}
+              {/* Dirección principal */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tu Dirección de Entrega
-                </label>
-                <textarea
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                <Label htmlFor="preferred_delivery_address">Dirección principal de entrega</Label>
+                <Textarea
+                  id="preferred_delivery_address"
+                  className="mt-1"
                   rows={3}
-                  placeholder="Escribe tu dirección completa aquí..."
-                  value={profile?.preferred_delivery_address || ''}
-                  onChange={(e) => {
-                    if (profile) {
-                      setProfile({
-                        ...profile,
-                        preferred_delivery_address: e.target.value
-                      });
-                    }
-                  }}
+                  placeholder="Ingresa tu dirección completa (calle, número, colonia, referencias)"
+                  value={profile.preferred_delivery_address || ''}
+                  onChange={(e) => setProfile({ ...profile, preferred_delivery_address: e.target.value })}
                   disabled={!isEditing}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Incluye referencias importantes (edificio, color de casa, puntos de referencia)
+                </p>
               </div>
 
-              {/* Botón guardar ubicación */}
-              <button 
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
-                onClick={handleSaveProfile}
-                disabled={loading || !profile?.preferred_delivery_address?.trim()}
+              {/* Botón de GPS mejorado */}
+              <Button 
+                variant="outline" 
+                className="w-full h-auto py-3"
+                onClick={() => {
+                  if (!navigator.geolocation) {
+                    setError('GPS no disponible en este dispositivo');
+                    return;
+                  }
+
+                  setLoading(true);
+                  setError('');
+                  
+                  if (!user) {
+                    setError('Usuario no disponible');
+                    setLoading(false);
+                    return;
+                  }
+                  
+                  navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                      try {
+                        const { latitude, longitude } = position.coords;
+                        
+                        // Actualizar coordenadas en base de datos
+                        const { error } = await supabase
+                          .from('users')
+                          .update({
+                            latitude: latitude,
+                            longitude: longitude,
+                            updated_at: new Date().toISOString()
+                          })
+                          .eq('id', user.id);
+
+                        if (error) throw error;
+
+                        setSuccess(`✅ Ubicación GPS actualizada: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                        setTimeout(() => setSuccess(''), 5000);
+                      } catch (error) {
+                        setError('Error al guardar ubicación GPS');
+                      } finally {
+                        setLoading(false);
+                      }
+                    },
+                    (error) => {
+                      setLoading(false);
+                      switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                          setError('Permiso de ubicación denegado. Activa el GPS en configuración.');
+                          break;
+                        case error.POSITION_UNAVAILABLE:
+                          setError('Información de ubicación no disponible.');
+                          break;
+                        case error.TIMEOUT:
+                          setError('Tiempo de espera agotado para obtener ubicación.');
+                          break;
+                        default:
+                          setError('Error desconocido al obtener ubicación.');
+                          break;
+                      }
+                    },
+                    {
+                      enableHighAccuracy: true,
+                      timeout: 10000,
+                      maximumAge: 60000
+                    }
+                  );
+                }}
+                disabled={loading}
               >
-                {loading ? 'Guardando...' : 'Guardar Ubicación'}
-              </button>
+                <div className="flex items-center justify-center gap-2">
+                  <MapPin className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-center leading-tight">
+                    {loading ? 'Obteniendo ubicación...' : 'Actualizar ubicación GPS'}
+                  </span>
+                </div>
+              </Button>
+
+              <div className="text-center">
+                <p className="text-xs text-gray-500 break-words">
+                  La ubicación GPS nos ayuda a mostrar vendedores cercanos y calcular costos de entrega
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -641,53 +684,59 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
                 <Label htmlFor="order_updates" className="text-base">Actualizaciones de pedidos</Label>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 break-words">
                   Recibe notificaciones sobre el estado de tus pedidos
                 </p>
               </div>
-              <Switch
-                id="order_updates"
-                checked={profile.notification_preferences.order_updates}
-                onCheckedChange={(checked: boolean) => updateNotificationPreference('order_updates', checked)}
-                disabled={!isEditing}
-              />
+              <div className="flex-shrink-0">
+                <Switch
+                  id="order_updates"
+                  checked={profile.notification_preferences.order_updates}
+                  onCheckedChange={(checked: boolean) => updateNotificationPreference('order_updates', checked)}
+                  disabled={!isEditing}
+                />
+              </div>
             </div>
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
                 <Label htmlFor="promotions" className="text-base">Promociones y ofertas</Label>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 break-words">
                   Recibe ofertas especiales y promociones
                 </p>
               </div>
-              <Switch
-                id="promotions"
-                checked={profile.notification_preferences.promotions}
-                onCheckedChange={(checked: boolean) => updateNotificationPreference('promotions', checked)}
-                disabled={!isEditing}
-              />
+              <div className="flex-shrink-0">
+                <Switch
+                  id="promotions"
+                  checked={profile.notification_preferences.promotions}
+                  onCheckedChange={(checked: boolean) => updateNotificationPreference('promotions', checked)}
+                  disabled={!isEditing}
+                />
+              </div>
             </div>
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
                 <Label htmlFor="new_products" className="text-base">Nuevos productos</Label>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 break-words">
                   Notificaciones cuando hay nuevos productos disponibles
                 </p>
               </div>
-              <Switch
-                id="new_products"
-                checked={profile.notification_preferences.new_products}
-                onCheckedChange={(checked: boolean) => updateNotificationPreference('new_products', checked)}
-                disabled={!isEditing}
-              />
+              <div className="flex-shrink-0">
+                <Switch
+                  id="new_products"
+                  checked={profile.notification_preferences.new_products}
+                  onCheckedChange={(checked: boolean) => updateNotificationPreference('new_products', checked)}
+                  disabled={!isEditing}
+                />
+              </div>
             </div>
           </div>
 
@@ -713,129 +762,53 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="h-16 flex flex-col gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Button variant="outline" className="h-16 flex flex-col gap-2 text-center">
               <Heart className="w-5 h-5 text-red-500" />
-              <span className="text-sm">Productos favoritos</span>
+              <span className="text-sm leading-tight">Productos favoritos</span>
             </Button>
 
-            <Button variant="outline" className="h-16 flex flex-col gap-2">
+            <Button variant="outline" className="h-16 flex flex-col gap-2 text-center">
               <ShoppingBag className="w-5 h-5 text-blue-500" />
-              <span className="text-sm">Historial de compras</span>
+              <span className="text-sm leading-tight">Historial de compras</span>
             </Button>
 
-            <Button variant="outline" className="h-16 flex flex-col gap-2">
+            <Button variant="outline" className="h-16 flex flex-col gap-2 text-center">
               <CreditCard className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Métodos de pago</span>
+              <span className="text-sm leading-tight">Métodos de pago</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Account Security */}
-      <Card className="border-red-200">
+      <Card className="border-yellow-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-red-500" />
+            <Lock className="w-5 h-5 text-yellow-500" />
             Seguridad de la Cuenta
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
-            <div>
-              <h4 className="font-medium text-red-800">Cambiar contraseña</h4>
-              <p className="text-sm text-red-600">
-                Actualiza tu contraseña regularmente para mayor seguridad
-              </p>
+          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-start gap-3">
+              <Shield className="w-8 h-8 text-yellow-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-yellow-800">Cuenta protegida</h4>
+                <p className="text-sm text-yellow-700 break-words">
+                  Tu cuenta está protegida por autenticación segura de Supabase
+                </p>
+              </div>
             </div>
-            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
-              Cambiar
-            </Button>
           </div>
-
-          <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-            <div>
-              <h4 className="font-medium text-yellow-800">Verificación en dos pasos</h4>
-              <p className="text-sm text-yellow-600">
-                Añade una capa extra de seguridad a tu cuenta
-              </p>
-            </div>
-            <Button variant="outline" className="border-yellow-200 text-yellow-700 hover:bg-yellow-50">
-              Configurar
-            </Button>
+          
+          <div className="text-center text-sm text-gray-500">
+            <p className="break-words">
+              Para cambios de seguridad como contraseña, contacta al soporte técnico
+            </p>
           </div>
         </CardContent>
       </Card>
-      
-      {/* Botón de prueba temporal para el carrito */}
-      <Card className="border-blue-200">
-        <CardHeader>
-          <CardTitle className="text-center text-blue-600">🛒 Prueba del Carrito Flotante</CardTitle>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <p className="text-gray-600">
-            🛒 Carrito actual: <strong>{getCartItemCount()} productos</strong>
-          </p>
-          <p className="text-xs text-gray-500">
-            Items en memoria: {items?.length || 0} | Usuario: {user?.email || 'No logueado'}
-          </p>
-          <p className="text-sm text-blue-600">
-            {getCartItemCount() > 0 ? '✅ El carrito flotante debería estar visible' : '⚠️ Agrega productos para ver el carrito flotante'}
-          </p>
-          <div className="flex gap-2 justify-center flex-wrap">
-            <Button 
-              onClick={async () => {
-                try {
-                  console.log('🧪 Intentando agregar producto de prueba...');
-                  console.log('🧪 Estado del carrito antes:', getCartItemCount());
-                  
-                  // Agregar un producto de prueba
-                  const result = await addToCart('test-product-1', 1, 'regular');
-                  console.log('🧪 Resultado addToCart:', result);
-                  console.log('🧪 Estado del carrito después:', getCartItemCount());
-                  
-                  if (result?.success) {
-                    alert('✅ Producto agregado exitosamente. Carrito: ' + getCartItemCount() + ' productos');
-                  } else {
-                    alert('❌ Error: ' + (result?.message || 'Error desconocido'));
-                  }
-                } catch (error) {
-                  console.error('💥 Error completo:', error);
-                  alert('❌ Error al agregar producto: ' + error);
-                }
-              }}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              ➕ Prueba con RPC
-            </Button>
-            
-            <Button 
-              onClick={addTestProductDirect}
-              className="bg-blue-500 hover:bg-blue-600"
-            >
-              🔧 Insertar Directo
-            </Button>
-            
-            <Button 
-              onClick={() => {
-                if (onShowCart) {
-                  onShowCart();
-                } else {
-                  alert(`🛒 Tienes ${getCartItemCount()} productos. El carrito flotante está funcional.`);
-                }
-              }}
-              variant="outline"
-              className="border-blue-200"
-            >
-              🛒 Abrir Carrito
-            </Button>
-          </div>
-          <p className="text-xs text-gray-500">
-            Este botón es temporal para probar la funcionalidad
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Floating Cart */}
       <FloatingCart 
         onCartClick={onShowCart || (() => {
@@ -843,13 +816,6 @@ export function BuyerProfile({ onShowCart }: BuyerProfileProps) {
           alert(`Tienes ${getCartItemCount()} productos en tu carrito. Funcionalidad de carrito implementada.`);
         })} 
       />
-      
-      {/* Debug indicator para el carrito flotante */}
-      {getCartItemCount() > 0 && (
-        <div className="fixed bottom-20 right-4 z-40 bg-green-500 text-white px-2 py-1 rounded text-xs">
-          Debug: {getCartItemCount()} en carrito
-        </div>
-      )}
     </div>
   );
 }
