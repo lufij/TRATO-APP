@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRATO - Sin Conexión</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .offline-container {
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .offline-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        p {
+            font-size: 1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+        
+        .retry-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .retry-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .status-info {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        .connection-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .connection-indicator.online {
+            background: #10b981;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .tips {
+            margin-top: 30px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .tips h3 {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .tips ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .tips li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+            font-size: 0.9rem;
+        }
+        
+        .tips li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+        
+        @media (max-width: 480px) {
+            .offline-container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .offline-icon {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="logo">TRATO</div>
+        <div class="offline-icon">📡</div>
+        
+        <h1>Sin Conexión a Internet</h1>
+        <p>No se puede conectar con los servicios de TRATO. Verifica tu conexión a internet e intenta de nuevo.</p>
+        
+        <button class="retry-btn" onclick="retryConnection()">🔄 Reintentar</button>
+        <a href="/" class="retry-btn">🏠 Ir al Inicio</a>
+        
+        <div class="status-info">
+            <span class="connection-indicator" id="connectionStatus"></span>
+            <span id="statusText">Verificando conexión...</span>
+        </div>
+        
+        <div class="tips">
+            <h3>💡 Consejos:</h3>
+            <ul>
+                <li>Verifica que tu WiFi o datos móviles estén activos</li>
+                <li>Intenta moverte a una zona con mejor señal</li>
+                <li>Reinicia tu router si usas WiFi</li>
+                <li>La app funcionará automáticamente cuando vuelva la conexión</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Verificar estado de conexión
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            
+            if (navigator.onLine) {
+                indicator.classList.add('online');
+                statusText.textContent = 'Conexión detectada - Intenta recargar';
+            } else {
+                indicator.classList.remove('online');
+                statusText.textContent = 'Sin conexión a internet';
+            }
+        }
+        
+        // Intentar reconectar
+        function retryConnection() {
+            statusText.textContent = 'Intentando reconectar...';
+            
+            // Intentar fetch a la app
+            fetch('/', { method: 'HEAD', cache: 'no-cache' })
+                .then(() => {
+                    // Si funciona, recargar la página
+                    window.location.reload();
+                })
+                .catch(() => {
+                    // Si falla, mostrar mensaje
+                    statusText.textContent = 'Aún sin conexión - Intenta de nuevo';
+                    setTimeout(() => updateConnectionStatus(), 2000);
+                });
+        }
+        
+        // Escuchar cambios de conexión
+        window.addEventListener('online', () => {
+            updateConnectionStatus();
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        });
+        
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Verificar estado inicial
+        updateConnectionStatus();
+        
+        // Auto-retry cada 30 segundos
+        setInterval(() => {
+            if (navigator.onLine) {
+                retryConnection();
+            }
+        }, 30000);
+        
+        // Registrar Service Worker si está disponible
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(() => {
+                console.log('Service Worker listo para notificaciones offline');
+            });
+        }
+    </script>
+</body>
+</html>

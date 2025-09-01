@@ -27,7 +27,7 @@ interface AuthContextType {
     vehicleType?: string;
     licenseNumber?: string;
   }) => Promise<{ success: boolean; error?: string }>;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (emailOrPhone: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   createMissingProfile: (userData: {
@@ -483,7 +483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (emailOrPhone: string, password: string) => {
     // Verificar configuración de Supabase
     if (!supabaseEnvDiagnostics.hasEnv) {
       return { 
@@ -499,10 +499,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const p = (async () => {
       try {
         setLoading(true);
+        
+        // Detectar si es un teléfono (8 dígitos) o email
+        let loginEmail = emailOrPhone;
+        
+        // Si son exactamente 8 dígitos, convertir a formato email
+        if (/^\d{8}$/.test(emailOrPhone.trim())) {
+          loginEmail = `+502${emailOrPhone.trim()}@trato.app`;
+          console.log('Login con teléfono detectado, convirtiendo a:', loginEmail);
+          pushAuthLog(`Login con teléfono: ${emailOrPhone} → ${loginEmail}`);
+        } else if (emailOrPhone.includes('@')) {
+          // Es un email normal
+          loginEmail = emailOrPhone.trim();
+          console.log('Login con email detectado:', loginEmail);
+          pushAuthLog(`Login con email: ${loginEmail}`);
+        } else {
+          // Formato no válido
+          return { 
+            success: false, 
+            error: 'Ingresa un email válido o un número de teléfono de 8 dígitos' 
+          };
+        }
+
         const { data: { user: signedInUser }, error: signInError } = 
-          await supabase.auth.signInWithPassword({ email, password });
+          await supabase.auth.signInWithPassword({ 
+            email: loginEmail, 
+            password 
+          });
 
         if (signInError) {
+          // Si falló el login con email generado, mostrar mensaje más claro
+          if (loginEmail.includes('@trato.app')) {
+            return { 
+              success: false, 
+              error: 'Número de teléfono o contraseña incorrectos' 
+            };
+          }
           return { success: false, error: signInError.message };
         }
 
@@ -510,6 +542,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: 'Error al iniciar sesión' };
         }
 
+        pushAuthLog('Inicio de sesión exitoso');
         return { success: true };
       } finally {
         setLoading(false);

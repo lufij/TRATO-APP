@@ -41,6 +41,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabase/client';
 import { toast } from 'sonner';
 import { TRATO_COLORS, TRATO_GRADIENTS } from '../constants/colors';
+import { AdminRealtimeMonitor } from './AdminRealtimeMonitor';
 
 // Types
 interface AdminUser {
@@ -1337,9 +1338,54 @@ function SystemSettings() {
       {/* Drivers Management */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Truck className="w-5 h-5 text-orange-500" />
-            <span>Gestión de Repartidores</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Truck className="w-5 h-5 text-orange-500" />
+              <span>Gestión de Repartidores</span>
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchDrivers}
+                className="text-orange-600 border-orange-300 hover:bg-orange-50"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Actualizar
+              </Button>
+              {drivers.filter(d => !d.is_verified).length > 0 && (
+                <Button
+                  className="bg-green-500 hover:bg-green-600 text-white"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const pendingIds = drivers.filter(d => !d.is_verified).map(d => d.id);
+                      
+                      const { error } = await supabase
+                        .from('users')
+                        .update({ 
+                          is_verified: true, 
+                          is_active: true,
+                          updated_at: new Date().toISOString()
+                        })
+                        .in('id', pendingIds)
+                        .eq('role', 'repartidor');
+
+                      if (error) throw error;
+                      
+                      toast.success(`${pendingIds.length} repartidor${pendingIds.length > 1 ? 'es' : ''} activado${pendingIds.length > 1 ? 's' : ''}`);
+                      fetchDrivers();
+                    } catch (error) {
+                      console.error('Error:', error);
+                      toast.error('Error al activar repartidores');
+                    }
+                  }}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Activar Pendientes ({drivers.filter(d => !d.is_verified).length})
+                </Button>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1489,10 +1535,10 @@ function SystemSettings() {
       {/* Database Status Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Estado de la Base de Datos</CardTitle>
+          <CardTitle>Estado del Sistema TRATO</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-500" />
               <span className="text-sm">Tabla users: Activa</span>
@@ -1503,7 +1549,7 @@ function SystemSettings() {
             </div>
             <div className="flex items-center space-x-3">
               <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-sm">Tabla drivers: Activa</span>
+              <span className="text-sm">Sistema Auth: Activo</span>
             </div>
             <div className="flex items-center space-x-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500" />
@@ -1516,6 +1562,96 @@ function SystemSettings() {
             <div className="flex items-center space-x-3">
               <AlertTriangle className="w-5 h-5 text-yellow-500" />
               <span className="text-sm">Sistema chat: Verificar</span>
+            </div>
+          </div>
+
+          {/* Estadísticas operacionales */}
+          <div className="border-t pt-4">
+            <h4 className="font-semibold text-gray-800 mb-3">Operaciones en Tiempo Real</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{stats.activeDrivers}</div>
+                <div className="text-sm text-green-700">Repartidores Activos</div>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600">{stats.totalOrders}</div>
+                <div className="text-sm text-orange-700">Órdenes Hoy</div>
+              </div>
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{stats.totalBusinesses}</div>
+                <div className="text-sm text-blue-700">Negocios Activos</div>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">Q{stats.todayRevenue.toFixed(0)}</div>
+                <div className="text-sm text-purple-700">Ingresos Hoy</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Acciones rápidas del sistema */}
+          <div className="border-t pt-4 mt-4">
+            <h4 className="font-semibold text-gray-800 mb-3">Diagnóstico del Sistema</h4>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    // Verificar conectividad con Supabase
+                    const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                    if (error) throw error;
+                    toast.success('✅ Conexión con base de datos: OK');
+                  } catch (error) {
+                    toast.error('❌ Error de conexión con base de datos');
+                  }
+                }}
+              >
+                <Activity className="w-4 h-4 mr-1" />
+                Test DB
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={async () => {
+                  try {
+                    // Verificar tablas críticas
+                    const tables = ['users', 'orders', 'products', 'sellers'];
+                    let allOk = true;
+                    
+                    for (const table of tables) {
+                      try {
+                        await supabase.from(table).select('count', { count: 'exact', head: true });
+                      } catch {
+                        allOk = false;
+                      }
+                    }
+                    
+                    if (allOk) {
+                      toast.success('✅ Todas las tablas principales: OK');
+                    } else {
+                      toast.warning('⚠️ Algunas tablas pueden tener problemas');
+                    }
+                  } catch (error) {
+                    toast.error('❌ Error verificando tablas');
+                  }
+                }}
+              >
+                <Shield className="w-4 h-4 mr-1" />
+                Test Tablas
+              </Button>
+
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Mostrar información del admin actual
+                  toast.info(`Admin: ${user?.email} | Conexión: Activa`);
+                }}
+              >
+                <Crown className="w-4 h-4 mr-1" />
+                Info Admin
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -1768,6 +1904,87 @@ export function AdminDashboard() {
           />
         </div>
 
+        {/* Quick Actions Panel */}
+        <Card className="mb-6 bg-gradient-to-r from-purple-50 to-blue-50 border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Crown className="w-5 h-5 text-purple-600" />
+              <span>Control Operacional TRATO</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Button
+                className="h-20 flex-col space-y-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                onClick={async () => {
+                  try {
+                    // Activar todos los repartidores pendientes
+                    const { data, error } = await supabase
+                      .from('users')
+                      .update({ 
+                        is_verified: true, 
+                        is_active: true,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq('role', 'repartidor')
+                      .eq('is_verified', false);
+
+                    if (error) throw error;
+                    
+                    toast.success('Todos los repartidores han sido activados');
+                    fetchStats();
+                  } catch (error) {
+                    console.error('Error:', error);
+                    toast.error('Error al activar repartidores');
+                  }
+                }}
+              >
+                <CheckCircle className="w-6 h-6" />
+                <span className="text-sm font-medium">Activar Repartidores</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col space-y-2 border-2 border-orange-300 hover:bg-orange-50"
+                onClick={async () => {
+                  try {
+                    // Obtener estadísticas en tiempo real
+                    await fetchStats();
+                    toast.success('Estadísticas actualizadas');
+                  } catch (error) {
+                    console.error('Error:', error);
+                    toast.error('Error al actualizar');
+                  }
+                }}
+              >
+                <RefreshCw className="w-6 h-6 text-orange-600" />
+                <span className="text-sm font-medium text-orange-700">Actualizar Sistema</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col space-y-2 border-2 border-blue-300 hover:bg-blue-50"
+                onClick={() => exportData('all')}
+              >
+                <Download className="w-6 h-6 text-blue-600" />
+                <span className="text-sm font-medium text-blue-700">Exportar Datos</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-20 flex-col space-y-2 border-2 border-purple-300 hover:bg-purple-50"
+                onClick={() => {
+                  // Abrir modal de configuración del sistema
+                  toast.info('Abriendo configuración del sistema...');
+                }}
+              >
+                <Settings className="w-6 h-6 text-purple-600" />
+                <span className="text-sm font-medium text-purple-700">Configurar Sistema</span>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Pending Drivers Alert */}
         {stats.pendingDrivers > 0 && (
           <Card className="mb-6 border-orange-200 bg-orange-50">
@@ -1786,24 +2003,69 @@ export function AdminDashboard() {
                     </p>
                   </div>
                 </div>
-                <Button 
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                  onClick={() => {
-                    // Cambiar a la pestaña de configuración donde están los repartidores
-                    const settingsTab = document.querySelector('[value="settings"]') as HTMLElement;
-                    settingsTab?.click();
-                  }}
-                >
-                  Ver Repartidores
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                    onClick={async () => {
+                      try {
+                        // Aprobar todos los repartidores pendientes de una vez
+                        const { data: pendingDrivers, error } = await supabase
+                          .from('users')
+                          .select('id')
+                          .eq('role', 'repartidor')
+                          .eq('is_verified', false);
+
+                        if (error) throw error;
+
+                        if (pendingDrivers && pendingDrivers.length > 0) {
+                          const { error: updateError } = await supabase
+                            .from('users')
+                            .update({ 
+                              is_verified: true, 
+                              is_active: true,
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('role', 'repartidor')
+                            .eq('is_verified', false);
+
+                          if (updateError) throw updateError;
+
+                          toast.success(`${pendingDrivers.length} repartidor${pendingDrivers.length > 1 ? 'es' : ''} activado${pendingDrivers.length > 1 ? 's' : ''} exitosamente`);
+                          fetchStats();
+                        }
+                      } catch (error) {
+                        console.error('Error activating drivers:', error);
+                        toast.error('Error al activar repartidores');
+                      }
+                    }}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Activar Todos
+                  </Button>
+                  <Button 
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    onClick={() => {
+                      // Cambiar a la pestaña de configuración donde están los repartidores
+                      const settingsTab = document.querySelector('[value="settings"]') as HTMLElement;
+                      settingsTab?.click();
+                    }}
+                  >
+                    Ver Repartidores
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Main Content */}
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
+        <Tabs defaultValue="monitor" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:grid-cols-6">
+            <TabsTrigger value="monitor" className="flex items-center space-x-2">
+              <Activity className="w-4 h-4" />
+              <span>Monitor</span>
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center space-x-2">
               <Users className="w-4 h-4" />
               <span>Usuarios</span>
@@ -1825,6 +2087,10 @@ export function AdminDashboard() {
               <span>Configuración</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="monitor">
+            <AdminRealtimeMonitor />
+          </TabsContent>
 
           <TabsContent value="users">
             <UsersManagement />

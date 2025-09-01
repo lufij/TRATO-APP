@@ -60,7 +60,7 @@ function FeatureCard({ icon: Icon, title, description, color }: {
 export function WelcomeScreen({ onRegisterClick }: WelcomeScreenProps) {
   const { signIn, loading } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
+    emailOrPhone: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -112,14 +112,14 @@ export function WelcomeScreen({ onRegisterClick }: WelcomeScreenProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email.trim() || !formData.password.trim()) {
+    if (!formData.emailOrPhone.trim() || !formData.password.trim()) {
       toast.error('Por favor completa todos los campos');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const res = await signIn(formData.email.trim(), formData.password);
+      const res = await signIn(formData.emailOrPhone.trim(), formData.password);
       if (res.success) {
         toast.success('¡Bienvenido a TRATO!');
       } else {
@@ -256,22 +256,25 @@ export function WelcomeScreen({ onRegisterClick }: WelcomeScreenProps) {
 
                   <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-gray-700 font-medium">
-                        Correo Electrónico
+                      <Label htmlFor="emailOrPhone" className="text-gray-700 font-medium">
+                        Teléfono o Email
                       </Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
+                          id="emailOrPhone"
+                          name="emailOrPhone"
+                          type="text"
+                          value={formData.emailOrPhone}
                           onChange={handleInputChange}
-                          placeholder="tu@email.com"
+                          placeholder="12345678 o tu@email.com"
                           className="pl-10 border-2 border-gray-200 focus:border-orange-400 transition-colors duration-300"
                           disabled={loading || isSubmitting}
                         />
                       </div>
+                      <p className="text-xs text-gray-500">
+                        Ingresa tu número de teléfono (8 dígitos) o email
+                      </p>
                     </div>
 
                     <div className="space-y-2">

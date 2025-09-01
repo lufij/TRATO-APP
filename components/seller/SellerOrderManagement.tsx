@@ -593,14 +593,73 @@ export function SellerOrderManagement() {
             )}
 
             {order.status === 'ready' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">Orden lista para recoger</p>
-                    <p className="text-sm text-blue-600">El repartidor recogerá y entregará esta orden</p>
+              <div className="space-y-3">
+                {/* Para órdenes delivery - solo mostrar mensaje informativo */}
+                {((order as any).delivery_type === 'delivery' || !((order as any).delivery_type)) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-6 h-6 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Orden lista para recoger</p>
+                        <p className="text-sm text-blue-600">El repartidor recogerá y entregará esta orden</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Para órdenes pickup y dine-in - mostrar botón de entregado */}
+                {((order as any).delivery_type === 'pickup' || (order as any).delivery_type === 'dine-in') && (
+                  <div className="space-y-3">
+                    <div className={`p-4 rounded-lg border-2 ${
+                      (order as any).delivery_type === 'pickup' 
+                        ? 'bg-green-50 border-green-300' 
+                        : 'bg-orange-50 border-orange-300'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        {(order as any).delivery_type === 'pickup' ? (
+                          <Package className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                            <path d="M17 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                            <path d="M12 2v20"/>
+                            <path d="M6 12h.01"/>
+                            <path d="M18 12h.01"/>
+                          </svg>
+                        )}
+                        <div>
+                          <p className={`text-sm font-medium ${
+                            (order as any).delivery_type === 'pickup' ? 'text-green-800' : 'text-orange-800'
+                          }`}>
+                            {(order as any).delivery_type === 'pickup' 
+                              ? 'Cliente debe recoger en tienda' 
+                              : 'Cliente consume en el lugar'
+                            }
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Marcar como entregado cuando el cliente complete la orden
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={() => updateOrderStatus(order.id, 'delivered')}
+                      disabled={isProcessing}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      {isProcessing ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
+                      {(order as any).delivery_type === 'pickup' 
+                        ? 'Marcar como Recogido' 
+                        : 'Marcar como Servido'
+                      }
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
