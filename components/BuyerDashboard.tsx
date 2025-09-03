@@ -13,6 +13,7 @@ import { BuyerHome } from './buyer/BuyerHome';
 import { BuyerOrders } from './buyer/BuyerOrders';
 import { BuyerProfile } from './buyer/BuyerProfile';
 import { BuyerCart } from './buyer/BuyerCart';
+import { BuyerCartPage } from './buyer/BuyerCartPage';
 import { BuyerCheckout } from './buyer/BuyerCheckout';
 import { BuyerNotifications } from './buyer/BuyerNotifications';
 import { NotificationManager } from './ui/NotificationManager';
@@ -29,12 +30,13 @@ import {
   Bell,
   Store,
   LogOut,
+  Package,
   X,
   CheckCircle,
   ArrowLeft
 } from 'lucide-react';
 
-type ViewState = 'dashboard' | 'business-profile' | 'checkout' | 'order-tracking';
+type ViewState = 'dashboard' | 'business-profile' | 'checkout' | 'order-tracking' | 'cart';
 
 export function BuyerDashboard() {
   const { user, signOut } = useAuth();
@@ -97,8 +99,17 @@ export function BuyerDashboard() {
     return <BusinessProfile 
       businessId={selectedBusinessId} 
       onBack={handleBackFromBusiness} 
-      onShowCart={() => setShowCart(true)}
+      onShowCart={() => setCurrentView('cart')}
     />;
+  }
+
+  if (currentView === 'cart') {
+    return (
+      <BuyerCartPage 
+        onContinueShopping={() => setCurrentView('dashboard')}
+        onProceedToCheckout={() => setCurrentView('checkout')}
+      />
+    );
   }
 
   if (currentView === 'checkout') {
@@ -277,7 +288,7 @@ export function BuyerDashboard() {
               <div className="grid grid-cols-3 gap-1">
                 {[
                   { id: 'home', label: 'Inicio', icon: Home },
-                  { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
+                  { id: 'orders', label: 'Pedidos', icon: Package },
                   { id: 'profile', label: 'Perfil', icon: User }
                 ].map((item) => {
                   const Icon = item.icon;
@@ -319,7 +330,7 @@ export function BuyerDashboard() {
               <TabsList className="grid w-full grid-cols-3 lg:w-2/3 mx-auto bg-white border border-gray-200">
                 {[
                   { id: 'home', label: 'Inicio', icon: Home },
-                  { id: 'orders', label: 'Pedidos', icon: ShoppingCart },
+                  { id: 'orders', label: 'Pedidos', icon: Package },
                   { id: 'profile', label: 'Perfil', icon: User }
                 ].map((item) => {
                   const Icon = item.icon;
@@ -340,7 +351,7 @@ export function BuyerDashboard() {
               <TabsContent value="home" className="space-y-6">
                 <BuyerHome 
                   onBusinessClick={handleBusinessClick} 
-                  onShowCart={() => setShowCart(true)}
+                  onShowCart={() => setCurrentView('cart')}
                 />
               </TabsContent>
 
@@ -349,7 +360,7 @@ export function BuyerDashboard() {
               </TabsContent>
 
               <TabsContent value="profile" className="space-y-6">
-                <BuyerProfile onShowCart={() => setShowCart(true)} />
+                <BuyerProfile onShowCart={() => setCurrentView('cart')} />
               </TabsContent>
             </Tabs>
           </div>
@@ -359,7 +370,7 @@ export function BuyerDashboard() {
             {currentTab === 'home' && (
               <BuyerHome 
                 onBusinessClick={handleBusinessClick} 
-                onShowCart={() => setShowCart(true)}
+                onShowCart={() => setCurrentView('cart')}
               />
             )}
 
@@ -368,7 +379,7 @@ export function BuyerDashboard() {
             )}
 
             {currentTab === 'profile' && (
-              <BuyerProfile onShowCart={() => setShowCart(true)} />
+              <BuyerProfile onShowCart={() => setCurrentView('cart')} />
             )}
           </div>
         </div>

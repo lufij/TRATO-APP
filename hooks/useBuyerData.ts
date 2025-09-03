@@ -780,15 +780,15 @@ export function useBuyerData() {
     ]);
   };
 
-  // 🔄 NUEVO: Función específica para refrescar stock rápidamente
+  // 🔄 NUEVO: Función específica para mostrar productos nuevos/diferentes
   const refreshProductStock = async () => {
-    console.log('📦 Refrescando stock de productos en tiempo real...');
+    console.log('🎲 Mezclando productos para mostrar nuevos...');
     
     try {
       setLoading(prev => ({ ...prev, products: true, dailyProducts: true }));
       
-      // Refrescar productos regulares
-      const { data: freshData, error: productsError } = await supabase
+      // Obtener TODOS los productos disponibles (sin límite)
+      const { data: allProducts, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('is_public', true)
@@ -796,18 +796,20 @@ export function useBuyerData() {
         .order('created_at', { ascending: false });
           
       if (productsError) {
-        console.error('❌ Error al refrescar productos regulares:', productsError);
+        console.error('❌ Error al obtener productos:', productsError);
       } else {
-        console.log('✅ Productos regulares refrescados:', freshData?.length || 0);
-        setProducts(freshData || []);
+        // 🎲 MEZCLAR productos aleatoriamente cada vez
+        const shuffledProducts = allProducts ? [...allProducts].sort(() => Math.random() - 0.5) : [];
+        console.log('✅ Productos mezclados:', shuffledProducts?.length || 0);
+        setProducts(shuffledProducts || []);
       }
 
-      // Refrescar productos del día
+      // También mezclar productos del día
       const today = new Date();
       const endOfDay = new Date(today);
       endOfDay.setHours(23, 59, 59, 999);
 
-      const { data: dailyData, error: dailyError } = await supabase
+      const { data: allDailyData, error: dailyError } = await supabase
         .from('daily_products')
         .select('*')
         .gt('stock_quantity', 0)
@@ -815,24 +817,26 @@ export function useBuyerData() {
         .lte('expires_at', endOfDay.toISOString())
         .order('created_at', { ascending: false });
 
-      if (dailyError && dailyError.code !== 'PGRST205') { // Ignorar si la tabla no existe
-        console.error('❌ Error al refrescar productos del día:', dailyError);
+      if (dailyError && dailyError.code !== 'PGRST205') {
+        console.error('❌ Error al obtener productos del día:', dailyError);
       } else {
-        console.log('✅ Productos del día refrescados:', dailyData?.length || 0);
-        // Filtrar duplicados por nombre
-        const uniqueDailyProducts = dailyData ? dailyData.filter((product, index, self) =>
+        // 🎲 MEZCLAR productos del día aleatoriamente
+        const shuffledDailyProducts = allDailyData ? [...allDailyData].sort(() => Math.random() - 0.5) : [];
+        // Filtrar duplicados por nombre y mezclar
+        const uniqueDailyProducts = shuffledDailyProducts.filter((product, index, self) =>
           index === self.findIndex(p => p.name === product.name)
-        ) : [];
+        );
+        console.log('✅ Productos del día mezclados:', uniqueDailyProducts?.length || 0);
         setDailyProducts(uniqueDailyProducts);
       }
       
     } catch (err) {
-      console.error('❌ Error crítico al refrescar stock:', err);
+      console.error('❌ Error crítico al mezclar productos:', err);
     } finally {
       setLoading(prev => ({ ...prev, products: false, dailyProducts: false }));
     }
     
-    console.log('✅ Stock actualizado exitosamente');
+    console.log('✅ Productos nuevos listos para descubrir');
   };
 
   return {

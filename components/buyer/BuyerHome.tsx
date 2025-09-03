@@ -155,18 +155,21 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
     }
   };
 
-  // Función de refresh manual de stock
+  // Función de refresh manual para mostrar productos diferentes
   const handleRefreshStock = async () => {
     if (isRefreshing) return;
     
     try {
       setIsRefreshing(true);
+      
+      // Llamar a la función de refresh que mezclará los productos
       await refreshProductStock();
+      
       setLastUpdated(new Date());
-      toast.success('✅ Stock actualizado - Productos refrescados');
+      toast.success('✅ Productos actualizados - Nuevos productos disponibles');
     } catch (error) {
       console.error('❌ Error en refresco manual:', error);
-      toast.error('❌ Error al actualizar stock - Intenta de nuevo');
+      toast.error('❌ Error al actualizar productos - Intenta de nuevo');
     } finally {
       setIsRefreshing(false);
     }

@@ -70,8 +70,101 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     }
   };
 
+  // Función para auto-eliminar notificaciones después de 5 minutos
+  const autoDeleteOldNotifications = async () => {
+    if (!isTableAvailable || !user) return;
+
+    try {
+      // Calcular la fecha límite (5 minutos atrás)
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+      
+      console.log('🧹 Limpiando notificaciones más viejas que:', fiveMinutesAgo.toISOString());
+
+      // Intentar eliminar con recipient_id primero
+      let { error, count } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', user.id)
+        .lt('created_at', fiveMinutesAgo.toISOString());
+
+      // Si falla, intentar con user_id
+      if (error) {
+        console.log('Intentando eliminar con user_id...', error);
+        const result = await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id)
+          .lt('created_at', fiveMinutesAgo.toISOString());
+        
+        error = result.error;
+        count = result.count;
+      }
+
+      if (error) {
+        console.error('Error auto-eliminando notificaciones viejas:', error);
+        return;
+      }
+
+      if (count && count > 0) {
+        console.log(`✅ Auto-eliminadas ${count} notificaciones viejas`);
+        // Refrescar la lista local
+        fetchNotifications();
+      }
+    } catch (error) {
+      console.error('Error inesperado en auto-eliminación:', error);
+    }
+  };
+
+  // Función para limpiar TODAS las notificaciones viejas (más de 5 minutos) al cargar
+  const cleanupAllOldNotifications = async () => {
+    if (!isTableAvailable || !user) return;
+
+    try {
+      // Eliminar TODAS las notificaciones que tengan más de 5 minutos
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+      
+      console.log('🧹 LIMPIEZA INICIAL: Eliminando TODAS las notificaciones viejas...');
+
+      // Intentar eliminar con recipient_id primero
+      let { error, count } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', user.id)
+        .lt('created_at', fiveMinutesAgo.toISOString());
+
+      // Si falla, intentar con user_id
+      if (error) {
+        console.log('Intentando eliminar con user_id...', error);
+        const result = await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id)
+          .lt('created_at', fiveMinutesAgo.toISOString());
+        
+        error = result.error;
+        count = result.count;
+      }
+
+      if (error) {
+        console.error('Error en limpieza inicial:', error);
+        return;
+      }
+
+      console.log(`✅ LIMPIEZA INICIAL: Eliminadas ${count || 0} notificaciones antiguas`);
+    } catch (error) {
+      console.error('Error inesperado en limpieza inicial:', error);
+    }
+  };
+
   useEffect(() => {
     checkAndFetchNotifications();
+    
+    // Auto-eliminar notificaciones viejas cada minuto
+    const autoCleanupInterval = setInterval(() => {
+      autoDeleteOldNotifications();
+    }, 60000); // Cada 60 segundos
     
     // Subscribe to real-time notifications only if table is available
     let channel: any = null;
@@ -115,6 +208,8 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
       if (channel) {
         supabase.removeChannel(channel);
       }
+      // Limpiar el intervalo de auto-eliminación
+      clearInterval(autoCleanupInterval);
     };
   }, [user?.id]);
 
@@ -128,6 +223,9 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     setIsTableAvailable(available);
     
     if (available) {
+      // Primero limpiar todas las notificaciones viejas
+      await cleanupAllOldNotifications();
+      // Luego cargar las notificaciones restantes
       await fetchNotifications();
     } else {
       setLoading(false);
@@ -139,12 +237,27 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     if (!user || !isTableAvailable) return;
 
     try {
-      const { data, error } = await supabase
+      // Primero intentar con recipient_id, luego con user_id como fallback
+      let { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
+
+      // Si falla con recipient_id, intentar con user_id
+      if (error) {
+        console.log('Intentando con user_id...', error);
+        const result = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        
+        data = result.data;
+        error = result.error;
+      }
 
       if (error) {
         console.error('Error fetching notifications:', error);
@@ -221,6 +334,43 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
       console.error('Unexpected error deleting notification:', error);
+    }
+  };
+
+  // Función para eliminar TODAS las notificaciones del usuario
+  const deleteAllNotifications = async () => {
+    if (!isTableAvailable || !user) return;
+
+    try {
+      console.log('🗑️ ELIMINANDO TODAS las notificaciones del usuario...');
+
+      // Intentar eliminar con recipient_id primero
+      let { error, count } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', user.id);
+
+      // Si falla, intentar con user_id
+      if (error) {
+        console.log('Intentando eliminar todas con user_id...', error);
+        const result = await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id);
+        
+        error = result.error;
+        count = result.count;
+      }
+
+      if (error) {
+        console.error('Error eliminando todas las notificaciones:', error);
+        return;
+      }
+
+      console.log(`✅ ELIMINADAS TODAS: ${count || 0} notificaciones`);
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error inesperado eliminando todas las notificaciones:', error);
     }
   };
 
@@ -351,6 +501,39 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
               Marcar todas como leídas
             </Button>
           )}
+          
+          {/* Botón para limpiar notificaciones viejas manualmente */}
+          {notifications.length > 0 && isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                await cleanupAllOldNotifications();
+                await fetchNotifications();
+              }}
+              className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Limpiar viejas
+            </Button>
+          )}
+          
+          {/* Botón para eliminar TODAS las notificaciones */}
+          {notifications.length > 0 && isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                if (confirm('¿Estás seguro de que quieres eliminar TODAS las notificaciones?')) {
+                  await deleteAllNotifications();
+                }
+              }}
+              className="text-red-700 hover:text-red-800 border-red-400 hover:border-red-500 bg-red-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar todas
+            </Button>
+          )}
         </div>
 
         {/* Stats */}
@@ -363,6 +546,12 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
             <Badge variant="outline" className="h-2 w-2 p-0"></Badge>
             <span>{readNotifications.length} leídas</span>
           </div>
+        </div>
+        
+        {/* Info sobre auto-eliminación */}
+        <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          <span>Las notificaciones se eliminan automáticamente después de 5 minutos</span>
         </div>
       </div>
 

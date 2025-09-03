@@ -42,7 +42,6 @@ import { supabase } from '../utils/supabase/client';
 import { toast } from 'sonner';
 import { TRATO_COLORS, TRATO_GRADIENTS } from '../constants/colors';
 import { AdminRealtimeMonitor } from './AdminRealtimeMonitor';
-import { SystemSettingsSimple } from './SystemSettingsSimple';
 
 // Types
 interface AdminUser {
@@ -181,10 +180,9 @@ function UsersManagement() {
           name,
           role,
           phone,
-          avatar_url,
+          status,
           is_active,
           is_verified,
-          profile_completed,
           created_at,
           updated_at
         `)
@@ -209,7 +207,7 @@ function UsersManagement() {
                          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.phone?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || (user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active') === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (user.status || 'active') === statusFilter;
     
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -218,7 +216,7 @@ function UsersManagement() {
     try {
       const { error } = await supabase
         .from('users')
-        .update({ is_active: newStatus === 'active' })
+        .update({ status: newStatus })
         .eq('id', userId);
 
       if (error) throw error;
@@ -345,14 +343,14 @@ function UsersManagement() {
                     </TableCell>
                     <TableCell>
                       <Badge 
-                        variant={(user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active') === 'active' ? 'default' : 'destructive'}
+                        variant={(user.status || 'active') === 'active' ? 'default' : 'destructive'}
                         className={`${
-                          (user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active') === 'active' ? 'bg-green-100 text-green-800' :
-                          (user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active') === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                          (user.status || 'active') === 'active' ? 'bg-green-100 text-green-800' :
+                          (user.status || 'active') === 'inactive' ? 'bg-gray-100 text-gray-800' :
                           'bg-red-100 text-red-800'
                         }`}
                       >
-                        {user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active'}
+                        {user.status || 'active'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -366,7 +364,7 @@ function UsersManagement() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         <Select 
-                          value={user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active'} 
+                          value={user.status || 'active'} 
                           onValueChange={(value: string) => handleStatusChange(user.id, value)}
                         >
                           <SelectTrigger className="w-24 h-8">
@@ -2123,7 +2121,7 @@ export function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="settings">
-            <SystemSettingsSimple />
+            <SystemSettings />
           </TabsContent>
         </Tabs>
       </div>

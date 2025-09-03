@@ -35,7 +35,12 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 
 type ViewMode = 'grid' | 'list';
 
-export function BuyerHome() {
+interface BuyerHomeProps {
+  onBusinessClick?: (business: any) => void;
+  onShowCart?: () => void;
+}
+
+export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
   const { user, signOut } = useAuth();
   const { items: cartItems, addToCart, updateCartItem, removeFromCart, getCartTotal, getCartItemCount } = useCart();
   const { 
@@ -153,106 +158,19 @@ export function BuyerHome() {
             
             <div className="flex items-center space-x-3">
               {/* Cart Button */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="relative bg-white hover:bg-orange-50 border-orange-200"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Carrito
-                    {getCartItemCount() > 0 && (
-                      <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs bg-orange-500">
-                        {getCartItemCount()}
-                      </Badge>
-                    )}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
-                      Mi Carrito
-                    </DialogTitle>
-                    <DialogDescription>
-                      {cartItems.length} productos en tu carrito
-                    </DialogDescription>
-                  </DialogHeader>
-                  <ScrollArea className="max-h-96">
-                    <div className="space-y-4">
-                      {cartItems.length === 0 ? (
-                        <div className="text-center py-8">
-                          <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                          <p className="text-gray-500">Tu carrito está vacío</p>
-                        </div>
-                      ) : (
-                        <>
-                          {cartItems.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between border-b pb-3">
-                              <div className="flex items-center space-x-3">
-                                <ImageWithFallback
-                                  src={item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop'}
-                                  alt={item.product?.name || 'Producto'}
-                                  className="w-12 h-12 object-cover rounded-lg"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm">{item.product?.name}</p>
-                                  <p className="text-green-600 font-semibold">Q{item.product?.price}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateCartQuantity(item.product_id, item.quantity - 1)}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </Button>
-                                {editingQuantity === item.product_id ? (
-                                  <Input
-                                    value={tempQuantity}
-                                    onChange={(e) => handleQuantityChange(e.target.value)}
-                                    onBlur={() => handleQuantitySubmit(item.product_id)}
-                                    onKeyDown={(e) => handleQuantityKeyDown(e, item.product_id)}
-                                    className="w-12 h-7 text-center text-sm font-medium p-1"
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <span 
-                                    className="px-2 font-medium cursor-pointer hover:bg-gray-100 rounded min-w-[2rem] text-center"
-                                    onClick={() => handleQuantityClick(item.product_id, item.quantity)}
-                                    title="Haz clic para editar cantidad"
-                                  >
-                                    {item.quantity}
-                                  </span>
-                                )}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateCartQuantity(item.product_id, item.quantity + 1)}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="border-t pt-4">
-                            <div className="flex justify-between text-lg font-semibold">
-                              <span>Total:</span>
-                              <span className="text-green-600">Q{getCartTotal().toFixed(2)}</span>
-                            </div>
-                            <Button className="w-full mt-4 bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600">
-                              Proceder al Checkout
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                variant="outline" 
+                className="relative bg-white hover:bg-orange-50 border-orange-200"
+                onClick={onShowCart}
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Carrito
+                {getCartItemCount() > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-6 w-6 flex items-center justify-center p-0 text-xs bg-orange-500">
+                    {getCartItemCount()}
+                  </Badge>
+                )}
+              </Button>
               
               {/* Profile Menu */}
               <Button variant="ghost" onClick={signOut} className="text-gray-600 hover:text-gray-800">

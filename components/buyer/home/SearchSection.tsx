@@ -54,47 +54,16 @@ export function SearchSection({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Toggle de vista */}
-          <div className="flex items-center border border-gray-200 rounded-lg p-1 bg-white">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className="h-8 px-3"
-            >
-              <Grid3X3 className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 px-3"
-            >
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {/* Botones de refresh */}
+          {/* Botón de descubrir productos nuevos */}
           <Button
             onClick={onRefreshStock}
             disabled={isRefreshing}
             size="sm"
             variant="outline"
-            className="gap-2 border-green-300 text-green-600 hover:bg-green-50"
+            className="gap-2 border-green-300 text-green-600 hover:bg-green-50 bg-green-50"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Stock
-          </Button>
-          
-          <Button
-            onClick={onRefreshAll}
-            disabled={isLoading}
-            size="sm"
-            variant="outline"
-            className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Todo
+            Descubrir
           </Button>
         </div>
       </div>
