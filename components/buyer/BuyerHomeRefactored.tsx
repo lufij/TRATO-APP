@@ -101,7 +101,7 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
       const result = await addToCart(productId, 1, isDaily ? 'daily' : 'regular');
       
       if (result?.success) {
-        toast.success(`✅ ${productName} agregado al carrito`);
+        toast.success(`Agregado al carrito`);
       } else {
         toast.error(`❌ Error: ${result?.message || 'No se pudo agregar el producto'}`);
       }

@@ -14,6 +14,7 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Separator } from '../ui/separator';
+import { useNotificationSystem } from '../notifications/NotificationSystem';
 import { 
   CreditCard, 
   MapPin, 
@@ -52,6 +53,7 @@ type CheckoutStep = 'complete-info' | 'payment' | 'review' | 'processing';
 export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
   const { user } = useAuth();
   const { items: cartItems, clearCart, getCartTotal } = useCart();
+  const { notify } = useNotificationSystem(); // Hook para notificaciones
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('complete-info');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('pickup');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -435,6 +437,22 @@ export function BuyerCheckout({ onBack, onComplete }: BuyerCheckoutProps) {
       } catch (notificationError) {
         console.error('Error creating notification:', notificationError);
         // No detener el proceso si falla la notificación
+      }
+
+      // 🔔 ENVIAR NOTIFICACIÓN SONORA AL VENDEDOR
+      try {
+        await notify('🛒 Nueva Orden Recibida', {
+          body: `${checkoutData.customer_name} realizó un pedido por Q${finalTotal.toFixed(2)}`,
+          sound: 'NEW_ORDER' as any, // Sonido crítico para vendedores
+          push: true,
+          data: { 
+            orderId: order.id, 
+            customerId: user?.id,
+            total: finalTotal 
+          }
+        });
+      } catch (soundError) {
+        console.error('Error sending sound notification:', soundError);
       }
 
       // Limpiar carrito

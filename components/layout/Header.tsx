@@ -6,7 +6,7 @@ import { ShoppingCart, User, LogOut, LogIn, Store } from 'lucide-react';
 import { NotificationBell } from '../common/NotificationBell';
 
 export function Header() {
-  const { user, logout, loading } = useAuth();
+  const { user, signOut, loading } = useAuth();
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -33,7 +33,7 @@ export function Header() {
                     <User className="h-6 w-6" />
                   </Button>
                 </Link>
-                {user.is_seller && (
+                {user.role === 'vendedor' && (
                   <Link to="/seller/dashboard">
                     <Button variant="outline">
                       <Store className="mr-2 h-4 w-4" />
@@ -41,7 +41,7 @@ export function Header() {
                     </Button>
                   </Link>
                 )}
-                <Button variant="ghost" size="icon" onClick={logout}>
+                <Button variant="ghost" size="icon" onClick={signOut}>
                   <LogOut className="h-6 w-6" />
                 </Button>
               </>

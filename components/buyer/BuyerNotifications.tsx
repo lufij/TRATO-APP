@@ -24,7 +24,7 @@ import {
 
 interface Notification {
   id: string;
-  user_id: string;
+  recipient_id: string;
   type: string;
   title: string;
   message: string;
@@ -45,13 +45,25 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
   const [loading, setLoading] = useState(true);
   const [isTableAvailable, setIsTableAvailable] = useState<boolean>(false);
 
+  // DEBUG: Log cuando el componente se monta
+  useEffect(() => {
+    console.log('🔍 DEBUG: BuyerNotifications montado');
+    console.log('🔍 DEBUG: Usuario:', user);
+    console.log('🔍 DEBUG: Estado inicial notifications:', notifications);
+  }, []);
+
+  // DEBUG: Log cuando cambian las notificaciones
+  useEffect(() => {
+    console.log('🔍 DEBUG: Notificaciones actualizadas:', notifications.length, notifications);
+  }, [notifications]);
+
   // Check if notifications table exists and has the correct schema
   const checkTableAvailability = async (): Promise<boolean> => {
     try {
       // Test the table and required columns
       const { error } = await supabase
         .from('notifications')
-        .select('user_id, type, title, message, is_read, created_at')
+        .select('recipient_id, type, title, message, is_read, created_at')
         .limit(1);
 
       if (error) {
@@ -81,25 +93,12 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
       
       console.log('🧹 Limpiando notificaciones más viejas que:', fiveMinutesAgo.toISOString());
 
-      // Intentar eliminar con recipient_id primero
-      let { error, count } = await supabase
+      // Eliminar usando recipient_id únicamente
+      const { error, count } = await supabase
         .from('notifications')
         .delete()
         .eq('recipient_id', user.id)
         .lt('created_at', fiveMinutesAgo.toISOString());
-
-      // Si falla, intentar con user_id
-      if (error) {
-        console.log('Intentando eliminar con user_id...', error);
-        const result = await supabase
-          .from('notifications')
-          .delete()
-          .eq('user_id', user.id)
-          .lt('created_at', fiveMinutesAgo.toISOString());
-        
-        error = result.error;
-        count = result.count;
-      }
 
       if (error) {
         console.error('Error auto-eliminando notificaciones viejas:', error);
@@ -113,6 +112,35 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
       }
     } catch (error) {
       console.error('Error inesperado en auto-eliminación:', error);
+    }
+  };
+
+  // Función para limpiar notificaciones MUY viejas (más de 1 hora) al cargar
+  const cleanupVeryOldNotifications = async () => {
+    if (!isTableAvailable || !user) return;
+
+    try {
+      // Eliminar solo notificaciones que tengan más de 1 HORA (no 5 minutos)
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+      
+      console.log('🧹 LIMPIEZA INTELIGENTE: Eliminando notificaciones con más de 1 hora...');
+
+      // Eliminar usando recipient_id únicamente
+      const { error, count } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('recipient_id', user.id)
+        .lt('created_at', oneHourAgo.toISOString());
+
+      if (error) {
+        console.error('Error en limpieza inteligente:', error);
+        return;
+      }
+
+      console.log(`✅ LIMPIEZA INTELIGENTE: Eliminadas ${count || 0} notificaciones muy antiguas (> 1 hora)`);
+    } catch (error) {
+      console.error('Error inesperado en limpieza inteligente:', error);
     }
   };
 
@@ -223,9 +251,9 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     setIsTableAvailable(available);
     
     if (available) {
-      // Primero limpiar todas las notificaciones viejas
-      await cleanupAllOldNotifications();
-      // Luego cargar las notificaciones restantes
+      // PRIMERO: Eliminar solo notificaciones muy antiguas (más de 1 hora)
+      await cleanupVeryOldNotifications();
+      // SEGUNDO: Cargar las notificaciones restantes
       await fetchNotifications();
     } else {
       setLoading(false);
@@ -237,33 +265,34 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     if (!user || !isTableAvailable) return;
 
     try {
-      // Primero intentar con recipient_id, luego con user_id como fallback
-      let { data, error } = await supabase
+      console.log('🔍 DEBUG: Iniciando fetchNotifications...');
+      console.log('🔍 DEBUG: Usuario ID:', user.id);
+      
+      // Solo obtener notificaciones de los últimos 7 días
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      console.log('🔍 DEBUG: Consultando desde:', sevenDaysAgo.toISOString());
+
+      // Usar únicamente recipient_id
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('recipient_id', user.id)
+        .gte('created_at', sevenDaysAgo.toISOString()) // Solo últimos 7 días
         .order('created_at', { ascending: false })
         .limit(50);
 
-      // Si falla con recipient_id, intentar con user_id
-      if (error) {
-        console.log('Intentando con user_id...', error);
-        const result = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50);
-        
-        data = result.data;
-        error = result.error;
-      }
+      console.log('🔍 DEBUG: Respuesta de Supabase:', { data, error });
 
       if (error) {
         console.error('Error fetching notifications:', error);
         return;
       }
 
+      console.log(`📋 Notificaciones cargadas: ${data?.length || 0} (últimos 7 días)`);
+      console.log('🔍 DEBUG: Datos completos:', data);
+      
       setNotifications(data || []);
     } catch (error) {
       console.error('Unexpected error fetching notifications:', error);
@@ -344,31 +373,22 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
     try {
       console.log('🗑️ ELIMINANDO TODAS las notificaciones del usuario...');
 
-      // Intentar eliminar con recipient_id primero
-      let { error, count } = await supabase
+      // Usar únicamente recipient_id
+      const { error, count } = await supabase
         .from('notifications')
         .delete()
         .eq('recipient_id', user.id);
-
-      // Si falla, intentar con user_id
-      if (error) {
-        console.log('Intentando eliminar todas con user_id...', error);
-        const result = await supabase
-          .from('notifications')
-          .delete()
-          .eq('user_id', user.id);
-        
-        error = result.error;
-        count = result.count;
-      }
 
       if (error) {
         console.error('Error eliminando todas las notificaciones:', error);
         return;
       }
 
-      console.log(`✅ ELIMINADAS TODAS: ${count || 0} notificaciones`);
+      console.log(`✅ TOTAL ELIMINADAS: ${count || 0} notificaciones`);
+      
+      // Limpiar estado local inmediatamente
       setNotifications([]);
+      
     } catch (error) {
       console.error('Error inesperado eliminando todas las notificaciones:', error);
     }
@@ -547,11 +567,136 @@ export function BuyerNotifications({ onClose, onNotificationCountChange }: Buyer
             <span>{readNotifications.length} leídas</span>
           </div>
         </div>
-        
-        {/* Info sobre auto-eliminación */}
-        <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          <span>Las notificaciones se eliminan automáticamente después de 5 minutos</span>
+
+        {/* Botones de control */}
+        <div className="flex gap-2 flex-wrap mt-3">
+          {/* Botón de LIMPIAR CACHE */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              console.log('🧹 LIMPIANDO CACHE COMPLETO...');
+              
+              // Limpiar estado local
+              setNotifications([]);
+              
+              // Limpiar localStorage
+              try {
+                localStorage.removeItem('buyer-notifications-cache');
+                localStorage.removeItem('notifications-cache');
+                console.log('✅ localStorage limpiado');
+              } catch (e) {
+                console.log('⚠️ Error limpiando localStorage:', e);
+              }
+              
+              // Limpiar sessionStorage
+              try {
+                sessionStorage.clear();
+                console.log('✅ sessionStorage limpiado');
+              } catch (e) {
+                console.log('⚠️ Error limpiando sessionStorage:', e);
+              }
+              
+              // Forzar recarga desde servidor
+              window.location.reload();
+            }}
+            className="text-purple-600 hover:text-purple-700 border-purple-300 hover:border-purple-400"
+          >
+            🧹 LIMPIAR CACHE
+          </Button>
+
+          {/* Botón de DEBUG */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={async () => {
+              console.log('🚨 DEBUG MANUAL INICIADO');
+              console.log('🔍 Usuario actual:', user);
+              console.log('🔍 Tabla disponible:', isTableAvailable);
+              console.log('🔍 Estado notifications:', notifications);
+              console.log('🔍 Length notifications:', notifications.length);
+              
+              // Consulta directa a la base de datos
+              if (user && isTableAvailable) {
+                try {
+                  const { data, error } = await supabase
+                    .from('notifications')
+                    .select('*')
+                    .eq('recipient_id', user.id);
+                  
+                  console.log('🔍 Consulta directa BD:', { data, error });
+                  console.log('🔍 Total en BD:', data?.length || 0);
+                } catch (err) {
+                  console.error('🔍 Error consulta directa:', err);
+                }
+              }
+            }}
+            className="text-blue-600 hover:text-blue-700 border-blue-300 hover:border-blue-400"
+          >
+            🐛 DEBUG
+          </Button>
+
+          {unreadNotifications.length > 0 && isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={markAllAsRead}
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Marcar todas como leídas
+            </Button>
+          )}
+          
+          {/* Botón de FORZAR LIMPIEZA INMEDIATA */}
+          {isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                console.log('🚨 FORZANDO LIMPIEZA TOTAL...');
+                await deleteAllNotifications();
+                await fetchNotifications();
+                console.log('✅ Limpieza forzada completada');
+              }}
+              className="text-red-800 hover:text-red-900 border-red-500 hover:border-red-600 bg-red-100 hover:bg-red-200"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              FORZAR LIMPIEZA
+            </Button>
+          )}
+          
+          {/* Botón para limpiar notificaciones viejas manualmente */}
+          {notifications.length > 0 && isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                await cleanupAllOldNotifications();
+                await fetchNotifications();
+              }}
+              className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Limpiar viejas
+            </Button>
+          )}
+          
+          {/* Botón para eliminar TODAS las notificaciones */}
+          {notifications.length > 0 && isTableAvailable && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                if (confirm('¿Estás seguro de que quieres eliminar TODAS las notificaciones?')) {
+                  await deleteAllNotifications();
+                }
+              }}
+              className="text-red-700 hover:text-red-800 border-red-400 hover:border-red-500 bg-red-50"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Eliminar todas
+            </Button>
+          )}
         </div>
       </div>
 

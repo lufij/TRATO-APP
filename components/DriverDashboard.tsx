@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { DriverProfile } from './driver/DriverProfile';
 import { toast } from 'sonner';
+import { NotificationSystem } from './notifications/NotificationSystem';
+import { CriticalNotifications } from './notifications/CriticalNotifications';
+import { DeliveryTracking } from './delivery/DeliveryTracking';
 import { 
   Truck, 
   MapPin, 
@@ -107,6 +110,12 @@ export function DriverDashboard() {
   const [watchId, setWatchId] = useState<number | null>(null);
   const [newOrdersCount, setNewOrdersCount] = useState(0);
 
+  // 🚨 NUEVOS HANDLERS: Notificaciones críticas para repartidores
+  const handleDriverAlert = (type: string, message: string) => {
+    console.log(`🚨 Alerta crítica para repartidor: ${type} - ${message}`);
+    // Aquí se pueden agregar acciones específicas para repartidores
+  };
+
   useEffect(() => {
     if (user) {
       loadDriverData();
@@ -187,7 +196,7 @@ export function DriverDashboard() {
         setDriverStatus({
           is_active: false,
           is_verified: false,
-          current_location: null,
+          current_location: undefined,
           status: 'offline'
         });
       }
@@ -1109,6 +1118,23 @@ export function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
+      {/* Sistema de Notificaciones para Repartidores */}
+      <NotificationSystem 
+        showBanner={true}
+        enableAutoActivation={true}  // Auto-activar para repartidores (CRÍTICO)
+        showTester={process.env.NODE_ENV === 'development'}
+      />
+      
+      {/* 🚨 NOTIFICACIONES CRÍTICAS PARA REPARTIDORES */}
+      <CriticalNotifications onNotification={handleDriverAlert} />
+      
+      {/* 📍 TRACKING DE ENTREGA SI HAY ORDEN ASIGNADA */}
+      {activeDeliveries.length > 0 && (
+        <div className="container mx-auto px-4 mb-4">
+          <DeliveryTracking orderId={activeDeliveries[0].order_id} />
+        </div>
+      )}
+      
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="container mx-auto px-4 py-4">

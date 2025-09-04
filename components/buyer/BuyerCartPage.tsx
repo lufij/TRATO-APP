@@ -72,10 +72,10 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
     try {
       if (newQuantity === 0) {
         await removeFromCart(itemId);
-        toast.success('Producto eliminado del carrito');
+        toast.success('Eliminado');
       } else {
         await updateCartItem(itemId, newQuantity);
-        toast.success('Cantidad actualizada');
+        // Mensaje "Cantidad actualizada" eliminado según solicitud
       }
     } catch (error) {
       console.error('Error updating cart:', error);
@@ -111,7 +111,7 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
   const handleRemoveItem = async (itemId: string) => {
     try {
       await removeFromCart(itemId);
-      toast.success('Producto eliminado del carrito');
+      toast.success('Eliminado');
     } catch (error) {
       console.error('Error removing item:', error);
       toast.error('Error al eliminar producto');
@@ -121,7 +121,7 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
   const handleClearCart = async () => {
     try {
       await clearCart();
-      toast.success('Carrito vaciado');
+      toast.success('Carrito vacío');
     } catch (error) {
       console.error('Error clearing cart:', error);
       toast.error('Error al vaciar carrito');

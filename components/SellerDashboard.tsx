@@ -19,6 +19,9 @@ import { VerificationAlert } from './VerificationAlert';
 import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
+import { NotificationSystem } from './notifications/NotificationSystem';
+import { CriticalNotifications } from './notifications/CriticalNotifications';
+import { TimeoutAlerts } from './alerts/TimeoutAlerts';
 import { 
   Plus, 
   Package, 
@@ -104,6 +107,29 @@ export function SellerDashboard() {
     revenue: 0,
     avgRating: 4.5
   });
+
+  // 🚨 NUEVOS HANDLERS: Notificaciones críticas para vendedores
+  const handleStockAlert = (type: string, message: string) => {
+    console.log(`🚨 Alerta crítica de stock: ${type} - ${message}`);
+    setRecentActivity(prev => [...prev, {
+      id: Date.now().toString(),
+      message: `⚠️ ${message}`,
+      timestamp: new Date().toISOString(),
+      type: 'product' as 'profile' | 'order' | 'product' | 'daily_product',
+      color: 'red'
+    }].slice(0, 10));
+  };
+
+  const handleOrderTimeout = (alert: any) => {
+    console.log(`⏰ Timeout crítico: Orden ${alert.orderId} - ${alert.timeSinceStatus} min`);
+    setRecentActivity(prev => [...prev, {
+      id: Date.now().toString(),
+      message: `🕒 Orden #${alert.orderId.slice(-6)} lleva ${alert.timeSinceStatus} min en ${alert.status}`,
+      timestamp: new Date().toISOString(),
+      type: 'order' as 'profile' | 'order' | 'product' | 'daily_product',
+      color: 'orange'
+    }].slice(0, 10));
+  };
 
   useEffect(() => {
     if (user) {
@@ -1045,6 +1071,17 @@ export function SellerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
+      {/* Sistema de Notificaciones CRÍTICO para Vendedores */}
+      <NotificationSystem 
+        showBanner={true}
+        enableAutoActivation={true}  // Auto-activar para vendedores (CRÍTICO)
+        showTester={process.env.NODE_ENV === 'development'}
+      />
+      
+      {/* 🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
+      <CriticalNotifications onNotification={handleStockAlert} />
+      <TimeoutAlerts onAlert={handleOrderTimeout} />
+      
       {/* Mobile Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 mb-2">
         <div className="container mx-auto px-4 py-3">

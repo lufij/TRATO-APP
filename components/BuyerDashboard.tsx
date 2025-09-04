@@ -16,18 +16,21 @@ import { BuyerCart } from './buyer/BuyerCart';
 import { BuyerCartPage } from './buyer/BuyerCartPage';
 import { BuyerCheckout } from './buyer/BuyerCheckout';
 import { BuyerNotifications } from './buyer/BuyerNotifications';
+import { FloatingNotifications } from './buyer/FloatingNotifications';
 import { NotificationManager } from './ui/NotificationManager';
-import { useNotificationCount } from './ui/NotificationCenter';
 import { BusinessProfile } from './buyer/BusinessProfile';
 import { CheckoutFlow } from './buyer/CheckoutFlow';
 import { OrderTracking } from './buyer/OrderTracking';
 import { CurrentUserStatus } from './CurrentUserStatus';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
+import { NotificationSystem } from './notifications/NotificationSystem';
+import { CriticalNotifications } from './notifications/CriticalNotifications';
+import { TimeoutAlerts } from './alerts/TimeoutAlerts';
+import { DeliveryTracking } from './delivery/DeliveryTracking';
+import { NotificationTester } from './testing/NotificationTester';
 import { 
   Home, 
-  ShoppingCart, 
   User, 
-  Bell,
   Store,
   LogOut,
   Package,
@@ -41,10 +44,7 @@ type ViewState = 'dashboard' | 'business-profile' | 'checkout' | 'order-tracking
 export function BuyerDashboard() {
   const { user, signOut } = useAuth();
   const { getCartItemCount } = useCart();
-  const notificationCount = useNotificationCount();
   const [currentTab, setCurrentTab] = useState('home');
-  const [showCart, setShowCart] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   
   // Navigation state for different views
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -66,7 +66,6 @@ export function BuyerDashboard() {
   // Handler for proceeding to checkout
   const handleProceedToCheckout = () => {
     setCurrentView('checkout');
-    setShowCart(false); // Close cart when going to checkout
   };
 
   // Handler for returning from checkout
@@ -87,11 +86,21 @@ export function BuyerDashboard() {
     setCurrentView('order-tracking');
   };
 
-  // Handler for returning from order tracking
+    // Handler for returning from order tracking
   const handleBackFromOrder = () => {
     setCurrentView('dashboard');
-    setCurrentTab('orders'); // Return to orders tab
     setSelectedOrderId('');
+  };
+
+  // 🚨 NUEVOS HANDLERS: Notificaciones críticas
+  const handleCriticalAlert = (type: string, message: string) => {
+    console.log(`🚨 Alerta crítica para comprador: ${type} - ${message}`);
+    // Aquí se pueden agregar más acciones específicas
+  };
+
+  const handleTimeoutAlert = (alert: any) => {
+    console.log(`⏰ Alerta de timeout: Orden ${alert.orderId} - ${alert.timeSinceStatus} min`);
+    // Lógica específica para manejar alertas de timeout
   };
 
   // Render different views based on current state
@@ -138,135 +147,58 @@ export function BuyerDashboard() {
   // Main dashboard view
   return (
     <OrderProvider>
-      <div className="buyer-dashboard-fix mobile-main-content">
-        {/* Mobile-Optimized Header */}
-        <header className="mobile-header bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 mb-2">
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
+        {/* Sistema de Notificaciones para Compradores */}
+        <NotificationSystem 
+          showBanner={true}
+          enableAutoActivation={false}
+          showTester={process.env.NODE_ENV === 'development'}
+        />
+        
+        {/* 🚨 NUEVAS NOTIFICACIONES CRÍTICAS */}
+        <CriticalNotifications onNotification={handleCriticalAlert} />
+        <TimeoutAlerts onAlert={handleTimeoutAlert} />
+        
+        {/* 📍 TRACKING DE ENTREGA SI HAY ORDEN ACTIVA */}
+        {selectedOrderId && (
+          <div className="container mx-auto px-4 mb-4">
+            <DeliveryTracking orderId={selectedOrderId} />
+          </div>
+        )}
+        
+        {/* Mobile Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 mb-2">
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-between">
-              {/* Logo y Saludo - Responsivo */}
-              <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
-                <div className="bg-gradient-to-r from-orange-500 to-green-500 p-1.5 md:p-2 rounded-lg flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-2 rounded-lg">
                   <Store className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="mobile-heading-2 bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent mb-0">
+                <div>
+                  <h1 className="text-lg md:text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
                     TRATO
                   </h1>
-                  <p className="mobile-text-small truncate">
-                    ¡Hola, {user?.email?.split('@')[0] || 'Usuario'}!
+                  <p className="text-xs md:text-sm text-gray-600 hidden sm:block">
+                    ¡Hola, {user?.email?.split('@')[0] || 'guichointeriano'}!
                   </p>
                 </div>
               </div>
-
-              {/* Header Actions - Touch Friendly */}
-              <div className="flex items-center space-x-1 md:space-x-3 flex-shrink-0">
-                {/* Notifications - Móvil optimizado */}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="mobile-button-sm relative bg-white hover:bg-orange-50 border-orange-200 p-2 md:px-3"
-                >
-                  <Bell className="w-4 h-4 md:mr-1" />
-                  <span className="hidden md:inline">Alertas</span>
-                  {notificationCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white border-2 border-white">
-                      {notificationCount > 9 ? '9+' : notificationCount}
-                    </Badge>
-                  )}
-                </Button>
-
-                {/* Cart - Móvil optimizado */}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowCart(!showCart)}
-                  className="mobile-button-sm relative bg-white hover:bg-orange-50 border-orange-200 p-2 md:px-3"
-                >
-                  <ShoppingCart className="w-4 h-4 md:mr-1" />
-                  <span className="hidden md:inline">Carrito</span>
-                  {getCartItemCount() > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-orange-500 text-white border-2 border-white">
-                      {getCartItemCount() > 9 ? '9+' : getCartItemCount()}
-                    </Badge>
-                  )}
-                </Button>
-                
-                {/* Profile Menu - Mejorado para móvil */}
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={signOut} 
-                  className="mobile-button-sm text-gray-600 hover:text-gray-800 p-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="hidden md:inline ml-1">Salir</span>
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                onClick={signOut} 
+                className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-4 py-2 min-h-[44px]"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Cerrar Sesión</span>
+              </Button>
             </div>
           </div>
-        </header>
+        </div>
 
-        {/* Mobile-Optimized Sliding Cart Panel */}
-        {showCart && (
-          <>
-            <div className="mobile-overlay open" onClick={() => setShowCart(false)} />
-            <div className="mobile-slide-panel open">
-              <div className="mobile-header border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="mobile-heading-2 flex items-center gap-2 mb-0">
-                    <ShoppingCart className="w-5 h-5" />
-                    Mi Carrito
-                  </h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setShowCart(false)}
-                    className="mobile-button-sm p-2"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto mobile-scroll">
-                <BuyerCart 
-                  onClose={() => setShowCart(false)}
-                  onProceedToCheckout={handleProceedToCheckout}
-                />
-              </div>
-            </div>
-          </>
-        )}
+        {/* Panel deslizante del carrito ELIMINADO según solicitud del usuario */}
 
-        {/* Mobile-Optimized Sliding Notifications Panel */}
-        {showNotifications && (
-          <>
-            <div className="mobile-overlay open" onClick={() => setShowNotifications(false)} />
-            <div className="mobile-slide-panel open">
-              <div className="mobile-header border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="mobile-heading-2 flex items-center gap-2 mb-0">
-                    <Bell className="w-5 h-5" />
-                    Notificaciones
-                  </h2>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setShowNotifications(false)}
-                    className="mobile-button-sm p-2"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto mobile-scroll p-4">
-                <NotificationManager 
-                  onClose={() => setShowNotifications(false)}
-                />
-              </div>
-            </div>
-          </>
-        )}
+        {/* Notificaciones Flotantes */}
+        <FloatingNotifications />
 
         {/* Main Content with bottom padding for mobile nav - SAME AS SELLERS */}
         <div className="main-content container mx-auto px-4 py-4 md:py-6" style={{
@@ -349,6 +281,9 @@ export function BuyerDashboard() {
 
               {/* Desktop Content */}
               <TabsContent value="home" className="space-y-6">
+                {/* 🧪 TESTER DE NOTIFICACIONES (Solo en desarrollo) */}
+                <NotificationTester />
+                
                 <BuyerHome 
                   onBusinessClick={handleBusinessClick} 
                   onShowCart={() => setCurrentView('cart')}

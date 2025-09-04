@@ -154,10 +154,7 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
       const result = await addToCart(productId, 1, 'regular');
       
       if (result.success) {
-        toast.success(`${productName} agregado al carrito`, {
-          icon: <CheckCircle className="w-4 h-4" />,
-          duration: 2000,
-        });
+        toast.success(`Agregado al carrito`);
       } else {
         toast.error(result.message, {
           icon: <AlertCircle className="w-4 h-4" />,
