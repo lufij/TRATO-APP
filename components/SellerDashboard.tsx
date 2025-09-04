@@ -22,6 +22,7 @@ import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
+import { NotificationPermissionManager } from './ui/NotificationPermissionManager';
 import { 
   Plus, 
   Package, 
@@ -110,14 +111,48 @@ export function SellerDashboard() {
 
   // 🚨 NUEVOS HANDLERS: Notificaciones críticas para vendedores
   const handleStockAlert = (type: string, message: string) => {
-    console.log(`🚨 Alerta crítica de stock: ${type} - ${message}`);
-    setRecentActivity(prev => [...prev, {
-      id: Date.now().toString(),
-      message: `⚠️ ${message}`,
-      timestamp: new Date().toISOString(),
-      type: 'product' as 'profile' | 'order' | 'product' | 'daily_product',
-      color: 'red'
-    }].slice(0, 10));
+    console.log(`🚨 Alerta crítica: ${type} - ${message}`);
+    
+    // Manejar diferentes tipos de notificaciones críticas
+    if (type === 'new_order') {
+      // Nuevo pedido - Notificación visual y sonora prioritaria
+      setRecentActivity(prev => [...prev, {
+        id: Date.now().toString(),
+        message: `🔥 ¡NUEVO PEDIDO! ${message}`,
+        timestamp: new Date().toISOString(),
+        type: 'order' as 'profile' | 'order' | 'product' | 'daily_product',
+        color: 'green'
+      }].slice(0, 10));
+      
+      // Notificación del navegador también
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('¡Nuevo Pedido!', {
+          body: message,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico'
+        });
+      }
+      
+    } else if (type.includes('stock')) {
+      // Alertas de stock
+      setRecentActivity(prev => [...prev, {
+        id: Date.now().toString(),
+        message: `⚠️ ${message}`,
+        timestamp: new Date().toISOString(),
+        type: 'product' as 'profile' | 'order' | 'product' | 'daily_product',
+        color: 'red'
+      }].slice(0, 10));
+      
+    } else {
+      // Otras alertas críticas
+      setRecentActivity(prev => [...prev, {
+        id: Date.now().toString(),
+        message: `🚨 ${message}`,
+        timestamp: new Date().toISOString(),
+        type: 'order' as 'profile' | 'order' | 'product' | 'daily_product',
+        color: 'yellow'
+      }].slice(0, 10));
+    }
   };
 
   const handleOrderTimeout = (alert: any) => {
@@ -138,6 +173,18 @@ export function SellerDashboard() {
       loadStats();
       loadRecentActivity();
       setupOrderNotifications();
+      
+      // 🔔 Solicitar permisos de notificación para asegurar alertas de pedidos
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          console.log(`🔔 Permisos de notificación: ${permission}`);
+          if (permission === 'granted') {
+            console.log('✅ Notificaciones habilitadas para nuevos pedidos');
+          } else {
+            console.warn('⚠️ Notificaciones bloqueadas - solo sonido y alertas visuales');
+          }
+        });
+      }
     }
   }, [user]);
 
@@ -345,17 +392,58 @@ export function SellerDashboard() {
             filter: `seller_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('New order received:', payload);
+            console.log('🔔 Nueva orden recibida:', payload);
             setNewOrdersCount(prev => prev + 1);
+            
+            // NUEVO: Activar notificación crítica integrada
+            const orderData = payload.new;
+            const criticalNotificationEvent = new CustomEvent('criticalNotification', {
+              detail: {
+                type: 'new_order',
+                message: `🎯 NUEVA ORDEN: Q${orderData.total || '0.00'} - ${orderData.notes || 'Sin notas'}`,
+                urgency: 'high',
+                sound: true,
+                persist: true,
+                metadata: {
+                  order_id: orderData.id,
+                  total: orderData.total,
+                  buyer_name: orderData.buyer_name,
+                  created_at: orderData.created_at
+                }
+              }
+            });
+            window.dispatchEvent(criticalNotificationEvent);
             
             // Show browser notification if permission granted
             if (Notification.permission === 'granted') {
               new Notification('¡Nueva orden en TRATO!', {
-                body: `Tienes un nuevo pedido por Q${payload.new.total}`,
+                body: `Tienes un nuevo pedido por Q${orderData.total || '0.00'}`,
                 icon: '/favicon.ico',
-                tag: 'new-order'
+                tag: 'new-order',
+                requireInteraction: true
               });
             }
+            
+            // NUEVO: Registrar en critical_alerts para historial
+            const logAlert = async () => {
+              try {
+                await supabase.from('critical_alerts').insert({
+                  alert_type: 'new_order',
+                  order_id: orderData.id,
+                  user_id: user?.id,
+                  message: `Nueva orden recibida: Q${orderData.total || '0.00'}`,
+                  urgency_level: 'high',
+                  metadata: {
+                    total: orderData.total,
+                    buyer_name: orderData.buyer_name,
+                    notification_sent: true
+                  }
+                });
+              } catch (error) {
+                console.error('Error logging critical alert:', error);
+              }
+            };
+            logAlert();
             
             // Update last notification time
             setLastNotificationTime(new Date().toISOString());
@@ -1078,7 +1166,16 @@ export function SellerDashboard() {
         showTester={process.env.NODE_ENV === 'development'}
       />
       
-      {/* 🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
+      {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
+      <div className="container mx-auto px-4 pt-4">
+        <NotificationPermissionManager 
+          onPermissionChange={(hasPermission) => {
+            console.log('🔔 Permisos de notificación cambiados:', hasPermission);
+          }}
+        />
+      </div>
+      
+      {/* �🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
       <CriticalNotifications onNotification={handleStockAlert} />
       <TimeoutAlerts onAlert={handleOrderTimeout} />
       

@@ -28,6 +28,7 @@ import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
 import { DeliveryTracking } from './delivery/DeliveryTracking';
 import { NotificationTester } from './testing/NotificationTester';
+import { NotificationPermissionManager } from './ui/NotificationPermissionManager';
 import { 
   Home, 
   User, 
@@ -154,6 +155,11 @@ export function BuyerDashboard() {
           enableAutoActivation={false}
           showTester={process.env.NODE_ENV === 'development'}
         />
+        
+        {/* Gestor de Permisos de Notificaciones */}
+        <div className="container mx-auto px-4 pt-4">
+          <NotificationPermissionManager />
+        </div>
         
         {/* 🚨 NUEVAS NOTIFICACIONES CRÍTICAS */}
         <CriticalNotifications onNotification={handleCriticalAlert} />

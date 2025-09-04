@@ -49,49 +49,66 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
     try {
       console.log('🔍 Cargando cantidad de repartidores en línea...');
       
-      // Primero verificar todos los repartidores para debug
-      const { data: allDrivers, error: allError } = await supabase
-        .from('drivers')
-        .select('id, is_online, is_active, updated_at');
+      // Método 1: Usar función RPC simplificada (solo is_online)
+      try {
+        const { data: countResult, error: countError } = await supabase
+          .rpc('get_online_drivers_count');
 
-      if (allError) {
-        console.error('❌ Error obteniendo todos los drivers:', allError);
-      } else {
-        console.log('📊 Total drivers en tabla:', allDrivers?.length || 0);
-        allDrivers?.forEach((driver, i) => {
-          console.log(`  ${i+1}. ID: ${driver.id.substring(0,8)}... Online: ${driver.is_online} Active: ${driver.is_active}`);
-        });
+        if (!countError && typeof countResult === 'number') {
+          console.log('✅ Drivers online (función RPC):', countResult);
+          setOnlineCount(countResult);
+          return;
+        } else {
+          console.warn('⚠️ Función RPC falló:', countError?.message);
+        }
+      } catch (rpcError) {
+        console.warn('⚠️ Error en RPC:', rpcError);
       }
-      
-      // Contar repartidores en línea directamente de la tabla drivers
-      const { count, error } = await supabase
-        .from('drivers')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_online', true);
 
-      if (error) {
-        console.error('❌ Error loading online drivers count:', error);
-        
-        // Fallback: intentar con consulta alternativa
-        const { data: driversData, error: fallbackError } = await supabase
+      // Método 2: Consulta directa solo con is_online
+      try {
+        const { count, error: directError } = await supabase
           .from('drivers')
-          .select('id, is_online')
+          .select('*', { count: 'exact', head: true })
           .eq('is_online', true);
 
-        if (fallbackError) {
-          console.error('❌ Fallback query also failed:', fallbackError);
+        if (!directError) {
+          console.log('✅ Drivers online (consulta directa):', count);
+          setOnlineCount(count || 0);
           return;
+        } else {
+          console.warn('⚠️ Consulta directa falló:', directError.message);
         }
-
-        console.log('✅ Fallback query successful, drivers found:', driversData?.length || 0);
-        setOnlineCount(driversData?.length || 0);
-        return;
+      } catch (directError) {
+        console.warn('⚠️ Error en consulta directa:', directError);
       }
 
-      console.log('✅ Online drivers count loaded:', count);
-      setOnlineCount(count || 0);
+      // Método 3: Fallback - obtener todos y filtrar solo por is_online
+      try {
+        const { data: allDrivers, error: fallbackError } = await supabase
+          .from('drivers')
+          .select('is_online')
+          .limit(50); // Limitar para evitar sobrecarga
+
+        if (!fallbackError && allDrivers) {
+          const onlineCount = allDrivers.filter(d => d.is_online).length;
+          console.log('✅ Drivers online (fallback):', onlineCount);
+          setOnlineCount(onlineCount);
+          return;
+        } else {
+          console.error('❌ Fallback también falló:', fallbackError?.message);
+        }
+      } catch (fallbackError) {
+        console.error('❌ Error en fallback:', fallbackError);
+      }
+
+      // Si todo falla, mostrar 0
+      console.error('❌ Todos los métodos fallaron, mostrando 0');
+      setOnlineCount(0);
+
     } catch (error) {
-      console.error('❌ Error loading online drivers count:', error);
+      console.error('❌ Error general:', error);
+      setOnlineCount(0);
     } finally {
       setLoading(false);
     }

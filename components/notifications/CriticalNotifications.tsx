@@ -212,6 +212,70 @@ export function CriticalNotifications({ onNotification }: CriticalNotificationPr
     }
   }, [user, onNotification]);
 
+  // Configurar escucha de eventos personalizados críticos
+  useEffect(() => {
+    const handleCriticalNotification = (event: CustomEvent) => {
+      const { type, message, data } = event.detail;
+      console.log(`🔥 Notificación crítica recibida: ${type} - ${message}`, data);
+      
+      // Ejecutar callback de notificación
+      onNotification?.(type, message);
+      
+      // Sonido crítico para nuevos pedidos
+      if (type === 'new_order') {
+        // Crear sonido sintético con Web Audio API
+        const playNotificationSound = () => {
+          try {
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            
+            // Crear secuencia de tonos
+            const playTone = (frequency: number, duration: number, delay: number = 0) => {
+              setTimeout(() => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+              }, delay);
+            };
+            
+            // Secuencia de notificación: tres tonos ascendentes
+            playTone(800, 0.2, 0);
+            playTone(1000, 0.2, 300);
+            playTone(1200, 0.3, 600);
+            
+          } catch (error) {
+            console.warn('No se pudo reproducir sonido con Web Audio API:', error);
+            
+            // Fallback: vibración en móviles
+            if (navigator.vibrate) {
+              navigator.vibrate([300, 100, 300, 100, 300]);
+            }
+          }
+        };
+        
+        // Reproducir sonido inmediatamente y repetir para asegurar notificación
+        playNotificationSound();
+        setTimeout(playNotificationSound, 2000);
+      }
+    };
+
+    window.addEventListener('criticalNotification', handleCriticalNotification as EventListener);
+    
+    return () => {
+      window.removeEventListener('criticalNotification', handleCriticalNotification as EventListener);
+    };
+  }, [onNotification]);
+
   // Configurar todas las alertas críticas
   useEffect(() => {
     if (!user) return;

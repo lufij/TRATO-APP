@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { DeliveryTracking } from './delivery/DeliveryTracking';
+import { NotificationPermissionManager } from './ui/NotificationPermissionManager';
 import { 
   Truck, 
   MapPin, 
@@ -1124,6 +1125,11 @@ export function DriverDashboard() {
         enableAutoActivation={true}  // Auto-activar para repartidores (CRÍTICO)
         showTester={process.env.NODE_ENV === 'development'}
       />
+      
+      {/* Gestor de Permisos de Notificaciones */}
+      <div className="container mx-auto px-4 pt-4">
+        <NotificationPermissionManager />
+      </div>
       
       {/* 🚨 NOTIFICACIONES CRÍTICAS PARA REPARTIDORES */}
       <CriticalNotifications onNotification={handleDriverAlert} />
