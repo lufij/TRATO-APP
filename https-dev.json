@@ -1,0 +1,10 @@
+{
+  "name": "trato-app-https",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:https": "vite --host 0.0.0.0 --port 5173 --https",
+    "dev:mobile": "vite --host 0.0.0.0 --port 5173 --https --open",
+    "build:production": "npm run build && echo 'Listo para deploy en HTTPS'",
+    "preview:https": "vite preview --https --host 0.0.0.0"
+  }
+}
