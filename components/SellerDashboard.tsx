@@ -22,7 +22,6 @@ import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
-import { NotificationPermissionManager } from './ui/NotificationPermissionManager';
 import { 
   Plus, 
   Package, 
@@ -1166,14 +1165,6 @@ export function SellerDashboard() {
         showTester={process.env.NODE_ENV === 'development'}
       />
       
-      {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
-      <div className="container mx-auto px-4 pt-4">
-        <NotificationPermissionManager 
-          onPermissionChange={(hasPermission) => {
-            console.log('🔔 Permisos de notificación cambiados:', hasPermission);
-          }}
-        />
-      </div>
       
       {/* �🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
       <CriticalNotifications onNotification={handleStockAlert} />

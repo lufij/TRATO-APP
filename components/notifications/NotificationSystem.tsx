@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { NotificationBanner } from './NotificationBanner';
-import { NotificationTester } from './NotificationTester';
 import { MobileToastNotifications } from './MobileToastNotifications';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -8,14 +7,12 @@ import { useSoundNotifications, NotificationSound } from '../../hooks/useSoundNo
 
 interface NotificationSystemProps {
   showBanner?: boolean;
-  showTester?: boolean;
   enableAutoActivation?: boolean;
   className?: string;
 }
 
 export function NotificationSystem({ 
   showBanner = true, 
-  showTester = false,
   enableAutoActivation = true,
   className = ""
 }: NotificationSystemProps) {
@@ -75,11 +72,6 @@ export function NotificationSystem({
       {/* Banner for activation */}
       {shouldShowBanner && (
         <NotificationBanner onDismiss={() => setBannerDismissed(true)} />
-      )}
-      
-      {/* Tester component for debugging */}
-      {showTester && (
-        <NotificationTester />
       )}
       
       {/* Toast notifications provider - always render */}

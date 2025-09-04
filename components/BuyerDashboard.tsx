@@ -27,8 +27,7 @@ import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
 import { DeliveryTracking } from './delivery/DeliveryTracking';
-import { NotificationTester } from './testing/NotificationTester';
-import { NotificationPermissionManager } from './ui/NotificationPermissionManager';
+// import { MobileNotificationButton } from './ui/MobileNotificationButton';
 import { 
   Home, 
   User, 
@@ -37,7 +36,8 @@ import {
   Package,
   X,
   CheckCircle,
-  ArrowLeft
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 
 type ViewState = 'dashboard' | 'business-profile' | 'checkout' | 'order-tracking' | 'cart';
@@ -153,12 +153,16 @@ export function BuyerDashboard() {
         <NotificationSystem 
           showBanner={true}
           enableAutoActivation={false}
-          showTester={process.env.NODE_ENV === 'development'}
         />
         
-        {/* Gestor de Permisos de Notificaciones */}
-        <div className="container mx-auto px-4 pt-4">
-          <NotificationPermissionManager />
+        {/* 📱 Notificaciones discretas para compradores */}
+        <div className="container mx-auto px-4">
+          {/* Solo mostrar botón muy discreto en esquina superior derecha si no están activadas */}
+          {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && (
+            <div className="flex justify-end mb-2">
+              {/* <MobileNotificationButton /> */}
+            </div>
+          )}
         </div>
         
         {/* 🚨 NUEVAS NOTIFICACIONES CRÍTICAS */}
@@ -287,9 +291,6 @@ export function BuyerDashboard() {
 
               {/* Desktop Content */}
               <TabsContent value="home" className="space-y-6">
-                {/* 🧪 TESTER DE NOTIFICACIONES (Solo en desarrollo) */}
-                <NotificationTester />
-                
                 <BuyerHome 
                   onBusinessClick={handleBusinessClick} 
                   onShowCart={() => setCurrentView('cart')}
