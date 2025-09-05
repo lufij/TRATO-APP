@@ -27,7 +27,6 @@ import {
   XCircle,
   Package,
   Info,
-  Mail,
   Eye,
   RefreshCw  // 🆕 Agregar icono de refresco
 } from 'lucide-react';
@@ -53,11 +52,17 @@ interface BusinessData {
   rating: number;
   products_count: number;
   user?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
     avatar_url?: string;
   };
-  address?: string;
+  // 🔥 CAMPOS REALES DEL VENDEDOR
+  phone?: string;        // ✅ Existe en sellers
+  address?: string;      // ✅ Existe en sellers
+  // email NO existe en sellers, solo en users
   is_open_now?: boolean;
-  email?: string;
   phone?: string;
   description?: string;
 }
@@ -105,6 +110,19 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
         productsTotal: productsData?.length || 0,
         dailyWithImages: dailyData?.filter(p => p.image_url).length || 0,
         dailyTotal: dailyData?.length || 0
+      });
+
+      // 🔍 DEBUG: Datos específicos de contacto
+      console.log('🔥 DEBUG CONTACTO:', {
+        business_phone: businessData?.business_phone,
+        phone: businessData?.phone,
+        email: businessData?.email,
+        address: businessData?.address,
+        business_address: businessData?.business_address,
+        user: businessData?.user,
+        user_phone: businessData?.user?.phone,
+        user_email: businessData?.user?.email,
+        user_address: businessData?.user?.address
       });
       
       setBusiness(businessData);
@@ -842,17 +860,20 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
                           Contacto
                         </h3>
                         <div className="space-y-2 text-sm">
+                          {/* 🔍 DEBUG: Log de valores de contacto */}
+                          {console.log('🔥 RENDER CONTACTO:', {
+                            phone_options: [business.phone, business.business_phone, business.user?.phone],
+                            address_options: [business.address, business.business_address, business.user?.address],
+                            final_phone: business.phone || business.business_phone || business.user?.phone || 'No disponible',
+                            final_address: business.address || business.business_address || business.user?.address || 'Dirección no disponible'
+                          })}
                           <div className="flex items-center">
                             <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                            <span>{business.phone || business.business_phone || 'No disponible'}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                            <span>{business.email || 'No disponible'}</span>
+                            <span>{business.phone || business.business_phone || business.user?.phone || 'No disponible'}</span>
                           </div>
                           <div className="flex items-center">
                             <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                            <span>{business.address || business.business_address || 'Dirección no disponible'}</span>
+                            <span>{business.address || business.business_address || business.user?.address || 'Dirección no disponible'}</span>
                           </div>
                         </div>
                       </div>

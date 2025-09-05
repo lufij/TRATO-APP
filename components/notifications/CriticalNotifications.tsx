@@ -149,12 +149,13 @@ export function CriticalNotifications({ onNotification }: CriticalNotificationPr
 
     const checkSystemHealth = async () => {
       try {
-        // Verificar repartidores disponibles
+        // Verificar repartidores disponibles - CORREGIDO: usar misma lógica que OnlineDriversIndicator
         const { data: availableDrivers } = await supabase
-          .from('users')
+          .from('drivers')
           .select('id')
-          .eq('role', 'repartidor')
-          .eq('is_available', true);
+          .eq('is_online', true)
+          .eq('is_active', true)
+          .eq('is_verified', true);
 
         if (!availableDrivers || availableDrivers.length === 0) {
           console.error('🚨 CRÍTICO: No hay repartidores disponibles');

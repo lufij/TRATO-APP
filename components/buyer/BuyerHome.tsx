@@ -364,7 +364,7 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-500 flex items-center">
                               <MapPin className="w-3 h-3 mr-1" />
-                              {business.address || 'Gualán, Zacapa'}
+                              {business.address || business.business_address || business.user?.address || 'Gualán, Zacapa'}
                             </span>
                             <Button size="sm" variant="outline">
                               <Eye className="w-3 h-3 mr-1" />

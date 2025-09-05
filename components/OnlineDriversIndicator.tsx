@@ -65,15 +65,17 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
         console.warn('⚠️ Error en RPC:', rpcError);
       }
 
-      // Método 2: Consulta directa solo con is_online
+      // Método 2: Consulta directa con criterios completos
       try {
         const { count, error: directError } = await supabase
           .from('drivers')
           .select('*', { count: 'exact', head: true })
-          .eq('is_online', true);
+          .eq('is_online', true)
+          .eq('is_active', true)
+          .eq('is_verified', true);
 
         if (!directError) {
-          console.log('✅ Drivers online (consulta directa):', count);
+          console.log('✅ Drivers disponibles (consulta directa):', count);
           setOnlineCount(count || 0);
           return;
         } else {
@@ -83,17 +85,17 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
         console.warn('⚠️ Error en consulta directa:', directError);
       }
 
-      // Método 3: Fallback - obtener todos y filtrar solo por is_online
+      // Método 3: Fallback - obtener todos y filtrar con criterios completos
       try {
         const { data: allDrivers, error: fallbackError } = await supabase
           .from('drivers')
-          .select('is_online')
+          .select('is_online, is_active, is_verified')
           .limit(50); // Limitar para evitar sobrecarga
 
         if (!fallbackError && allDrivers) {
-          const onlineCount = allDrivers.filter(d => d.is_online).length;
-          console.log('✅ Drivers online (fallback):', onlineCount);
-          setOnlineCount(onlineCount);
+          const availableCount = allDrivers.filter(d => d.is_online && d.is_active && d.is_verified).length;
+          console.log('✅ Drivers disponibles (fallback):', availableCount);
+          setOnlineCount(availableCount);
           return;
         } else {
           console.error('❌ Fallback también falló:', fallbackError?.message);
@@ -131,7 +133,7 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
             <Users className="w-3 h-3" />
           </div>
           <span className="text-xs leading-tight">
-            {onlineCount} en línea
+            {onlineCount} disponible{onlineCount !== 1 ? 's' : ''}
           </span>
           {onlineCount > 0 && (
             <div className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse ml-0.5" />

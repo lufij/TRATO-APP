@@ -101,6 +101,7 @@ export function useBuyerData() {
           )
         `)
         .eq('is_public', true)
+        .eq('is_available', true)  // 🔥 CONSISTENCIA: Agregar filtro is_available
         .gt('stock_quantity', 0);
 
       if (filters?.search) {
@@ -133,6 +134,7 @@ export function useBuyerData() {
             .from('products')
             .select('*')
             .eq('is_public', true)
+            .eq('is_available', true)  // 🔥 CONSISTENCIA: Agregar filtro is_available también en fallback
             .gt('stock_quantity', 0);
           if (filters?.search) {
             fb = fb.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
@@ -277,11 +279,13 @@ export function useBuyerData() {
           business_description,
           business_address,
           business_phone,
+          phone,
+          address,
           business_logo,
           cover_image_url,
           logo_url,
           is_verified,
-          user:users(name, phone, avatar_url)
+          user:users(name, phone, email, address, avatar_url)
         `)
         .not('business_name', 'is', null)
         .order('is_verified', { ascending: false });
@@ -295,7 +299,7 @@ export function useBuyerData() {
         if (isRelIssue) {
           const r = await supabase
             .from('sellers')
-            .select('id,business_name,business_description,business_address,business_phone,business_logo,cover_image_url,logo_url,is_verified')
+            .select('id,business_name,business_description,business_address,business_phone,phone,address,business_logo,cover_image_url,logo_url,is_verified')
             .not('business_name', 'is', null)
             .order('is_verified', { ascending: false });
           data = r.data as any[] | null;
@@ -327,7 +331,10 @@ export function useBuyerData() {
 
       const sellerIds = sellers.map(b => b.id);
       let productsBySeller = new Map<string, number>();
+      let ratingsBySeller = new Map<string, number>();
+      
       if (sellerIds.length > 0) {
+        // Get product counts
         try {
           const { data: productRows, error: productsErr } = await supabase
             .from('products')
@@ -345,6 +352,25 @@ export function useBuyerData() {
           }
         } catch (err) {
           console.error('Error aggregating product counts:', err);
+        }
+
+        // 🔥 GET REAL RATINGS FROM DATABASE
+        try {
+          const { data: ratingsRows, error: ratingsErr } = await supabase
+            .from('seller_ratings_view')
+            .select('seller_id, average_rating')
+            .in('seller_id', sellerIds);
+
+          if (ratingsErr) {
+            console.error('Error fetching ratings:', ratingsErr);
+          } else {
+            ratingsBySeller = (ratingsRows as { seller_id: string; average_rating: number }[] | null | undefined)?.reduce((acc: Map<string, number>, row: { seller_id: string; average_rating: number }) => {
+              acc.set(row.seller_id, row.average_rating || 0);
+              return acc;
+            }, new Map<string, number>()) ?? new Map<string, number>();
+          }
+        } catch (err) {
+          console.error('Error aggregating ratings:', err);
         }
       }
 
@@ -371,6 +397,7 @@ export function useBuyerData() {
         });
         
         const productCount = productsBySeller.get(business.id) || 0;
+        const realRating = ratingsBySeller.get(business.id) || 0;
         return {
           id: business.id,
           business_name: business.business_name,
@@ -381,17 +408,22 @@ export function useBuyerData() {
           cover_image_url: coverImageUrl ?? undefined, // ✅ NUEVA PROPIEDAD PARA PORTADA
           is_verified: business.is_verified,
           products_count: productCount,
-          rating: 4.2 + Math.random() * 0.8, // Mock rating between 4.2 and 5.0
+          rating: realRating, // 🔥 CALIFICACIÓN REAL DESDE BASE DE DATOS
+          // 🔥 DATOS REALES DEL VENDEDOR
+          phone: business.phone,
+          address: business.address,
           user: {
             name: business.user?.name ?? 'Usuario',
             phone: business.user?.phone ?? undefined,
+            email: business.user?.email ?? undefined,
+            address: business.user?.address ?? undefined,
             avatar_url: business.user?.avatar_url ?? undefined,
           },
-          // Campos adicionales para compatibilidad
+          // Campos adicionales para compatibilidad (con datos REALES)
           cover_image: coverImageUrl ?? undefined,
           category: 'General',
-          address: (business.business_address ?? undefined) || 'Gualán, Zacapa',
-          phone_number: (business.business_phone ?? undefined) || (business.user?.phone ?? undefined),
+          // 🔥 LÓGICA UNIFICADA: misma que en BusinessProfile
+          phone_number: business.phone || business.business_phone || business.user?.phone || undefined,
           is_open_now: true
         };
       });
@@ -421,6 +453,8 @@ export function useBuyerData() {
         `)
         .eq('seller_id', businessId)
         .eq('is_public', true)
+        .eq('is_available', true)  // 🔥 CONSISTENCIA: También filtrar por is_available
+        .gt('stock_quantity', 0)  // 🔥 ARREGLO CRÍTICO: Solo mostrar productos con stock
         .order('created_at', { ascending: false });
 
       let { data, error } = await q;
@@ -437,6 +471,8 @@ export function useBuyerData() {
             .select('*')
             .eq('seller_id', businessId)
             .eq('is_public', true)
+            .eq('is_available', true)  // 🔥 CONSISTENCIA: También en fallback de getBusinessProducts
+            .gt('stock_quantity', 0)  // 🔥 ARREGLO CRÍTICO: También en fallback
             .order('created_at', { ascending: false });
           data = r.data as any[] | null;
           error = r.error as any;
@@ -548,8 +584,8 @@ export function useBuyerData() {
   // Get business details by ID
   const getBusinessById = async (businessId: string): Promise<BusinessListing | null> => {
     try {
-      // Try with joined user; fallback if relationship fails
-      let { data, error } = await supabase
+      // 🔥 CONSULTA MANUAL: Unir sellers con users directamente
+      const { data, error } = await supabase
         .from('sellers')
         .select(`
           id,
@@ -557,36 +593,31 @@ export function useBuyerData() {
           business_description,
           business_address,
           business_phone,
+          phone,
+          address,
           business_logo,
           cover_image_url,
           logo_url,
           is_verified,
-          rating_avg,
-          user:users(name, phone, avatar_url)
+          rating_avg
         `)
         .eq('id', businessId)
         .single();
 
       if (error) {
-        const code = (error as any)?.code || '';
-        const msg = (error as any)?.message?.toLowerCase?.() || '';
-        const isRelIssue =
-          code === 'PGRST200' || code === '42P01' || code === '42703' ||
-          msg.includes('relationship') || msg.includes('column') || msg.includes('relation');
-        if (isRelIssue) {
-          const r = await supabase
-            .from('sellers')
-            .select('id,business_name,business_description,business_address,business_phone,business_logo,cover_image_url,logo_url,is_verified,rating_avg')
-            .eq('id', businessId)
-            .single();
-          data = r.data as any;
-          error = r.error as any;
-        }
-      }
-
-      if (error) {
         console.error('Error fetching business:', error);
         return null;
+      }
+
+      // 🔥 CONSULTA SEPARADA: Obtener datos del usuario
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('name, phone, email, address, avatar_url')
+        .eq('id', businessId)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user data:', userError);
       }
 
       // Count products for this business
@@ -595,6 +626,42 @@ export function useBuyerData() {
         .select('*', { count: 'exact', head: true })
         .eq('seller_id', businessId)
         .eq('is_public', true);
+
+      // 🔥 GET REAL RATING FROM DATABASE
+      let realRating = 0;
+      try {
+        const { data: ratingData, error: ratingError } = await supabase
+          .from('seller_ratings_view')
+          .select('average_rating')
+          .eq('seller_id', businessId)
+          .single();
+
+        if (!ratingError && ratingData) {
+          realRating = ratingData.average_rating || 0;
+        }
+      } catch (err) {
+        console.error('Error fetching business rating:', err);
+      }
+
+      // 🔥 COMBINAR DATOS MANUALMENTE
+      const combinedData = {
+        ...data,
+        user: userData || null,
+        products_count: count || 0,
+        rating: realRating // 🔥 CALIFICACIÓN REAL
+      };
+
+      // 🔍 DEBUG: Verificar datos combinados
+      console.log('🔥 COMBINED DATA DEBUG:', {
+        seller_data: {
+          phone: data.phone,
+          address: data.address,
+          business_phone: data.business_phone,
+          business_address: data.business_address
+        },
+        user_data: userData,
+        combined_user: combinedData.user
+      });
 
       // Generar URLs de imágenes separadas para portada y logo
       const coverImageUrl = (data as any)?.cover_image_url || (data as any)?.business_logo || (data as any)?.logo_url;
@@ -617,26 +684,30 @@ export function useBuyerData() {
       
       const row: any = data as any;
       return {
-        id: row.id,
-        business_name: row.business_name,
-        business_description: row.business_description ?? undefined,
-        business_address: row.business_address ?? undefined,
-        business_phone: row.business_phone ?? undefined,
+        id: combinedData.id,
+        business_name: combinedData.business_name,
+        business_description: combinedData.business_description ?? undefined,
+        business_address: combinedData.business_address ?? undefined,
+        business_phone: combinedData.business_phone ?? undefined,
         logo_url: logoImageUrl ?? undefined, // Logo del negocio
         cover_image_url: coverImageUrl ?? undefined, // ✅ NUEVA PROPIEDAD PARA PORTADA
-        is_verified: row.is_verified,
-        products_count: count || 0,
-        rating: row.rating_avg || 4.2 + Math.random() * 0.8,
-        user: {
-          name: row.user?.name ?? 'Usuario',
-          phone: row.user?.phone ?? undefined,
-          avatar_url: row.user?.avatar_url ?? undefined,
-        },
-        // Campos adicionales para compatibilidad
-        cover_image: coverImageUrl ?? undefined, // Usar la URL de portada
+        is_verified: combinedData.is_verified,
+        products_count: combinedData.products_count,
+        rating: combinedData.rating,
+        // 🔥 DATOS REALES DEL SELLER
+        phone: combinedData.phone,
+        address: combinedData.address,
+        // 🔥 DATOS REALES DEL USUARIO
+        user: combinedData.user ? {
+          name: combinedData.user.name,
+          phone: combinedData.user.phone,
+          email: combinedData.user.email,
+          address: combinedData.user.address,
+          avatar_url: combinedData.user.avatar_url,
+        } : undefined,
+        // Campos adicionales para compatibilidad (con datos REALES)
+        cover_image: coverImageUrl ?? undefined,
         category: 'General',
-        address: (row.business_address ?? undefined) || 'Gualán, Zacapa',
-        phone_number: (row.business_phone ?? undefined) || (row.user?.phone ?? undefined),
         is_open_now: true
       };
     } catch (error) {

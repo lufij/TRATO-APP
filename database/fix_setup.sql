@@ -535,75 +535,191 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- PASO 8: Crear índices para optimización (SOLO SI COLUMNAS EXISTEN)
+-- PASO 8: Crear índices para optimización (CON VERIFICACIÓN DE COLUMNAS)
 -- ============================================================================
 
 DO $$
 BEGIN
     RAISE NOTICE '📊 CONFIGURANDO ÍNDICES DE OPTIMIZACIÓN (CON VERIFICACIÓN DE COLUMNAS)...';
     
-    -- Índices para users
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    -- Índices para users (verificar columnas básicas primero)
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'email') THEN
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        RAISE NOTICE '   ✅ Índice users.email creado';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'role') THEN
+        CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+        RAISE NOTICE '   ✅ Índice users.role creado';
+    END IF;
     
     -- Índices para users (solo si columnas existen)
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_open_now') THEN
         CREATE INDEX IF NOT EXISTS idx_users_is_open_now ON users(is_open_now);
+        RAISE NOTICE '   ✅ Índice users.is_open_now creado';
     END IF;
     
     IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'is_available') THEN
         CREATE INDEX IF NOT EXISTS idx_users_is_available ON users(is_available);
+        RAISE NOTICE '   ✅ Índice users.is_available creado';
     END IF;
     
-    -- Índices para products
-    CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products(seller_id);
-    CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-    CREATE INDEX IF NOT EXISTS idx_products_is_public ON products(is_public);
-    CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
-    
-    -- Índices para orders
-    CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);
-    CREATE INDEX IF NOT EXISTS idx_orders_seller_id ON orders(seller_id);
-    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-    CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-    
-    -- Índices para order_items
-    CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-    CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
-    
-    -- Índices para cart
-    CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart(user_id);
-    CREATE INDEX IF NOT EXISTS idx_cart_product_id ON cart(product_id);
-    
-    -- Índices para conversations
-    CREATE INDEX IF NOT EXISTS idx_conversations_participant1 ON conversations(participant1_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_participant2 ON conversations(participant2_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
-    
-    -- Índices para messages
-    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
-    
-    -- Índices para notifications
-    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'recipient_id') THEN
-        CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);
+    -- Índices para products (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'products') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'seller_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_products_seller_id ON products(seller_id);
+            RAISE NOTICE '   ✅ Índice products.seller_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category') THEN
+            CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+            RAISE NOTICE '   ✅ Índice products.category creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'is_public') THEN
+            CREATE INDEX IF NOT EXISTS idx_products_is_public ON products(is_public);
+            RAISE NOTICE '   ✅ Índice products.is_public creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
+            RAISE NOTICE '   ✅ Índice products.created_at creado';
+        END IF;
     END IF;
-    CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
     
-    -- Índices para user_addresses (CON VERIFICACIÓN DE is_default)
-    CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses(user_id);
+    -- Índices para orders (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'buyer_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);
+            RAISE NOTICE '   ✅ Índice orders.buyer_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'seller_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_orders_seller_id ON orders(seller_id);
+            RAISE NOTICE '   ✅ Índice orders.seller_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'status') THEN
+            CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+            RAISE NOTICE '   ✅ Índice orders.status creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+            RAISE NOTICE '   ✅ Índice orders.created_at creado';
+        END IF;
+    END IF;
     
-    -- ÍNDICE CRÍTICO: is_default (solo si la columna existe)
-    IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'user_addresses' AND column_name = 'is_default') THEN
-        CREATE INDEX IF NOT EXISTS idx_user_addresses_is_default ON user_addresses(is_default);
-        RAISE NOTICE '   ✅ Índice is_default creado correctamente (error corregido)';
+    -- Índices para order_items (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'order_items') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'order_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+            RAISE NOTICE '   ✅ Índice order_items.order_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'product_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+            RAISE NOTICE '   ✅ Índice order_items.product_id creado';
+        END IF;
+    END IF;
+    
+    -- Índices para cart (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'cart') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'cart' AND column_name = 'user_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart(user_id);
+            RAISE NOTICE '   ✅ Índice cart.user_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'cart' AND column_name = 'product_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_cart_product_id ON cart(product_id);
+            RAISE NOTICE '   ✅ Índice cart.product_id creado';
+        END IF;
+    END IF;
+    
+    -- Índices para conversations (VERIFICAR COLUMNAS ESPECÍFICAS)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'conversations' AND column_name = 'participant1_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_conversations_participant1 ON conversations(participant1_id);
+            RAISE NOTICE '   ✅ Índice conversations.participant1_id creado';
+        ELSE
+            RAISE NOTICE '   ⚠️ Columna participant1_id no existe en conversations';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'conversations' AND column_name = 'participant2_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_conversations_participant2 ON conversations(participant2_id);
+            RAISE NOTICE '   ✅ Índice conversations.participant2_id creado';
+        ELSE
+            RAISE NOTICE '   ⚠️ Columna participant2_id no existe en conversations';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'conversations' AND column_name = 'last_message_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
+            RAISE NOTICE '   ✅ Índice conversations.last_message_at creado';
+        ELSE
+            RAISE NOTICE '   ⚠️ Columna last_message_at no existe en conversations';
+        END IF;
     ELSE
-        RAISE NOTICE '   ⚠️ Columna is_default no existe, saltando índice';
+        RAISE NOTICE '   ⚠️ Tabla conversations no existe';
     END IF;
     
-    RAISE NOTICE '   ✅ Índices de optimización configurados';
+    -- Índices para messages (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'messages') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'messages' AND column_name = 'conversation_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+            RAISE NOTICE '   ✅ Índice messages.conversation_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'messages' AND column_name = 'sender_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+            RAISE NOTICE '   ✅ Índice messages.sender_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'messages' AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
+            RAISE NOTICE '   ✅ Índice messages.created_at creado';
+        END IF;
+    END IF;
+    
+    -- Índices para notifications (verificar que la tabla existe)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'recipient_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON notifications(recipient_id);
+            RAISE NOTICE '   ✅ Índice notifications.recipient_id creado';
+        ELSIF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'user_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+            RAISE NOTICE '   ✅ Índice notifications.user_id creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'created_at') THEN
+            CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
+            RAISE NOTICE '   ✅ Índice notifications.created_at creado';
+        END IF;
+        
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'read') THEN
+            CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
+            RAISE NOTICE '   ✅ Índice notifications.read creado';
+        END IF;
+    END IF;
+    
+    -- Índices para user_addresses (CON VERIFICACIÓN COMPLETA)
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_addresses') THEN
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'user_addresses' AND column_name = 'user_id') THEN
+            CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses(user_id);
+            RAISE NOTICE '   ✅ Índice user_addresses.user_id creado';
+        END IF;
+        
+        -- ÍNDICE CRÍTICO: is_default (solo si la columna existe)
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'user_addresses' AND column_name = 'is_default') THEN
+            CREATE INDEX IF NOT EXISTS idx_user_addresses_is_default ON user_addresses(is_default);
+            RAISE NOTICE '   ✅ Índice user_addresses.is_default creado (error corregido)';
+        ELSE
+            RAISE NOTICE '   ⚠️ Columna is_default no existe en user_addresses, saltando índice';
+        END IF;
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla user_addresses no existe';
+    END IF;
+    
+    RAISE NOTICE '   ✅ Índices de optimización configurados con verificación completa';
     RAISE NOTICE '';
 END $$;
 
@@ -624,64 +740,109 @@ $function$;
 
 DO $$
 BEGIN
-    RAISE NOTICE '⚡ CONFIGURANDO TRIGGERS PARA updated_at...';
+    RAISE NOTICE '⚡ CONFIGURANDO TRIGGERS PARA updated_at (CON VERIFICACIÓN DE TABLAS)...';
     
-    -- Triggers para todas las tablas que necesiten updated_at
-    DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-    CREATE TRIGGER update_users_updated_at
-        BEFORE UPDATE ON users
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    -- Triggers solo para tablas que existan
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users') THEN
+        DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+        CREATE TRIGGER update_users_updated_at
+            BEFORE UPDATE ON users
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger users.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla users no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_products_updated_at ON products;
-    CREATE TRIGGER update_products_updated_at
-        BEFORE UPDATE ON products
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'products') THEN
+        DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+        CREATE TRIGGER update_products_updated_at
+            BEFORE UPDATE ON products
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger products.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla products no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
-    CREATE TRIGGER update_orders_updated_at
-        BEFORE UPDATE ON orders
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders') THEN
+        DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
+        CREATE TRIGGER update_orders_updated_at
+            BEFORE UPDATE ON orders
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger orders.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla orders no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
-    CREATE TRIGGER update_order_items_updated_at
-        BEFORE UPDATE ON order_items
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'order_items') THEN
+        DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
+        CREATE TRIGGER update_order_items_updated_at
+            BEFORE UPDATE ON order_items
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger order_items.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla order_items no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_cart_updated_at ON cart;
-    CREATE TRIGGER update_cart_updated_at
-        BEFORE UPDATE ON cart
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'cart') THEN
+        DROP TRIGGER IF EXISTS update_cart_updated_at ON cart;
+        CREATE TRIGGER update_cart_updated_at
+            BEFORE UPDATE ON cart
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger cart.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla cart no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
-    CREATE TRIGGER update_conversations_updated_at
-        BEFORE UPDATE ON conversations
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
+        CREATE TRIGGER update_conversations_updated_at
+            BEFORE UPDATE ON conversations
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger conversations.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla conversations no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
-    CREATE TRIGGER update_messages_updated_at
-        BEFORE UPDATE ON messages
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'messages') THEN
+        DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
+        CREATE TRIGGER update_messages_updated_at
+            BEFORE UPDATE ON messages
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger messages.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla messages no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_notifications_updated_at ON notifications;
-    CREATE TRIGGER update_notifications_updated_at
-        BEFORE UPDATE ON notifications
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications') THEN
+        DROP TRIGGER IF EXISTS update_notifications_updated_at ON notifications;
+        CREATE TRIGGER update_notifications_updated_at
+            BEFORE UPDATE ON notifications
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger notifications.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla notifications no existe, saltando trigger';
+    END IF;
     
-    DROP TRIGGER IF EXISTS update_user_addresses_updated_at ON user_addresses;
-    CREATE TRIGGER update_user_addresses_updated_at
-        BEFORE UPDATE ON user_addresses
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_addresses') THEN
+        DROP TRIGGER IF EXISTS update_user_addresses_updated_at ON user_addresses;
+        CREATE TRIGGER update_user_addresses_updated_at
+            BEFORE UPDATE ON user_addresses
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+        RAISE NOTICE '   ✅ Trigger user_addresses.updated_at creado';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla user_addresses no existe, saltando trigger';
+    END IF;
     
-    RAISE NOTICE '   ✅ Triggers para updated_at configurados';
+    RAISE NOTICE '   ✅ Triggers para updated_at configurados con verificación completa';
     RAISE NOTICE '';
 END $$;
 
@@ -691,145 +852,281 @@ END $$;
 
 DO $$
 BEGIN
-    RAISE NOTICE '🔒 CONFIGURANDO ROW LEVEL SECURITY...';
+    RAISE NOTICE '🔒 CONFIGURANDO ROW LEVEL SECURITY (CON VERIFICACIÓN DE TABLAS)...';
     
-    -- Habilitar RLS en todas las tablas
-    ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE cart ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
+    -- Habilitar RLS solo en tablas que existan
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users') THEN
+        ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en users';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla users no existe, saltando RLS';
+    END IF;
     
-    RAISE NOTICE '   ✅ RLS habilitado en todas las tablas';
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'products') THEN
+        ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en products';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla products no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders') THEN
+        ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en orders';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla orders no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'order_items') THEN
+        ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en order_items';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla order_items no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'cart') THEN
+        ALTER TABLE cart ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en cart';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla cart no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en conversations';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla conversations no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'messages') THEN
+        ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en messages';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla messages no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications') THEN
+        ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en notifications';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla notifications no existe, saltando RLS';
+    END IF;
+    
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_addresses') THEN
+        ALTER TABLE user_addresses ENABLE ROW LEVEL SECURITY;
+        RAISE NOTICE '   ✅ RLS habilitado en user_addresses';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla user_addresses no existe, saltando RLS';
+    END IF;
+    
+    RAISE NOTICE '   ✅ RLS configurado en todas las tablas existentes';
 END $$;
 
--- Policies para users
-DROP POLICY IF EXISTS "Users can view all users" ON users;
-CREATE POLICY "Users can view all users" ON users
-    FOR SELECT USING (true);
+-- Policies para users (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users') THEN
+        DROP POLICY IF EXISTS "Users can view all users" ON users;
+        CREATE POLICY "Users can view all users" ON users
+            FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Users can update their own profile" ON users;
-CREATE POLICY "Users can update their own profile" ON users
-    FOR UPDATE USING (id = auth.uid());
+        DROP POLICY IF EXISTS "Users can update their own profile" ON users;
+        CREATE POLICY "Users can update their own profile" ON users
+            FOR UPDATE USING (id = auth.uid());
 
-DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
-CREATE POLICY "Users can insert their own profile" ON users
-    FOR INSERT WITH CHECK (id = auth.uid());
+        DROP POLICY IF EXISTS "Users can insert their own profile" ON users;
+        CREATE POLICY "Users can insert their own profile" ON users
+            FOR INSERT WITH CHECK (id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para users creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla users no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para products
-DROP POLICY IF EXISTS "Anyone can view public products" ON products;
-CREATE POLICY "Anyone can view public products" ON products
-    FOR SELECT USING (is_public = true);
+-- Policies para products (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'products') THEN
+        DROP POLICY IF EXISTS "Anyone can view public products" ON products;
+        CREATE POLICY "Anyone can view public products" ON products
+            FOR SELECT USING (is_public = true);
 
-DROP POLICY IF EXISTS "Sellers can manage their products" ON products;
-CREATE POLICY "Sellers can manage their products" ON products
-    FOR ALL USING (seller_id = auth.uid());
+        DROP POLICY IF EXISTS "Sellers can manage their products" ON products;
+        CREATE POLICY "Sellers can manage their products" ON products
+            FOR ALL USING (seller_id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para products creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla products no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para orders
-DROP POLICY IF EXISTS "Users can view their orders" ON orders;
-CREATE POLICY "Users can view their orders" ON orders
-    FOR SELECT USING (buyer_id = auth.uid() OR seller_id = auth.uid());
+-- Policies para orders (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders') THEN
+        DROP POLICY IF EXISTS "Users can view their orders" ON orders;
+        CREATE POLICY "Users can view their orders" ON orders
+            FOR SELECT USING (buyer_id = auth.uid() OR seller_id = auth.uid());
 
-DROP POLICY IF EXISTS "Buyers can create orders" ON orders;
-CREATE POLICY "Buyers can create orders" ON orders
-    FOR INSERT WITH CHECK (buyer_id = auth.uid());
+        DROP POLICY IF EXISTS "Buyers can create orders" ON orders;
+        CREATE POLICY "Buyers can create orders" ON orders
+            FOR INSERT WITH CHECK (buyer_id = auth.uid());
 
-DROP POLICY IF EXISTS "Sellers can update their orders" ON orders;
-CREATE POLICY "Sellers can update their orders" ON orders
-    FOR UPDATE USING (seller_id = auth.uid());
+        DROP POLICY IF EXISTS "Sellers can update their orders" ON orders;
+        CREATE POLICY "Sellers can update their orders" ON orders
+            FOR UPDATE USING (seller_id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para orders creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla orders no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para order_items
-DROP POLICY IF EXISTS "Users can view order items" ON order_items;
-CREATE POLICY "Users can view order items" ON order_items
-    FOR SELECT USING (
-        order_id IN (
-            SELECT id FROM orders 
-            WHERE buyer_id = auth.uid() OR seller_id = auth.uid()
-        )
-    );
+-- Policies para order_items (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'order_items') 
+       AND EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'orders') THEN
+        DROP POLICY IF EXISTS "Users can view order items" ON order_items;
+        CREATE POLICY "Users can view order items" ON order_items
+            FOR SELECT USING (
+                order_id IN (
+                    SELECT id FROM orders 
+                    WHERE buyer_id = auth.uid() OR seller_id = auth.uid()
+                )
+            );
 
-DROP POLICY IF EXISTS "System can manage order items" ON order_items;
-CREATE POLICY "System can manage order items" ON order_items
-    FOR ALL WITH CHECK (
-        order_id IN (
-            SELECT id FROM orders 
-            WHERE buyer_id = auth.uid() OR seller_id = auth.uid()
-        )
-    );
+        DROP POLICY IF EXISTS "System can manage order items" ON order_items;
+        CREATE POLICY "System can manage order items" ON order_items
+            FOR ALL WITH CHECK (
+                order_id IN (
+                    SELECT id FROM orders 
+                    WHERE buyer_id = auth.uid() OR seller_id = auth.uid()
+                )
+            );
+        
+        RAISE NOTICE '   ✅ Policies para order_items creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla order_items o orders no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para cart
-DROP POLICY IF EXISTS "Users can manage their cart" ON cart;
-CREATE POLICY "Users can manage their cart" ON cart
-    FOR ALL USING (user_id = auth.uid());
+-- Policies para cart (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'cart') THEN
+        DROP POLICY IF EXISTS "Users can manage their cart" ON cart;
+        CREATE POLICY "Users can manage their cart" ON cart
+            FOR ALL USING (user_id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para cart creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla cart no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para conversations
-DROP POLICY IF EXISTS "Users can view their conversations" ON conversations;
-CREATE POLICY "Users can view their conversations" ON conversations
-    FOR SELECT USING (
-        participant1_id = auth.uid() OR participant2_id = auth.uid()
-    );
+-- Policies para conversations (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        DROP POLICY IF EXISTS "Users can view their conversations" ON conversations;
+        CREATE POLICY "Users can view their conversations" ON conversations
+            FOR SELECT USING (
+                participant1_id = auth.uid() OR participant2_id = auth.uid()
+            );
 
-DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
-CREATE POLICY "Users can create conversations" ON conversations
-    FOR INSERT WITH CHECK (
-        participant1_id = auth.uid() OR participant2_id = auth.uid()
-    );
+        DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
+        CREATE POLICY "Users can create conversations" ON conversations
+            FOR INSERT WITH CHECK (
+                participant1_id = auth.uid() OR participant2_id = auth.uid()
+            );
 
-DROP POLICY IF EXISTS "Users can update their conversations" ON conversations;
-CREATE POLICY "Users can update their conversations" ON conversations
-    FOR UPDATE USING (
-        participant1_id = auth.uid() OR participant2_id = auth.uid()
-    );
+        DROP POLICY IF EXISTS "Users can update their conversations" ON conversations;
+        CREATE POLICY "Users can update their conversations" ON conversations
+            FOR UPDATE USING (
+                participant1_id = auth.uid() OR participant2_id = auth.uid()
+            );
+        
+        RAISE NOTICE '   ✅ Policies para conversations creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla conversations no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para messages
-DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
-CREATE POLICY "Users can view messages in their conversations" ON messages
-    FOR SELECT USING (
-        conversation_id IN (
-            SELECT id FROM conversations 
-            WHERE participant1_id = auth.uid() OR participant2_id = auth.uid()
-        )
-    );
+-- Policies para messages (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'messages') 
+       AND EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'conversations') THEN
+        DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
+        CREATE POLICY "Users can view messages in their conversations" ON messages
+            FOR SELECT USING (
+                conversation_id IN (
+                    SELECT id FROM conversations 
+                    WHERE participant1_id = auth.uid() OR participant2_id = auth.uid()
+                )
+            );
 
-DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON messages;
-CREATE POLICY "Users can insert messages in their conversations" ON messages
-    FOR INSERT WITH CHECK (
-        sender_id = auth.uid() AND
-        conversation_id IN (
-            SELECT id FROM conversations 
-            WHERE participant1_id = auth.uid() OR participant2_id = auth.uid()
-        )
-    );
+        DROP POLICY IF EXISTS "Users can insert messages in their conversations" ON messages;
+        CREATE POLICY "Users can insert messages in their conversations" ON messages
+            FOR INSERT WITH CHECK (
+                sender_id = auth.uid() AND
+                conversation_id IN (
+                    SELECT id FROM conversations 
+                    WHERE participant1_id = auth.uid() OR participant2_id = auth.uid()
+                )
+            );
 
-DROP POLICY IF EXISTS "Users can update their own messages" ON messages;
-CREATE POLICY "Users can update their own messages" ON messages
-    FOR UPDATE USING (sender_id = auth.uid());
+        DROP POLICY IF EXISTS "Users can update their own messages" ON messages;
+        CREATE POLICY "Users can update their own messages" ON messages
+            FOR UPDATE USING (sender_id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para messages creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla messages o conversations no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para notifications
-DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
-CREATE POLICY "Users can view their own notifications" ON notifications
-    FOR SELECT USING (recipient_id = auth.uid());
+-- Policies para notifications (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'notifications') THEN
+        DROP POLICY IF EXISTS "Users can view their own notifications" ON notifications;
+        CREATE POLICY "Users can view their own notifications" ON notifications
+            FOR SELECT USING (recipient_id = auth.uid());
 
-DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
-CREATE POLICY "Users can update their own notifications" ON notifications
-    FOR UPDATE USING (recipient_id = auth.uid());
+        DROP POLICY IF EXISTS "Users can update their own notifications" ON notifications;
+        CREATE POLICY "Users can update their own notifications" ON notifications
+            FOR UPDATE USING (recipient_id = auth.uid());
 
-DROP POLICY IF EXISTS "System can insert notifications" ON notifications;
-CREATE POLICY "System can insert notifications" ON notifications
-    FOR INSERT WITH CHECK (true);
+        DROP POLICY IF EXISTS "System can insert notifications" ON notifications;
+        CREATE POLICY "System can insert notifications" ON notifications
+            FOR INSERT WITH CHECK (true);
+        
+        RAISE NOTICE '   ✅ Policies para notifications creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla notifications no existe, saltando policies';
+    END IF;
+END $$;
 
--- Policies para user_addresses
-DROP POLICY IF EXISTS "Users can manage their addresses" ON user_addresses;
-CREATE POLICY "Users can manage their addresses" ON user_addresses
-    FOR ALL USING (user_id = auth.uid());
+-- Policies para user_addresses (solo si existe la tabla)
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_addresses') THEN
+        DROP POLICY IF EXISTS "Users can manage their addresses" ON user_addresses;
+        CREATE POLICY "Users can manage their addresses" ON user_addresses
+            FOR ALL USING (user_id = auth.uid());
+        
+        RAISE NOTICE '   ✅ Policies para user_addresses creadas';
+    ELSE
+        RAISE NOTICE '   ⚠️ Tabla user_addresses no existe, saltando policies';
+    END IF;
+END $$;
 
 DO $$
 BEGIN
-    RAISE NOTICE '   ✅ Policies de RLS configuradas';
+    RAISE NOTICE '   ✅ Policies de RLS configuradas en todas las tablas existentes';
     RAISE NOTICE '';
 END $$;
 

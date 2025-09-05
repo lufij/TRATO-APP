@@ -17,6 +17,7 @@ import { SellerMarketplace } from './seller/SellerMarketplace';
 import { LocationVerification } from './LocationVerification';
 import { VerificationAlert } from './VerificationAlert';
 import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
+import { NotificationPermissionManager } from './ui/NotificationPermissionManager-fixed';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { NotificationSystem } from './notifications/NotificationSystem';
@@ -105,7 +106,7 @@ export function SellerDashboard() {
     totalViews: 0,
     totalSales: 0,
     revenue: 0,
-    avgRating: 4.5
+    avgRating: 0 // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
   });
 
   // 🚨 NUEVOS HANDLERS: Notificaciones críticas para vendedores
@@ -242,7 +243,7 @@ export function SellerDashboard() {
       // Initialize stats with defaults
       let totalSales = 0;
       let revenue = 0;
-      let avgRating = 4.5;
+      let avgRating = 0; // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
       
       try {
         // Test if orders table exists first
@@ -267,19 +268,22 @@ export function SellerDashboard() {
             console.log(`Loaded ${totalSales} orders, revenue: Q${revenue}`);
           }
 
-          // Try to get business rating
+          // 🔥 GET REAL SELLER RATING FROM DATABASE
           try {
-            const { data: sellerData, error: sellerError } = await supabase
-              .from('users')
-              .select('business_rating, total_reviews')
-              .eq('id', user?.id)
+            const { data: ratingData, error: ratingError } = await supabase
+              .from('seller_ratings_view')
+              .select('average_rating, total_reviews')
+              .eq('seller_id', user?.id)
               .single();
 
-            if (!sellerError && sellerData?.business_rating) {
-              avgRating = sellerData.business_rating || 4.5;
+            if (!ratingError && ratingData) {
+              avgRating = ratingData.average_rating || 0;
+              console.log(`🌟 Seller rating: ${avgRating} from ${ratingData.total_reviews} reviews`);
+            } else {
+              console.log('No ratings found for seller, showing 0.0');
             }
           } catch (ratingError) {
-            console.log('Business rating not available, using default');
+            console.log('Rating system not available, using 0.0');
           }
         } else {
           console.log('Orders table not available yet, using default stats');
@@ -305,7 +309,7 @@ export function SellerDashboard() {
         totalViews: 0,
         totalSales: 0,
         revenue: 0,
-        avgRating: 4.5
+        avgRating: 0 // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
       });
     }
   };
@@ -464,7 +468,7 @@ export function SellerDashboard() {
     }
   }, [user?.id]);
 
-  // Check for new orders periodically
+  // Check for new orders periodically - ARREGLADO: evitar bucle infinito
   const checkNewOrders = useCallback(async () => {
     if (!user?.id) return;
 
@@ -476,21 +480,27 @@ export function SellerDashboard() {
         .limit(1);
 
       if (!testError) {
-        // Only check if we have a baseline time
-        if (lastNotificationTime) {
+        // Get current time for comparison
+        const currentTime = new Date().toISOString();
+        const storageKey = `seller_last_notification_${user.id}`;
+        const storedTime = localStorage.getItem(storageKey);
+        
+        if (storedTime) {
+          // Check for orders since last check
           const { data, error } = await supabase
             .from('orders')
             .select('id, total, created_at, status')
             .eq('seller_id', user.id)
-            .gt('created_at', lastNotificationTime)
+            .gt('created_at', storedTime)
             .order('created_at', { ascending: false });
 
           if (!error && data && data.length > 0) {
             setNewOrdersCount(prev => prev + data.length);
-            console.log(`Found ${data.length} new orders since ${lastNotificationTime}`);
+            localStorage.setItem(storageKey, currentTime);
+            console.log(`📦 Found ${data.length} new orders since ${storedTime}`);
           }
         } else {
-          // First time - set baseline and check for pending orders
+          // First time - check for pending orders and set baseline
           const { data, error } = await supabase
             .from('orders')
             .select('id, total, created_at, status')
@@ -500,21 +510,31 @@ export function SellerDashboard() {
 
           if (!error && data && data.length > 0) {
             setNewOrdersCount(data.length);
-            setLastNotificationTime(new Date().toISOString());
-            console.log(`Found ${data.length} pending orders`);
+            console.log(`📦 Found ${data.length} pending orders (first check)`);
           }
+          // Always set baseline time to avoid repeated first-time checks
+          localStorage.setItem(storageKey, currentTime);
         }
       }
     } catch (error) {
-      console.log('Orders table not available for notifications');
+      console.log('📦 Orders table not available for notifications:', error);
     }
-  }, [user?.id, lastNotificationTime]);
+  }, [user?.id]); // 🔧 ARREGLO: Solo depender de user.id, no de estados que cambian
 
-  // Check for new orders every 30 seconds
+  // 🔧 ARREGLO: Intervalo sin dependencias del callback para evitar recreación constante
   useEffect(() => {
-    const interval = setInterval(checkNewOrders, 30000);
+    if (!user?.id) return;
+    
+    // Primera verificación inmediata
+    checkNewOrders();
+    
+    // Luego cada 30 segundos
+    const interval = setInterval(() => {
+      checkNewOrders();
+    }, 30000);
+    
     return () => clearInterval(interval);
-  }, [checkNewOrders]);
+  }, [user?.id]); // Solo depender de user?.id
 
   // Load recent activity
   const loadRecentActivity = async () => {
@@ -1165,6 +1185,14 @@ export function SellerDashboard() {
         showTester={process.env.NODE_ENV === 'development'}
       />
       
+      {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
+      <div className="container mx-auto px-4 pt-4">
+        <NotificationPermissionManager 
+          onPermissionChange={(hasPermission) => {
+            console.log('🔔 Permisos de notificación cambiados:', hasPermission);
+          }}
+        />
+      </div>
       
       {/* �🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
       <CriticalNotifications onNotification={handleStockAlert} />
