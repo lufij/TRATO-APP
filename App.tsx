@@ -129,7 +129,10 @@ function ErrorBoundaryFallback({ error, resetError }: { error: Error; resetError
 
 // PWA Install/Update Banner Component
 function PWABanner() {
-  const { canInstall, showInstallPrompt, updateAvailable, update, isOnline } = useServiceWorker();
+  const { canInstall, showInstallPrompt, updateAvailable, update } = useServiceWorker();
+  
+  // Temporalmente deshabilitado para evitar falsos positivos
+  const isOnline = true; // navigator.onLine;
 
   if (updateAvailable) {
     return (
