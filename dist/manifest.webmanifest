@@ -1,0 +1,28 @@
+{
+  "name": "TRATO - Mercado Local Gualán",
+  "short_name": "TRATO",
+  "description": "Aplicación de mercado local para Gualán",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#f97316",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "lang": "es",
+  "categories": ["shopping", "food", "delivery"],
+  "icons": [
+    {
+      "src": "/assets/trato-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/trato-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "prefer_related_applications": false
+}

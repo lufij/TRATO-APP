@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#f97316" />
+    <link rel="icon" type="image/png" href="/assets/trato-logo.png" />
+    <link rel="apple-touch-icon" href="/assets/trato-logo.png" />
+    <title>TRATO - Mercado Local Gualán</title>
+    <!-- Estilos móviles optimizados -->
+    <!-- Estilos para formularios -->
+    <link rel="stylesheet" href="/form-styles.css" />
+    <script type="module" crossorigin src="/assets/index-9d4LIYkQ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-24P10_ak.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Google Maps API -->
+    <script>
+      window.googleMapsConfig = {
+        apiKey: 'CLAVE_SERA_CARGADA_DESDE_ENV',
+        libraries: ['geometry', 'places']
+      };
+    </script>
+    <script async defer 
+      src="https://maps.googleapis.com/maps/api/js?key=DYNAMIC_KEY&libraries=geometry,places&callback=initGoogleMaps">
+    </script>
+    <script>
+      window.initGoogleMaps = function() {
+        window.googleMapsLoaded = true;
+        // Dispatch event for React components
+        window.dispatchEvent(new Event('google-maps-loaded'));
+      };
+    </script>
+    
+    
+    <!-- TRATO Service Worker Avanzado -->
+    <script>
+      // 🚀 TRATO PWA y Notificaciones Setup
+      (function() {
+        console.log('🔧 TRATO: Inicializando PWA...');
+        
+        // Verificar soporte de Service Worker
+        if (!('serviceWorker' in navigator)) {
+          console.warn('⚠️ Service Worker no soportado en este navegador');
+          return;
+        }
+
+        // Registrar Service Worker
+        window.addEventListener('load', async () => {
+          try {
+            // Registrar SW (funciona en desarrollo y producción)
+            const registration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/',
+              updateViaCache: 'none' // Forzar actualizaciones
+            });
+            
+            console.log('✅ TRATO SW: Registrado exitosamente', registration.scope);
+            
+            // Configurar notificaciones push
+            await setupPushNotifications(registration);
+            
+            // Manejar actualizaciones del SW
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('🔄 TRATO SW: Nueva versión encontrada');
+              
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Nueva versión disponible
+                  if (confirm('🆕 Nueva versión de TRATO disponible. ¿Recargar ahora?')) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+            
+            // Escuchar mensajes del SW
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              console.log('💬 Mensaje del SW:', event.data);
+              
+              if (event.data.type === 'NOTIFICATION_CLICK') {
+                // Navegar cuando se hace click en notificación
+                window.location.href = event.data.url;
+              } else if (event.data.type === 'PLAY_NOTIFICATION_SOUND') {
+                // Reproducir sonido de notificación
+                playNotificationSound(event.data.soundType);
+              }
+            });
+            
+          } catch (error) {
+            console.error('❌ TRATO SW: Error en registro:', error);
+          }
+        });
+
+        // 🔔 Configurar notificaciones push
+        async function setupPushNotifications(registration) {
+          try {
+            // Verificar soporte de notificaciones
+            if (!('Notification' in window) || !('PushManager' in window)) {
+              console.warn('⚠️ Notificaciones push no soportadas');
+              return;
+            }
+
+            // Solicitar permisos de notificación
+            let permission = Notification.permission;
+            if (permission === 'default') {
+              permission = await Notification.requestPermission();
+              console.log('🔔 Permiso de notificaciones:', permission);
+            }
+
+            if (permission === 'granted') {
+              console.log('✅ TRATO: Notificaciones habilitadas');
+              
+              // Configurar suscripción push (opcional - requiere servidor VAPID)
+              try {
+                const subscription = await registration.pushManager.getSubscription();
+                if (!subscription) {
+                  console.log('📝 TRATO: Configurando suscripción push...');
+                  // Aquí irían las claves VAPID del servidor
+                }
+              } catch (pushError) {
+                console.log('ℹ️ Push notifications requieren configuración del servidor');
+              }
+            } else {
+              console.warn('⚠️ TRATO: Notificaciones denegadas por el usuario');
+            }
+          } catch (error) {
+            console.error('❌ Error configurando notificaciones:', error);
+          }
+        }
+
+        // 🔊 Reproducir sonidos de notificación
+        function playNotificationSound(type = 'default') {
+          try {
+            // Crear contexto de audio para sonidos
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Diferentes tonos según el tipo
+            const frequencies = {
+              'new_order': [800, 1000, 1200], // Ascendente
+              'order_ready': [1200, 800], // Descendente
+              'order_delivered': [600, 800, 1000, 800], // Campana
+              'default': [800, 1000]
+            };
+            
+            const notes = frequencies[type] || frequencies.default;
+            let delay = 0;
+            
+            notes.forEach((freq, index) => {
+              setTimeout(() => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+              }, delay);
+              
+              delay += 200; // 200ms entre notas
+            });
+            
+            console.log('🔊 TRATO: Sonido reproducido:', type);
+          } catch (error) {
+            console.log('🔇 Audio no disponible:', error.message);
+          }
+        }
+
+        // 📱 Detectar instalación PWA
+        window.addEventListener('beforeinstallprompt', (event) => {
+          console.log('📱 TRATO PWA: Prompt de instalación disponible');
+          event.preventDefault();
+          
+          // Guardar evento para mostrarlo después
+          window.deferredPrompt = event;
+          
+          // Mostrar botón de instalación personalizado
+          showInstallButton();
+        });
+
+        // Mostrar botón de instalación
+        function showInstallButton() {
+          // Crear botón de instalación dinámico
+          const installButton = document.createElement('button');
+          installButton.innerHTML = '📱 Instalar TRATO';
+          installButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #f97316;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+            cursor: pointer;
+            z-index: 9999;
+            font-size: 14px;
+            transition: transform 0.2s;
+          `;
+          
+          installButton.addEventListener('mousedown', () => {
+            installButton.style.transform = 'scale(0.95)';
+          });
+          
+          installButton.addEventListener('mouseup', () => {
+            installButton.style.transform = 'scale(1)';
+          });
+          
+          installButton.addEventListener('click', async () => {
+            if (window.deferredPrompt) {
+              window.deferredPrompt.prompt();
+              const { outcome } = await window.deferredPrompt.userChoice;
+              console.log('📱 TRATO PWA: Instalación', outcome);
+              window.deferredPrompt = null;
+              installButton.remove();
+            }
+          });
+          
+          document.body.appendChild(installButton);
+          
+          // Auto-ocultar después de 10 segundos
+          setTimeout(() => {
+            if (installButton.parentNode) {
+              installButton.style.opacity = '0.5';
+              setTimeout(() => installButton.remove(), 5000);
+            }
+          }, 10000);
+        }
+
+        // 🌐 Monitorear conectividad
+        function updateOnlineStatus() {
+          const status = navigator.onLine ? 'online' : 'offline';
+          console.log('🌐 TRATO: Estado de conexión:', status);
+          
+          if (!navigator.onLine) {
+            // Mostrar mensaje de offline
+            showOfflineMessage();
+          }
+        }
+
+        function showOfflineMessage() {
+          if (document.getElementById('offline-banner')) return;
+          
+          const banner = document.createElement('div');
+          banner.id = 'offline-banner';
+          banner.innerHTML = '📡 Sin conexión - Funcionalidad limitada';
+          banner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            z-index: 10000;
+            font-size: 14px;
+            font-weight: bold;
+          `;
+          
+          document.body.appendChild(banner);
+          
+          // Ocultar cuando vuelva la conexión
+          const hideWhenOnline = () => {
+            if (navigator.onLine) {
+              banner.remove();
+              window.removeEventListener('online', hideWhenOnline);
+            }
+          };
+          
+          window.addEventListener('online', hideWhenOnline);
+        }
+
+        // Escuchar cambios de conectividad
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Estado inicial
+        updateOnlineStatus();
+        
+        console.log('🎉 TRATO PWA: Inicialización completa');
+      })();
+    </script>
+  </body>
+</html>
