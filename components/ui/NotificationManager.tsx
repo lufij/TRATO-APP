@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../hooks/useNotification';
 import { useSoundNotifications, NotificationSound } from '../../hooks/useSoundNotifications';
 import { SoundNotificationSettings } from '../ui/SoundNotificationSettings';
+import { AdvancedSoundTester } from '../AdvancedSoundTester';
 import { BuyerNotifications } from '../buyer/BuyerNotifications';
 import { toast } from 'sonner';
 
@@ -49,6 +50,7 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
   
   const [activeTab, setActiveTab] = useState('notifications');
   const [showSoundSettings, setShowSoundSettings] = useState(false);
+  const [showAdvancedSoundTester, setShowAdvancedSoundTester] = useState(false);
 
   // Get role-specific greeting and info
   const getRoleInfo = () => {
@@ -115,6 +117,16 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
     );
   }
 
+  if (showAdvancedSoundTester) {
+    return (
+      <div className="h-full">
+        <AdvancedSoundTester 
+          onClose={() => setShowAdvancedSoundTester(false)} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -136,6 +148,16 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
           
           {/* Quick Actions */}
           <div className="flex items-center gap-2">
+            {/* Advanced Sound Tester */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAdvancedSoundTester(true)}
+              className="h-9"
+            >
+              🔊 Sonidos
+            </Button>
+            
             {/* Sound Status Indicator */}
             <Button
               variant="outline"
@@ -279,7 +301,7 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
                         <Card 
                           key={notification.id}
                           className={`transition-all hover:shadow-md ${
-                            !notification.read 
+                            !notification.is_read 
                               ? 'border-orange-200 bg-orange-50' 
                               : 'border-gray-200'
                           }`}
@@ -287,7 +309,7 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
                           <CardContent className="p-4">
                             <div className="flex items-start gap-3">
                               <div className={`p-2 rounded-full ${
-                                !notification.read 
+                                !notification.is_read 
                                   ? 'bg-orange-100 text-orange-600' 
                                   : 'bg-gray-100 text-gray-600'
                               }`}>
@@ -298,18 +320,18 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
                                     <h4 className={`font-medium text-sm ${
-                                      !notification.read ? 'text-gray-900' : 'text-gray-600'
+                                      !notification.is_read ? 'text-gray-900' : 'text-gray-600'
                                     }`}>
                                       {notification.title}
                                     </h4>
                                     <p className={`text-sm mt-1 ${
-                                      !notification.read ? 'text-gray-700' : 'text-gray-500'
+                                      !notification.is_read ? 'text-gray-700' : 'text-gray-500'
                                     }`}>
                                       {notification.message}
                                     </p>
                                   </div>
                                   
-                                  {!notification.read && (
+                                  {!notification.is_read && (
                                     <Badge variant="destructive" className="h-2 w-2 p-0 flex-shrink-0" />
                                   )}
                                 </div>
@@ -320,7 +342,7 @@ export function NotificationManager({ onClose }: NotificationManagerProps) {
                                   </span>
                                   
                                   <div className="flex gap-1">
-                                    {!notification.read && (
+                                    {!notification.is_read && (
                                       <Button
                                         variant="ghost"
                                         size="sm"

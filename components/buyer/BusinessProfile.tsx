@@ -190,6 +190,41 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
     }
   };
 
+  const handleAddDailyToCart = async (productId: string, productName: string) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para agregar productos');
+      return;
+    }
+    
+    if (addingToCart === productId) return;
+    
+    setAddingToCart(productId);
+    
+    try {
+      console.log('🍺 Adding daily product to cart:', { productId, productName, productType: 'daily' });
+      const result = await addToCart(productId, 1, 'daily');
+      console.log('🍺 Daily cart result:', result);
+      
+      if (result.success) {
+        toast.success(`Agregado al carrito`);
+      } else {
+        console.error('🍺 Daily cart failed:', result);
+        toast.error(result.message, {
+          icon: <AlertCircle className="w-4 h-4" />,
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Error adding daily to cart:', error);
+      toast.error('Error al agregar al carrito', {
+        icon: <XCircle className="w-4 h-4" />,
+        duration: 3000,
+      });
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
   const getCartItemQuantity = (productId: string) => {
     const item = cartItems?.find((item: any) => item.product_id === productId);
     const quantity = item?.quantity || 0;
@@ -388,7 +423,7 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
                   <button
                     onClick={() => {
                       if (availabilityInfo.isAvailable) {
-                        handleAddToCart(product.id, product.name);
+                        handleAddDailyToCart(product.id, product.name);
                       }
                     }}
                     disabled={!availabilityInfo.isAvailable || isAdding}
@@ -527,7 +562,10 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
 
                 <Button
                   size="sm"
-                  onClick={() => handleAddToCart(product.id, product.name)}
+                  onClick={() => {
+                    console.log('🍺 DailyProductCard button clicked - should call handleAddDailyToCart');
+                    handleAddDailyToCart(product.id, product.name);
+                  }}
                   disabled={!product.is_available || isAdding}
                   className="h-8 px-3 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium"
                 >

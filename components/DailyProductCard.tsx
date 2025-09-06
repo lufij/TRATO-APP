@@ -5,6 +5,7 @@ import { Badge } from './ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useImageModalContext } from '../contexts/ImageModalContext';
+import { formatGuatemalaTime, getTimeUntilExpiration } from '../utils/guatemala-time';
 import { 
   Edit2, 
   Trash2, 
@@ -41,21 +42,9 @@ export function DailyProductCard({ dailyProduct, onEdit, onDelete }: DailyProduc
 
   useEffect(() => {
     const updateCountdown = () => {
-      const now = new Date().getTime();
-      const expirationTime = new Date(dailyProduct.expires_at).getTime();
-      const difference = expirationTime - now;
-
-      if (difference <= 0) {
-        setIsExpired(true);
-        setTimeLeft('Expirado');
-        return;
-      }
-
-      const hours = Math.floor(difference / (1000 * 60 * 60));
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-      setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
+      const timeInfo = getTimeUntilExpiration(dailyProduct.expires_at);
+      setTimeLeft(timeInfo.formattedTime);
+      setIsExpired(timeInfo.isExpired);
     };
 
     updateCountdown();
@@ -73,10 +62,7 @@ export function DailyProductCard({ dailyProduct, onEdit, onDelete }: DailyProduc
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('es-GT', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatGuatemalaTime(dateString);
   };
 
   return (
@@ -166,7 +152,7 @@ export function DailyProductCard({ dailyProduct, onEdit, onDelete }: DailyProduc
                 Creado a las {formatTime(dailyProduct.created_at)}
               </span>
               <span className="text-orange-700 font-medium">
-                Expira a las 23:59:59
+                Expira: {formatTime(dailyProduct.expires_at)}
               </span>
             </div>
           </div>

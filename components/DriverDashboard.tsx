@@ -126,7 +126,7 @@ export function DriverDashboard() {
       loadDriverStats();
       setupOrderNotifications();
     }
-  }, [user]);
+  }, [user?.id]); // Solo depender del ID del usuario
 
   // Auto-refresh orders every 30 seconds
   useEffect(() => {
@@ -138,7 +138,7 @@ export function DriverDashboard() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [driverStatus.is_active, currentView]);
+  }, [driverStatus.is_active, currentView]); // Sin incluir las funciones
 
   const loadDriverData = async () => {
     try {
@@ -729,37 +729,27 @@ export function DriverDashboard() {
   };
 
   const updateDeliveryStatus = async (orderId: string, newStatus: string) => {
+    console.log('🟢 updateDeliveryStatus called with:', orderId, newStatus);
+    
     if (!user?.id) {
+      console.error('❌ Usuario no autenticado');
       toast.error('Usuario no autenticado');
       return;
     }
 
+    console.log('👤 User ID:', user.id);
     setProcessingOrderId(orderId);
 
     try {
-      console.log('Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
+      console.log('🔄 Updating order status:', orderId, 'to:', newStatus, 'by driver:', user.id);
       
-      // Primero obtenemos la información completa del pedido
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single();
-
-      if (orderError || !orderData) {
-        console.error('Error getting order data:', orderError);
-        toast.error('Error al obtener información del pedido');
-        return;
-      }
-
-      // Actualización directa usando update en lugar de RPC
+      // ACTUALIZACIÓN SIMPLE - El trigger problemático ya fue eliminado
       const updateData: any = {
         status: newStatus,
-        updated_at: new Date().toISOString(),
-        driver_id: user.id
+        updated_at: new Date().toISOString()
       };
 
-      // Agregar campos específicos según el estado
+      // Agregar timestamps según el estado
       if (newStatus === 'picked_up') {
         updateData.picked_up_at = new Date().toISOString();
       } else if (newStatus === 'in_transit') {
@@ -768,19 +758,23 @@ export function DriverDashboard() {
         updateData.delivered_at = new Date().toISOString();
       }
 
+      console.log('📝 Update data:', updateData);
+
       const { data, error } = await supabase
         .from('orders')
         .update(updateData)
         .eq('id', orderId)
+        .eq('driver_id', user.id)
         .select();
 
       if (error) {
-        console.error('Error updating status:', error);
-        toast.error('Error al actualizar estado: ' + error.message);
+        console.error('❌ Error updating order status:', error);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
+        toast.error('No se pudo actualizar: ' + (error.message || 'Error desconocido'));
         return;
       }
 
-      console.log('Update status response:', data);
+      console.log('✅ Update successful! Response:', data);
 
       if (data && data.length > 0) {
         const statusMessages: Record<string, string> = {
@@ -790,13 +784,6 @@ export function DriverDashboard() {
         };
 
         toast.success(statusMessages[newStatus] || 'Estado actualizado');
-
-        // 🚀 Enviar notificaciones según el estado
-        if (newStatus === 'in_transit') {
-          await sendInTransitNotification(orderId, orderData);
-        } else if (newStatus === 'delivered') {
-          await handleDeliveryCompleted(orderId, orderData);
-        }
         
         // Refresh data immediately
         await Promise.all([
@@ -848,31 +835,7 @@ export function DriverDashboard() {
     }
   };
 
-  // �🚀 NUEVA FUNCIÓN: Manejo completo cuando se entrega un pedido
-  const handleDeliveryCompleted = async (orderId: string, orderData: any) => {
-    if (!user?.id) return;
-    
-    try {
-      console.log('🎯 Iniciando proceso de entrega completada para pedido:', orderId);
-      
-      // 1. 📨 Enviar notificaciones al vendedor y comprador
-      await sendDeliveryNotifications(orderId, orderData);
-      
-      // 2. 🌟 Crear registros para calificaciones pendientes
-      await createRatingRecords(orderId, orderData);
-      
-      // 3. 📊 Actualizar estadísticas del repartidor
-      await updateDriverStats(user.id);
-      
-      console.log('✅ Proceso de entrega completada exitoso');
-      
-    } catch (error) {
-      console.error('❌ Error en proceso de entrega completada:', error);
-      // No mostramos error al usuario para no interrumpir el flujo principal
-    }
-  };
-
-  // 📨 Función para enviar notificaciones
+  // 📨 Función para enviar notificaciones (solo notificaciones, sin calificaciones)
   const sendDeliveryNotifications = async (orderId: string, orderData: any) => {
     if (!user?.id) return;
     
@@ -885,10 +848,9 @@ export function DriverDashboard() {
           recipient_id: orderData.seller_id,
           type: 'delivery_completed',
           title: '✅ Pedido Entregado',
-          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado exitosamente. ¡Califica al repartidor y comprador!`,
+          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado exitosamente.`,
           data: {
             order_id: orderId,
-            action_required: 'rate_driver_and_buyer',
             driver_id: user.id,
             buyer_id: orderData.buyer_id
           },
@@ -902,10 +864,9 @@ export function DriverDashboard() {
           recipient_id: orderData.buyer_id,
           type: 'delivery_completed',
           title: '🎉 ¡Tu pedido ha llegado!',
-          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado. ¡Califica al vendedor y repartidor!`,
+          message: `Tu pedido #${orderId.slice(0, 8)} ha sido entregado exitosamente.`,
           data: {
             order_id: orderId,
-            action_required: 'rate_seller_and_driver',
             seller_id: orderData.seller_id,
             driver_id: user.id
           },
@@ -931,75 +892,11 @@ export function DriverDashboard() {
   };
 
   // 🌟 Función para crear registros de calificaciones
+  // COMPLETAMENTE DESHABILITADA - Evita conflictos con RLS policies
   const createRatingRecords = async (orderId: string, orderData: any) => {
-    if (!user?.id) return;
-    
-    try {
-      const ratingRecords = [];
-
-      // Registro para que el vendedor califique al repartidor
-      if (orderData.seller_id) {
-        ratingRecords.push({
-          order_id: orderId,
-          rater_id: orderData.seller_id,
-          rated_id: user.id,
-          rating_type: 'seller_to_driver',
-          status: 'pending',
-          created_at: new Date().toISOString()
-        });
-      }
-
-      // Registro para que el vendedor califique al comprador
-      if (orderData.seller_id && orderData.buyer_id) {
-        ratingRecords.push({
-          order_id: orderId,
-          rater_id: orderData.seller_id,
-          rated_id: orderData.buyer_id,
-          rating_type: 'seller_to_buyer',
-          status: 'pending',
-          created_at: new Date().toISOString()
-        });
-      }
-
-      // Registro para que el comprador califique al vendedor
-      if (orderData.buyer_id && orderData.seller_id) {
-        ratingRecords.push({
-          order_id: orderId,
-          rater_id: orderData.buyer_id,
-          rated_id: orderData.seller_id,
-          rating_type: 'buyer_to_seller',
-          status: 'pending',
-          created_at: new Date().toISOString()
-        });
-      }
-
-      // Registro para que el comprador califique al repartidor
-      if (orderData.buyer_id) {
-        ratingRecords.push({
-          order_id: orderId,
-          rater_id: orderData.buyer_id,
-          rated_id: user.id,
-          rating_type: 'buyer_to_driver',
-          status: 'pending',
-          created_at: new Date().toISOString()
-        });
-      }
-
-      // Insertar registros de calificaciones
-      if (ratingRecords.length > 0) {
-        const { error } = await supabase
-          .from('ratings')
-          .insert(ratingRecords);
-
-        if (error) {
-          console.error('Error creating rating records:', error);
-        } else {
-          console.log('🌟 Registros de calificación creados exitosamente');
-        }
-      }
-    } catch (error) {
-      console.error('Error creating rating records:', error);
-    }
+    console.log('📝 createRatingRecords: FUNCIÓN DESHABILITADA para evitar conflictos RLS');
+    console.log('📝 Pedido:', orderId, '- No se crearán registros de calificación automáticamente');
+    return Promise.resolve(); // Retorna inmediatamente sin hacer nada
   };
 
   // 📊 Función para actualizar estadísticas del repartidor
@@ -1123,7 +1020,6 @@ export function DriverDashboard() {
       <NotificationSystem 
         showBanner={true}
         enableAutoActivation={true}  // Auto-activar para repartidores (CRÍTICO)
-        showTester={process.env.NODE_ENV === 'development'}
       />
       
       {/* 🚚 Notificaciones importantes para repartidores */}

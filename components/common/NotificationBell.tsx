@@ -127,16 +127,16 @@ export function NotificationBell() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
-        <Card>
-          <CardHeader>
-            <CardTitle>Notificaciones</CardTitle>
+      <PopoverContent className="w-80 bg-white border border-gray-200 shadow-lg" align="end">
+        <Card className="border-0 shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-gray-900">Notificaciones</CardTitle>
           </CardHeader>
           <CardContent className="max-h-96 overflow-y-auto p-0">
             {notifications.length > 0 ? (
-              <div className="divide-y">
+              <div className="divide-y divide-gray-100">
                 {notifications.map(notification => (
-                  <div key={notification.id} className={`p-3 ${!notification.is_read ? 'bg-blue-50' : ''}`}>
+                  <div key={notification.id} className={`p-3 ${!notification.is_read ? 'bg-blue-50' : 'bg-white'}`}>
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
                         <Badge variant={notification.type === 'order_accepted' ? 'default' : 'destructive'}>
@@ -152,7 +152,7 @@ export function NotificationBell() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-sm text-gray-500 p-6">No tienes notificaciones.</p>
+              <p className="text-center text-sm text-gray-500 p-6 bg-white">No tienes notificaciones.</p>
             )}
           </CardContent>
         </Card>

@@ -9,9 +9,9 @@
 
 BEGIN;
 
-RAISE NOTICE '%', '==========================================';
-RAISE NOTICE '%', 'INICIANDO CORRECCIÓN COMPLETA DE FOREIGN KEYS';
-RAISE NOTICE '%', '==========================================';
+RAISE NOTICE '==========================================';
+RAISE NOTICE 'INICIANDO CORRECCIÓN COMPLETA DE FOREIGN KEYS';
+RAISE NOTICE '==========================================';
 
 -- =====================================================
 -- PARTE 1: VERIFICAR TABLAS BASE CRÍTICAS

@@ -21,6 +21,7 @@ const DiagnosticProbe = lazy(async () => {
 });
 const AdminDashboard = lazy(() => import('./components/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminSetup = lazy(() => import('./components/AdminSetup').then(m => ({ default: m.AdminSetup })));
+import { SoundNotificationWrapper } from './components/SoundNotificationWrapper';
 import { UserRole } from './utils/supabase/client';
 import { supabaseEnvDiagnostics, supabaseConfig, environment } from './utils/supabase/config';
 import { supabase } from './utils/supabase/client';
@@ -30,6 +31,7 @@ import { Progress } from './components/ui/progress';
 import { AlertCircle, Database, Loader2, CheckCircle, Stethoscope, Download, RefreshCw } from 'lucide-react';
 import { useServiceWorker } from './hooks/useServiceWorker';
 import { useSoundNotifications } from './hooks/useSoundNotifications';
+import { useAdvancedSoundNotifications } from './hooks/useAdvancedSoundNotifications';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 
@@ -88,6 +90,15 @@ function PWAMetaTags() {
       existingLink.setAttribute('href', href);
     });
 
+    // Cargar script de notificaciones sonoras
+    if (!document.querySelector('script[src="/sound-notifications-activator.js"]')) {
+      const soundScript = document.createElement('script');
+      soundScript.src = '/sound-notifications-activator.js';
+      soundScript.async = true;
+      document.head.appendChild(soundScript);
+      console.log('🔊 Script de notificaciones sonoras cargado');
+    }
+
     // Set document title
     document.title = 'TRATO - Mercado Local Gualán';
   }, []);
@@ -129,19 +140,19 @@ function ErrorBoundaryFallback({ error, resetError }: { error: Error; resetError
 
 // PWA Install/Update Banner Component
 function PWABanner() {
-  const { canInstall, showInstallPrompt, updateAvailable, update } = useServiceWorker();
+  const { serviceWorker, activateUpdate } = useServiceWorker();
   
   // Temporalmente deshabilitado para evitar falsos positivos
   const isOnline = true; // navigator.onLine;
 
-  if (updateAvailable) {
+  if (serviceWorker.hasUpdate) {
     return (
       <div className="bg-orange-500 text-white p-3 text-center">
         <div className="flex items-center justify-center gap-2">
           <RefreshCw className="h-4 w-4" />
           <span className="text-sm font-medium">Nueva actualización disponible</span>
           <Button
-            onClick={update}
+            onClick={activateUpdate}
             size="sm"
             variant="secondary"
             className="ml-2 bg-white text-orange-500 hover:bg-gray-100"
@@ -153,6 +164,8 @@ function PWABanner() {
     );
   }
 
+  // PWA install banner temporalmente deshabilitado
+  /*
   if (canInstall) {
     return (
       <div className="bg-green-500 text-white p-3 text-center">
@@ -171,6 +184,7 @@ function PWABanner() {
       </div>
     );
   }
+  */
 
   if (!isOnline) {
     return (
@@ -184,12 +198,6 @@ function PWABanner() {
   }
 
   return null;
-}
-
-// Sound notification wrapper component
-function SoundNotificationWrapper({ children }: { children: React.ReactNode }) {
-  useSoundNotifications(); // Initialize sound notifications
-  return <>{children}</>;
 }
 
 function AppContent() {

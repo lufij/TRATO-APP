@@ -141,7 +141,7 @@ function SellerMarketplaceContent() {
         name: seller.business_name || 'Comercio sin nombre',
         description: seller.business_description || 'Comercio local en Gualán',
         business_type: 'General', // Eliminar business_category
-        business_rating: 4.5, // Default value since column may not exist
+        business_rating: 0, // Will be loaded from ratings system later
         total_reviews: 0, // Default value since column may not exist
         profile_image_url: seller.business_logo || '', // Logo del negocio
         is_open: seller.is_open_now || false // Estado real del negocio

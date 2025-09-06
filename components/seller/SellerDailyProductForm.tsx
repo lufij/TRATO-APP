@@ -32,8 +32,20 @@ export default function SellerDailyProductForm({ onProductCreated }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const expires_at = new Date();
-      expires_at.setHours(23, 59, 59, 999); // Expira al final del día
+      // CORREGIDO: Medianoche local para Guatemala (UTC-6)
+      const now = new Date();
+      const expires_at = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23, 59, 59, 999
+      );
+      
+      // Si ya es muy tarde (después de las 22:00), configurar para mañana
+      if (now.getHours() >= 22) {
+        expires_at.setDate(expires_at.getDate() + 1);
+      }
+      
       if (!user?.id) throw new Error('Usuario no autenticado');
       const { error } = await supabase.from('daily_products').insert({
         seller_id: user.id,

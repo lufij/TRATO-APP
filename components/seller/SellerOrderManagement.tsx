@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase/client';
 import { updateProductStock } from '../../utils/stockManager';
+import { diagnosticarOrdenes, aceptarOrdenDirecta } from '../../utils/diagnostico-ordenes';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -39,7 +40,7 @@ interface Order {
   total: number;
   delivery_fee: number;
   status: 'pending' | 'accepted' | 'ready' | 'assigned' | 'picked_up' | 'in_transit' | 'delivered' | 'completed' | 'cancelled' | 'rejected';
-  delivery_method: 'pickup' | 'delivery' | 'dine_in';
+  delivery_type: 'pickup' | 'delivery' | 'dine_in';
   delivery_address?: string;
   notes?: string;
   created_at: string;
@@ -159,7 +160,7 @@ export function SellerOrderManagement() {
         console.log(`🔍 Orden ${order.order_number}:`, {
           id: order.id,
           status: order.status,
-          delivery_method: order.delivery_method,
+          delivery_type: order.delivery_type,
           buyer_id: order.buyer_id
         });
         
@@ -186,6 +187,223 @@ export function SellerOrderManagement() {
   const handleRefresh = () => {
     setRefreshing(true);
     loadOrders();
+  };
+
+  // 🔧 FUNCIÓN TEMPORAL DE DIAGNÓSTICO
+  const handleDiagnostico = async () => {
+    console.log('🔧 Iniciando diagnóstico desde el componente...');
+    const resultado = await diagnosticarOrdenes();
+    console.log('📊 Resultado del diagnóstico:', resultado);
+    
+    if (resultado.success) {
+      toast.success('Diagnóstico completado - Ver consola para detalles');
+    } else {
+      toast.error(`Error en diagnóstico: ${resultado.error}`);
+    }
+  };
+
+  // 🔧 FUNCIÓN MEJORADA PARA ACEPTAR ORDEN
+  const handleAceptarDirecto = async (orderId: string) => {
+    console.log(`🧪 Probando aceptar orden directa: ${orderId}`);
+    const resultado = await aceptarOrdenDirecta(orderId);
+    console.log('📊 Resultado:', resultado);
+    
+    if (resultado.success) {
+      toast.success('Orden aceptada exitosamente!');
+      loadOrders(); // Recargar órdenes
+    } else {
+      toast.error(`Error: ${resultado.error}`);
+    }
+  };
+
+  // 🚀 FUNCIÓN PARA MARCAR ORDEN COMO LISTA (CON TRIPLE FALLBACK)
+  const handleMarcarListo = async (orderId: string) => {
+    if (processingOrders.has(orderId)) return;
+    setProcessingOrders(prev => new Set([...prev, orderId]));
+
+    try {
+      console.log(`🎯 Marcando orden como lista: ${orderId}`);
+      
+      let result, error;
+      
+      // INTENTO 1: Función mejorada
+      try {
+        console.log('🔄 Intento 1: seller_mark_ready_improved');
+        const response = await supabase.rpc('seller_mark_ready_improved', {
+          p_order_id: orderId,
+          p_seller_id: user?.id
+        });
+        result = response.data;
+        error = response.error;
+        
+        if (!error && result) {
+          console.log('✅ Éxito con función mejorada');
+        }
+      } catch (err) {
+        console.log('⚠️ Función mejorada falló, probando segura...');
+        
+        // INTENTO 2: Función segura
+        try {
+          console.log('🔄 Intento 2: seller_mark_ready_safe');
+          const response = await supabase.rpc('seller_mark_ready_safe', {
+            p_order_id: orderId,
+            p_seller_id: user?.id
+          });
+          result = response.data;
+          error = response.error;
+          
+          if (!error && result) {
+            console.log('✅ Éxito con función segura');
+          }
+        } catch (err2) {
+          console.log('⚠️ Función segura falló, probando básica...');
+          
+          // INTENTO 3: Función básica
+          try {
+            console.log('🔄 Intento 3: seller_mark_ready_basic');
+            const response = await supabase.rpc('seller_mark_ready_basic', {
+              p_order_id: orderId,
+              p_seller_id: user?.id
+            });
+            result = response.data;
+            error = response.error;
+            
+            if (!error && result) {
+              console.log('✅ Éxito con función básica');
+            }
+          } catch (err3) {
+            console.error('💥 Todos los métodos fallaron:', err3);
+            throw new Error('No se pudo marcar la orden como lista');
+          }
+        }
+      }
+
+      if (error) {
+        console.error('❌ Error RPC:', error);
+        toast.error(`Error: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Resultado final:', result);
+      
+      if (result && result.length > 0) {
+        const response = result[0];
+        if (response.success) {
+          toast.success(response.message);
+          loadOrders();
+        } else {
+          toast.error(response.message);
+        }
+      } else {
+        toast.success('Orden marcada como lista');
+        loadOrders();
+      }
+
+    } catch (error) {
+      console.error('💥 Error en handleMarcarListo:', error);
+      toast.error('Error al marcar orden como lista');
+    } finally {
+      setProcessingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
+    }
+  };
+
+  // 📦 FUNCIÓN PARA COMPLETAR PICKUP/DINE-IN (CON TRIPLE FALLBACK)
+  const handleCompletarPickup = async (orderId: string) => {
+    if (processingOrders.has(orderId)) return;
+    setProcessingOrders(prev => new Set([...prev, orderId]));
+
+    try {
+      console.log(`📦 Completando orden pickup/dine-in: ${orderId}`);
+      
+      let result, error;
+      
+      // INTENTO 1: Función completa
+      try {
+        console.log('🔄 Intento 1: seller_mark_completed_pickup');
+        const response = await supabase.rpc('seller_mark_completed_pickup', {
+          p_order_id: orderId,
+          p_seller_id: user?.id
+        });
+        result = response.data;
+        error = response.error;
+        
+        if (!error && result) {
+          console.log('✅ Éxito con función completa');
+        }
+      } catch (err) {
+        console.log('⚠️ Función completa falló, probando segura...');
+        
+        // INTENTO 2: Función segura
+        try {
+          console.log('🔄 Intento 2: seller_mark_completed_pickup_safe');
+          const response = await supabase.rpc('seller_mark_completed_pickup_safe', {
+            p_order_id: orderId,
+            p_seller_id: user?.id
+          });
+          result = response.data;
+          error = response.error;
+          
+          if (!error && result) {
+            console.log('✅ Éxito con función segura');
+          }
+        } catch (err2) {
+          console.log('⚠️ Función segura falló, probando básica...');
+          
+          // INTENTO 3: Función básica
+          try {
+            console.log('🔄 Intento 3: seller_mark_completed_pickup_basic');
+            const response = await supabase.rpc('seller_mark_completed_pickup_basic', {
+              p_order_id: orderId,
+              p_seller_id: user?.id
+            });
+            result = response.data;
+            error = response.error;
+            
+            if (!error && result) {
+              console.log('✅ Éxito con función básica');
+            }
+          } catch (err3) {
+            console.error('💥 Todos los métodos fallaron:', err3);
+            throw new Error('No se pudo completar la orden pickup/dine-in');
+          }
+        }
+      }
+
+      if (error) {
+        console.error('❌ Error RPC:', error);
+        toast.error(`Error: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Resultado final:', result);
+      
+      if (result && result.length > 0) {
+        const response = result[0];
+        if (response.success) {
+          toast.success(response.message);
+          loadOrders();
+        } else {
+          toast.error(response.message);
+        }
+      } else {
+        toast.success('Orden completada exitosamente');
+        loadOrders();
+      }
+
+    } catch (error) {
+      console.error('💥 Error en handleCompletarPickup:', error);
+      toast.error('Error al completar la orden');
+    } finally {
+      setProcessingOrders(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderId);
+        return newSet;
+      });
+    }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -401,7 +619,7 @@ export function SellerOrderManagement() {
     console.log(`🎨 Renderizando orden ${order.order_number}:`, {
       id: order.id,
       status: order.status,
-      delivery_method: order.delivery_method,
+      delivery_type: order.delivery_type,
       buyer_id: order.buyer_id,
       isProcessing,
       orderObject: order
@@ -409,11 +627,11 @@ export function SellerOrderManagement() {
     
     // 🔍 DEBUG: Verificar condiciones específicas
     console.log(`❓ Status actual: "${order.status}" (tipo: ${typeof order.status})`);
-    console.log(`❓ Delivery method actual: "${order.delivery_method}" (tipo: ${typeof order.delivery_method})`);
+    console.log(`❓ Delivery type actual: "${order.delivery_type}" (tipo: ${typeof order.delivery_type})`);
     console.log(`❓ ¿Status === 'pending'? ${order.status === 'pending'}`);
-    console.log(`❓ ¿Delivery method === 'delivery'? ${order.delivery_method === 'delivery'}`);
+    console.log(`❓ ¿Delivery type === 'delivery'? ${order.delivery_type === 'delivery'}`);
     console.log(`❓ ¿Status incluye pending? ${String(order.status).includes('pending')}`);
-    console.log(`❓ ¿Delivery incluye delivery? ${String(order.delivery_method).includes('delivery')}`);
+    console.log(`❓ ¿Delivery incluye delivery? ${String(order.delivery_type).includes('delivery')}`);
     
     return (
       <Card key={order.id} className="border-l-4 border-l-orange-500">
@@ -448,9 +666,9 @@ export function SellerOrderManagement() {
 
           {/* Delivery Info */}
           <div className={`p-4 rounded-lg border-2 ${
-            String(order.delivery_method || '').trim().toLowerCase() === 'delivery' 
+            String(order.delivery_type || '').trim().toLowerCase() === 'delivery' 
               ? 'bg-blue-50 border-blue-300' 
-              : String(order.delivery_method || '').trim().toLowerCase() === 'pickup' 
+              : String(order.delivery_type || '').trim().toLowerCase() === 'pickup' 
                 ? 'bg-green-50 border-green-300' 
                 : 'bg-blue-50 border-blue-300'
           }`}>
@@ -548,42 +766,44 @@ export function SellerOrderManagement() {
           <div className="space-y-2 pt-2">
             {/* Botones solo para órdenes PENDIENTES */}
             {String(order.status).trim().toLowerCase() === 'pending' && (
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
-                  disabled={isProcessing}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  {isProcessing ? (
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Aceptar Orden
-                </Button>
-                
-                {/* 🔴 BOTÓN RECHAZAR FORZADO */}
-                <Button
-                  onClick={() => rejectOrder(order.id, 'No disponible')}
-                  disabled={isProcessing}
-                  variant="destructive"
-                  size="lg" 
-                  className="px-6 bg-red-600 hover:bg-red-700 text-white border-red-600"
-                  style={{backgroundColor: '#dc2626', borderColor: '#dc2626'}}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Rechazar
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleAceptarDirecto(order.id)}
+                    disabled={processingOrders.has(order.id)}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    {processingOrders.has(order.id) ? (
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Aceptar Orden
+                  </Button>
+                  
+                  {/* 🔴 BOTÓN RECHAZAR FORZADO */}
+                  <Button
+                    onClick={() => rejectOrder(order.id, 'No disponible')}
+                    disabled={processingOrders.has(order.id)}
+                    variant="destructive"
+                    size="lg" 
+                    className="px-6 bg-red-600 hover:bg-red-700 text-white border-red-600"
+                    style={{backgroundColor: '#dc2626', borderColor: '#dc2626'}}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Rechazar
+                  </Button>
+                </div>
               </div>
             )}
 
             {order.status === 'accepted' && (
               <Button
-                onClick={() => updateOrderStatus(order.id, 'ready')}
-                disabled={isProcessing}
+                onClick={() => handleMarcarListo(order.id)}
+                disabled={processingOrders.has(order.id)}
                 className="w-full bg-purple-600 hover:bg-purple-700"
               >
-                {isProcessing ? (
+                {processingOrders.has(order.id) ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <CheckCircle className="w-4 h-4 mr-2" />
@@ -644,11 +864,11 @@ export function SellerOrderManagement() {
                     </div>
 
                     <Button
-                      onClick={() => updateOrderStatus(order.id, 'delivered')}
-                      disabled={isProcessing}
+                      onClick={() => handleCompletarPickup(order.id)}
+                      disabled={processingOrders.has(order.id)}
                       className="w-full bg-green-600 hover:bg-green-700"
                     >
-                      {isProcessing ? (
+                      {processingOrders.has(order.id) ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <CheckCircle className="w-4 h-4 mr-2" />

@@ -112,7 +112,7 @@ function StatsSection() {
         <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
           <Star className="w-6 h-6 text-white" />
         </div>
-        <div className="text-2xl font-bold text-orange-600">4.8</div>
+        <div className="text-2xl font-bold text-orange-600">¡Únete!</div>
         <div className="text-sm text-gray-600">Calificación</div>
       </div>
       

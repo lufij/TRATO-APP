@@ -5,6 +5,7 @@ import { Badge } from '../../ui/badge';
 import { Input } from '../../ui/input';
 import { Product } from '../../../utils/supabase/client';
 import { DailyProduct } from '../../../hooks/useBuyerData';
+import { useRealTimeStock, useSellerRating, useDailyProductTimer } from '../../../hooks/useRealTimeStock';
 import { 
   Plus, 
   Minus, 
@@ -15,7 +16,9 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  Heart
+  Heart,
+  Flame,
+  Package
 } from 'lucide-react';
 import { ImageWithFallback } from '../../figma/ImageWithFallback';
 import { getProductImageUrl } from '../../../utils/imageUtils';
@@ -57,10 +60,28 @@ export function ProductCard({
   onQuantityKeyDown
 }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
-  const isDaily = false; // TODO: Determinar si es producto del día
+  // ✅ ARREGLO CRÍTICO: Detectar si es producto del día
+  const isDaily = 'expires_at' in product; // DailyProduct tiene expires_at, Product no
   const imageUrl = product.image_url || '';
-  const stock = product.stock_quantity || 0;
   const sellerName = product.seller?.name || 'Tienda';
+
+  // 🆕 MEJORA 1: Stock en tiempo real
+  const { available_stock, stock_quantity, sold_quantity, loading: stockLoading } = useRealTimeStock(
+    product.id, 
+    isDaily ? 'daily' : 'regular'
+  );
+
+  // 🆕 MEJORA 2: Rating real de la tienda
+  const { average_rating, total_reviews, loading: ratingLoading } = useSellerRating(
+    product.seller_id || ''
+  );
+
+  // 🆕 MEJORA 3: Timer para productos del día
+  const dailyTimer = useDailyProductTimer(
+    isDaily && 'expires_at' in product ? product.expires_at : undefined
+  );
+
+  const stock = stockLoading ? product.stock_quantity || 0 : available_stock;
 
   const toggleFavorite = () => {
     setIsFavorite(!isFavorite);
@@ -123,24 +144,64 @@ export function ProductCard({
                       {sellerName}
                     </button>
                   </div>
+                  
+                  {/* 🆕 MEJORA 3: Rating real de la tienda */}
                   <div className="flex items-center gap-1">
                     <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span>4.5</span>
+                    {ratingLoading ? (
+                      <span className="animate-pulse bg-gray-200 w-6 h-3 rounded"></span>
+                    ) : (
+                      <span className="font-medium">
+                        {average_rating > 0 ? average_rating.toFixed(1) : '0.0'}
+                        {total_reviews > 0 && (
+                          <span className="text-gray-400 ml-1">({total_reviews})</span>
+                        )}
+                      </span>
+                    )}
                   </div>
+
+                  {/* 🆕 MEJORA 1: Indicador de producto del día */}
+                  {isDaily && !dailyTimer.isExpired && (
+                    <div className="flex items-center gap-1 text-orange-600 font-medium">
+                      <Flame className="w-3 h-3" />
+                      <span>Termina hoy</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
                     <span>2.1 km</span>
                   </div>
                 </div>
+
+                {/* 🆕 MEJORA 1: Timer para productos del día */}
+                {isDaily && !dailyTimer.isExpired && (
+                  <div className="flex items-center gap-2 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-3">
+                    <Clock className="w-3 h-3" />
+                    <span className="font-medium">{dailyTimer.formattedTime}</span>
+                  </div>
+                )}
               </div>
 
               {/* Acciones */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
+                  {/* 🆕 MEJORA 2: Stock en tiempo real */}
                   {stock > 0 ? (
                     <Badge variant="outline" className="text-green-600 border-green-300">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Stock: {stock}
+                      <Package className="w-3 h-3 mr-1" />
+                      {stockLoading ? (
+                        <span className="animate-pulse">Cargando...</span>
+                      ) : (
+                        <>
+                          Stock: {stock}
+                          {isDaily && sold_quantity > 0 && (
+                            <span className="text-gray-500 ml-1">
+                              ({stock_quantity - sold_quantity}/{stock_quantity})
+                            </span>
+                          )}
+                        </>
+                      )}
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-red-600 border-red-300">
@@ -251,10 +312,16 @@ export function ProductCard({
 
           {/* Stock status */}
           <div className="absolute bottom-2 left-2">
+            {/* 🆕 MEJORA 2: Stock en tiempo real */}
             {stock > 0 ? (
               <Badge variant="outline" className="bg-white text-green-600 border-green-300 text-xs">
-                <CheckCircle className="w-3 h-3 mr-1" />
-                {stock}
+                <Package className="w-3 h-3 mr-1" />
+                {stockLoading ? '...' : stock}
+                {isDaily && sold_quantity > 0 && (
+                  <span className="text-gray-500 ml-1">
+                    /{stock_quantity}
+                  </span>
+                )}
               </Badge>
             ) : (
               <Badge variant="outline" className="bg-white text-red-600 border-red-300 text-xs">
@@ -263,6 +330,16 @@ export function ProductCard({
               </Badge>
             )}
           </div>
+
+          {/* 🆕 MEJORA 1: Badge de producto del día */}
+          {isDaily && !dailyTimer.isExpired && (
+            <div className="absolute top-2 left-2">
+              <Badge className="bg-orange-500 text-white text-xs font-semibold">
+                <Flame className="w-3 h-3 mr-1" />
+                Del Día
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Contenido */}
@@ -284,11 +361,30 @@ export function ProductCard({
                 <Store className="w-3 h-3" />
                 {sellerName}
               </button>
+              
+              {/* 🆕 MEJORA 3: Rating real de la tienda */}
               <div className="flex items-center gap-1">
                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                <span>4.5</span>
+                {ratingLoading ? (
+                  <span className="animate-pulse bg-gray-200 w-6 h-3 rounded"></span>
+                ) : (
+                  <span>
+                    {average_rating > 0 ? average_rating.toFixed(1) : '0.0'}
+                    {total_reviews > 0 && (
+                      <span className="text-gray-400 ml-1">({total_reviews})</span>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
+
+            {/* 🆕 MEJORA 1: Timer para productos del día */}
+            {isDaily && !dailyTimer.isExpired && (
+              <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-2">
+                <Clock className="w-3 h-3" />
+                <span className="font-medium">{dailyTimer.formattedTime}</span>
+              </div>
+            )}
 
             {/* Precio */}
             <div className="text-xl font-bold text-green-600 mb-3">

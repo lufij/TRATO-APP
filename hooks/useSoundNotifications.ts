@@ -187,7 +187,19 @@ export function useSoundNotifications() {
         },
         (payload) => {
           console.log('🔊 Vendor: New order notification with sound');
+          
+          // Reproducir sonido avanzado con múltiples repeticiones
           playSound(NotificationSound.NEW_ORDER);
+          
+          // También usar el sistema avanzado si está disponible
+          if ((window as any).notifyNewOrder) {
+            (window as any).notifyNewOrder({
+              id: payload.new.id,
+              customer_name: payload.new.customer_name || 'Cliente',
+              total: payload.new.total_amount || payload.new.total || 0,
+              delivery_type: payload.new.delivery_type || 'pickup'
+            });
+          }
           
           // Show push notification
           showOrderNotification({
@@ -219,6 +231,14 @@ export function useSoundNotifications() {
           if (oldStatus === 'ready' && newStatus === 'assigned') {
             console.log('🔊 Vendor: Driver assigned notification with sound');
             playSound(NotificationSound.ORDER_ASSIGNED);
+            
+            // También usar el sistema avanzado si está disponible
+            if ((window as any).notifyDriverAssigned) {
+              (window as any).notifyDriverAssigned({
+                id: payload.new.id,
+                customer_name: payload.new.customer_name
+              });
+            }
             
             showDeliveryNotification('Un repartidor aceptó la entrega');
             
@@ -264,6 +284,16 @@ export function useSoundNotifications() {
         (payload) => {
           console.log('🔊 Driver: New delivery available with sound');
           playSound(NotificationSound.ORDER_READY);
+          
+          // También usar el sistema avanzado si está disponible
+          if ((window as any).notifyDeliveryAvailable) {
+            (window as any).notifyDeliveryAvailable({
+              id: payload.new.id,
+              customer_name: payload.new.customer_name || 'Cliente',
+              delivery_address: payload.new.delivery_address || 'Dirección no especificada',
+              total: payload.new.total_amount || payload.new.total || 0
+            });
+          }
           
           // Push notification for new delivery available
           showDeliveryNotification(
@@ -387,6 +417,13 @@ export function useSoundNotifications() {
           if (newStatus === 'delivered') {
             console.log('🔊 Buyer: Order delivered with sound');
             playSound(NotificationSound.ORDER_DELIVERED);
+            
+            // También usar el sistema avanzado si está disponible
+            if ((window as any).notifyOrderDelivered) {
+              (window as any).notifyOrderDelivered({
+                id: payload.new.id
+              });
+            }
             
             // Push notification for order delivered
             showOrderNotification({

@@ -432,7 +432,7 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                               </span>
                               <div className="flex items-center">
                                 <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                <span className="text-sm text-gray-600 ml-1">4.5</span>
+                                <span className="text-sm text-gray-600 ml-1">{product.seller?.rating_avg?.toFixed(1) || '0.0'}</span>
                               </div>
                             </div>
 

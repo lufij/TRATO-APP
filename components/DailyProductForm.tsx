@@ -55,10 +55,20 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getExpirationTime = () => {
-    const now = new Date();
-    const midnight = new Date();
-    midnight.setHours(23, 59, 59, 999);
-    return midnight.toISOString();
+    // CORREGIDO: Para Guatemala (UTC-6), medianoche local debe convertirse correctamente a UTC
+    const today = new Date();
+    
+    // Crear medianoche LOCAL (23:59:59.999)
+    const localMidnight = new Date(
+      today.getFullYear(),
+      today.getMonth(), 
+      today.getDate(),
+      23, 59, 59, 999
+    );
+    
+    // JavaScript automáticamente convierte a UTC considerando la zona horaria
+    // Guatemala UTC-6: 23:59 local = 05:59 UTC del día siguiente
+    return localMidnight.toISOString();
   };
 
   const getTimeUntilMidnight = () => {
@@ -161,12 +171,12 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
       return;
     }
 
-    if (formData.price <= 0) {
+    if (parseFloat(formData.price) <= 0) {
       setError('El precio debe ser mayor a 0');
       return;
     }
 
-    if (formData.stock_quantity < 0) {
+    if (parseInt(formData.stock_quantity) < 0) {
       setError('La cantidad no puede ser negativa');
       return;
     }
@@ -397,7 +407,7 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
                     step="0.01"
                     min="0"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="0.00"
                     required
                   />
@@ -411,7 +421,7 @@ export function DailyProductForm({ dailyProduct, onSuccess, onCancel }: DailyPro
                     type="number"
                     min="0"
                     value={formData.stock_quantity}
-                    onChange={(e) => setFormData({ ...formData, stock_quantity: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
                     placeholder="0"
                   />
                   <p className="text-xs text-orange-600">¡Solo por hoy!</p>

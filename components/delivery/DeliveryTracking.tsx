@@ -185,7 +185,7 @@ export function DeliveryTracking({ orderId, onLocationUpdate }: DeliveryTracking
   }, [watchId]);
 
   // 🚨 NUEVA FUNCIONALIDAD: Notificar problemas de ubicación
-  const reportLocationIssue = async () => {
+  const reportLocationIssue = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -227,7 +227,7 @@ export function DeliveryTracking({ orderId, onLocationUpdate }: DeliveryTracking
     } catch (error) {
       console.error('Error reporting location issue:', error);
     }
-  };
+  }, [user, orderId]);
 
   useEffect(() => {
     // Auto-iniciar tracking si es repartidor
@@ -238,7 +238,7 @@ export function DeliveryTracking({ orderId, onLocationUpdate }: DeliveryTracking
     return () => {
       stopLocationTracking();
     };
-  }, [user, startLocationTracking, stopLocationTracking]);
+  }, [user?.role, user?.id]); // Solo usar propiedades primitivas
 
   // Suscribirse a actualizaciones de ubicación del repartidor (para compradores)
   useEffect(() => {
@@ -265,7 +265,7 @@ export function DeliveryTracking({ orderId, onLocationUpdate }: DeliveryTracking
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, orderId, onLocationUpdate]);
+  }, [user?.role, orderId]); // Remover onLocationUpdate que causa bucles
 
   if (user?.role !== 'repartidor' && !currentLocation) {
     return (
