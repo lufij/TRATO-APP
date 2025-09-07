@@ -243,18 +243,6 @@ export function RegistrationForm({ role, onBack }: RegistrationFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email (opcional)</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="tu@email.com (opcional)"
-                      disabled={loading || isRegistering}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="password">Contraseña *</Label>
                     <div className="relative">
                       <Input
