@@ -232,6 +232,30 @@ function UsersManagement() {
     }
   };
 
+  const handleDriverStatusChange = async (driverId: string, field: string, newValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ 
+          [field]: newValue,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', driverId)
+        .eq('role', 'repartidor');
+
+      if (error) throw error;
+      
+      const fieldLabel = field === 'is_verified' ? 'verificación' : 'activación';
+      const actionLabel = newValue ? fieldLabel : `des${fieldLabel}`;
+      toast.success(`Repartidor ${actionLabel} actualizado exitosamente`);
+      
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating driver status:', error);
+      toast.error('Error al actualizar estado del repartidor');
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     try {
       const { error } = await supabase
@@ -333,16 +357,45 @@ function UsersManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={user.role === 'vendedor' ? 'default' : 'secondary'}
-                        className={`${
-                          user.role === 'comprador' ? 'bg-orange-100 text-orange-800' :
-                          user.role === 'vendedor' ? 'bg-green-100 text-green-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {user.role}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge 
+                          variant={user.role === 'vendedor' ? 'default' : 'secondary'}
+                          className={`${
+                            user.role === 'comprador' ? 'bg-orange-100 text-orange-800' :
+                            user.role === 'vendedor' ? 'bg-green-100 text-green-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {user.role}
+                        </Badge>
+                        
+                        {/* Estados específicos para REPARTIDORES */}
+                        {user.role === 'repartidor' && (
+                          <div className="flex gap-1">
+                            <Badge 
+                              variant={user.is_verified ? 'default' : 'destructive'}
+                              className={`text-xs ${
+                                user.is_verified 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {user.is_verified ? '✓ Verificado' : '⏳ Pendiente'}
+                            </Badge>
+                            
+                            <Badge 
+                              variant={user.is_active ? 'default' : 'secondary'}
+                              className={`text-xs ${
+                                user.is_active 
+                                  ? 'bg-orange-100 text-orange-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {user.is_active ? '🟢 Activo' : '⭕ Inactivo'}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -366,19 +419,79 @@ function UsersManagement() {
                         <Button variant="outline" size="sm">
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Select 
-                          value={user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active'} 
-                          onValueChange={(value: string) => handleStatusChange(user.id, value)}
-                        >
-                          <SelectTrigger className="w-24 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="active">Activo</SelectItem>
-                            <SelectItem value="inactive">Inactivo</SelectItem>
-                            <SelectItem value="suspended">Suspendido</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        
+                        {/* Botones específicos para REPARTIDORES */}
+                        {user.role === 'repartidor' && (
+                          <div className="flex space-x-2">
+                            {/* Botón Verificar/Desverificar */}
+                            <Button
+                              variant={user.is_verified ? "outline" : "default"}
+                              size="sm"
+                              onClick={() => handleDriverStatusChange(user.id, 'is_verified', !user.is_verified)}
+                              className={
+                                user.is_verified 
+                                  ? "border-red-300 text-red-600 hover:bg-red-50" 
+                                  : "bg-green-500 hover:bg-green-600 text-white"
+                              }
+                              title={user.is_verified ? "Desverificar repartidor" : "Verificar repartidor"}
+                            >
+                              {user.is_verified ? (
+                                <>
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Desverificar
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Verificar
+                                </>
+                              )}
+                            </Button>
+                            
+                            {/* Botón Activar/Desactivar */}
+                            <Button
+                              variant={user.is_active ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handleDriverStatusChange(user.id, 'is_active', !user.is_active)}
+                              className={
+                                user.is_active 
+                                  ? "bg-orange-500 hover:bg-orange-600 text-white" 
+                                  : "border-orange-300 text-orange-600 hover:bg-orange-50"
+                              }
+                              title={user.is_active ? "Desactivar repartidor" : "Activar repartidor"}
+                            >
+                              {user.is_active ? (
+                                <>
+                                  <Activity className="w-4 h-4 mr-1" />
+                                  Activo
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="w-4 h-4 mr-1" />
+                                  Activar
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {/* Botones para otros roles */}
+                        {user.role !== 'repartidor' && (
+                          <Select 
+                            value={user.is_active !== undefined ? (user.is_active ? 'active' : 'inactive') : 'active'} 
+                            onValueChange={(value: string) => handleStatusChange(user.id, value)}
+                          >
+                            <SelectTrigger className="w-24 h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="active">Activo</SelectItem>
+                              <SelectItem value="inactive">Inactivo</SelectItem>
+                              <SelectItem value="suspended">Suspendido</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button

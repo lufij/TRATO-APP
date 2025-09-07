@@ -21,6 +21,7 @@ import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
+import { EnhancedPushNotifications } from './notifications/EnhancedPushNotifications';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
 import { 
   Plus, 
@@ -1187,6 +1188,7 @@ export function SellerDashboard() {
       
       {/* �🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
       <CriticalNotifications onNotification={handleStockAlert} />
+      <EnhancedPushNotifications onNotification={handleStockAlert} />
       <TimeoutAlerts onAlert={handleOrderTimeout} />
       
       {/* Mobile Header */}
