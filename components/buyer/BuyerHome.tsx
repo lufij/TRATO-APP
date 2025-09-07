@@ -356,7 +356,12 @@ export function BuyerHome({ onBusinessClick, onShowCart }: BuyerHomeProps) {
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center">
                               <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                              <span className="text-sm text-gray-600 ml-1">{business.rating?.toFixed(1) || '5.0'}</span>
+                              <span className="text-sm text-gray-600 ml-1">
+                                {business.rating && business.rating > 0 
+                                  ? business.rating.toFixed(1) 
+                                  : 'Nuevo'
+                                }
+                              </span>
                             </div>
                             <Badge variant="outline">{business.category || 'General'}</Badge>
                           </div>

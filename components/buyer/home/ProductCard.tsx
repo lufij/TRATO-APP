@@ -60,9 +60,13 @@ export function ProductCard({
   onQuantityKeyDown
 }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   // ✅ ARREGLO CRÍTICO: Detectar si es producto del día
   const isDaily = 'expires_at' in product; // DailyProduct tiene expires_at, Product no
   const imageUrl = product.image_url || '';
+
+  // Helper para detectar descripciones largas (más de 100 caracteres o 2 líneas aprox)
+  const isDescriptionLong = (product.description?.length || 0) > 100;
   const sellerName = product.seller?.name || 'Tienda';
 
   // 🆕 MEJORA 1: Stock en tiempo real
@@ -130,9 +134,21 @@ export function ProductCard({
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                  {product.description}
-                </p>
+                <div className="mb-3">
+                  <p className={`text-sm text-gray-600 ${
+                    isDescriptionLong && !isDescriptionExpanded ? 'line-clamp-2' : ''
+                  }`}>
+                    {product.description}
+                  </p>
+                  {isDescriptionLong && (
+                    <button
+                      onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                      className="text-xs text-orange-600 hover:text-orange-700 hover:underline mt-1 block"
+                    >
+                      {isDescriptionExpanded ? 'Ver menos' : 'Ver más'}
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
                   <div className="flex items-center gap-1">
@@ -348,9 +364,21 @@ export function ProductCard({
             <h3 className="font-semibold text-base text-gray-800 line-clamp-2 mb-1">
               {product.name}
             </h3>
-            <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-              {product.description}
-            </p>
+            <div className="mb-2">
+              <p className={`text-sm text-gray-600 ${
+                isDescriptionLong && !isDescriptionExpanded ? 'line-clamp-2' : ''
+              }`}>
+                {product.description}
+              </p>
+              {isDescriptionLong && (
+                <button
+                  onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                  className="text-xs text-orange-600 hover:text-orange-700 hover:underline mt-1 block"
+                >
+                  {isDescriptionExpanded ? 'Ver menos' : 'Ver más'}
+                </button>
+              )}
+            </div>
 
             {/* Vendedor y rating */}
             <div className="flex items-center justify-between text-xs text-gray-500 mb-2">

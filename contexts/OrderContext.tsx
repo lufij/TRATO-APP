@@ -451,7 +451,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         case 'ready':
           updateData.ready_at = new Date().toISOString();
           break;
-        case 'picked-up':
+        case 'picked_up':
           updateData.picked_up_at = new Date().toISOString();
           break;
         case 'delivered':
@@ -668,7 +668,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       // Get order info
       const { data: orderData } = await supabase
         .from('orders')
-        .select('buyer_id, seller_id, driver_id')
+        .select('buyer_id, seller_id, driver_id, status')
         .eq('id', orderId)
         .single();
 
@@ -694,7 +694,29 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🎯 Tipo de calificación:', ratingType);
 
-      // Buscar la calificación pendiente
+      // Verificar que la orden puede ser calificada
+      if (orderData.status !== 'delivered') {
+        return { success: false, message: 'Solo se pueden calificar órdenes entregadas' };
+      }
+
+      // Verificar si ya existe una calificación completada
+      const { data: existingCompletedRating } = await supabase
+        .from('ratings')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('rater_id', user.id)
+        .eq('rated_id', revieweeId)
+        .eq('rating_type', ratingType)
+        .eq('status', 'completed')
+        .single();
+
+      if (existingCompletedRating) {
+        return { success: false, message: 'Ya has calificado esta orden' };
+      }
+
+      // Crear o buscar la calificación pendiente
+      let ratingId: string;
+      
       const { data: existingRating } = await supabase
         .from('ratings')
         .select('id')
@@ -705,14 +727,38 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
         .eq('status', 'pending')
         .single();
 
-      if (!existingRating) {
-        return { success: false, message: 'No se encontró una calificación pendiente para esta orden' };
+      if (existingRating) {
+        ratingId = existingRating.id;
+      } else {
+        // Crear la calificación pendiente
+        const { data: newRating, error: createError } = await supabase
+          .from('ratings')
+          .insert({
+            order_id: orderId,
+            rater_id: user.id,
+            rated_id: revieweeId,
+            rating_type: ratingType,
+            status: 'pending'
+          })
+          .select('id')
+          .single();
+
+        if (createError) {
+          console.error('Error creating rating:', createError);
+          return { success: false, message: 'Error al crear la calificación: ' + createError.message };
+        }
+
+        if (!newRating) {
+          return { success: false, message: 'No se pudo crear la calificación' };
+        }
+
+        ratingId = newRating.id;
       }
 
       // Usar la función SQL para completar la calificación
       const { data, error } = await supabase
         .rpc('complete_rating', {
-          p_rating_id: existingRating.id,
+          p_rating_id: ratingId,
           p_user_id: user.id,
           p_rating: rating,
           p_comment: comment || null

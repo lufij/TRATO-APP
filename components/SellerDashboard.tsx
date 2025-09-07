@@ -13,7 +13,6 @@ import { ProductCard } from './ProductCard';
 import { DailyProductCard } from './DailyProductCard';
 import { SellerBusinessProfile } from './SellerBusinessProfile';
 import { SellerOrderManagement } from './seller/SellerOrderManagement';
-import { SellerMarketplace } from './seller/SellerMarketplace';
 import { LocationVerification } from './LocationVerification';
 import { VerificationAlert } from './VerificationAlert';
 import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
@@ -43,7 +42,6 @@ import {
   Star,
   Settings,
   LogOut,
-  ShoppingCart,
   MapPin
 } from 'lucide-react';
 import { MobileToastNotifications } from './notifications/MobileToastNotifications';
@@ -74,7 +72,7 @@ interface DailyProduct {
   created_at: string;
 }
 
-type MainView = 'dashboard' | 'products' | 'orders' | 'profile' | 'marketplace';
+type MainView = 'dashboard' | 'products' | 'orders' | 'profile';
 type ProductView = 'list' | 'add-product' | 'add-daily' | 'edit-product' | 'edit-daily';
 
 export function SellerDashboard() {
@@ -698,12 +696,6 @@ export function SellerDashboard() {
       label: 'Perfil',
       icon: User,
       description: 'Configuración del negocio'
-    },
-    {
-      id: 'marketplace',
-      label: 'Comprar',
-      icon: ShoppingCart,
-      description: 'Compra de otros comercios'
     }
   ];
 
@@ -1182,7 +1174,6 @@ export function SellerDashboard() {
       <NotificationSystem 
         showBanner={true}
         enableAutoActivation={true}  // Auto-activar para vendedores (CRÍTICO)
-        showTester={process.env.NODE_ENV === 'development'}
       />
       
       {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
@@ -1261,7 +1252,7 @@ export function SellerDashboard() {
             zIndex: 50,
             boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)'
           }}>
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-4 gap-1">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentView === item.id;
@@ -1325,7 +1316,7 @@ export function SellerDashboard() {
         {/* Desktop Navigation */}
         <div className="hidden md:block">
           <Tabs value={currentView} onValueChange={(value: string) => setCurrentView(value as MainView)} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 lg:w-2/3 mx-auto bg-white border border-gray-200">
+            <TabsList className="grid w-full grid-cols-4 lg:w-2/3 mx-auto bg-white border border-gray-200">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1369,10 +1360,6 @@ export function SellerDashboard() {
             <TabsContent value="profile" className="space-y-6">
               <SellerBusinessProfile />
             </TabsContent>
-
-            <TabsContent value="marketplace" className="space-y-6">
-              <SellerMarketplace />
-            </TabsContent>
           </Tabs>
         </div>
 
@@ -1382,7 +1369,6 @@ export function SellerDashboard() {
           {currentView === 'products' && renderProducts()}
           {currentView === 'orders' && <SellerOrderManagement />}
           {currentView === 'profile' && <SellerBusinessProfile />}
-          {currentView === 'marketplace' && <SellerMarketplace />}
         </div>
       </div>
 

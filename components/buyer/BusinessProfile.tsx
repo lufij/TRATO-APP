@@ -3,6 +3,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Input } from '../ui/input';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useBuyerData } from '../../hooks/useBuyerData';
@@ -18,6 +19,7 @@ import {
   Verified, 
   Store, 
   Plus,
+  Minus,
   ShoppingCart,
   Calendar,
   Heart,
@@ -28,7 +30,10 @@ import {
   Package,
   Info,
   Eye,
-  RefreshCw  // 🆕 Agregar icono de refresco
+  RefreshCw,
+  Flame,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 import { getProductImageUrl } from '../../utils/imageUtils';
@@ -86,6 +91,10 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false); // 🆕 Estado de refresco
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date()); // 🆕 Última actualización
+  
+  // 🆕 Estados para control de cantidad en productos del día
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [tempQuantity, setTempQuantity] = useState<string>('');
 
   useEffect(() => {
     loadBusinessData();
@@ -220,6 +229,70 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
         icon: <XCircle className="w-4 h-4" />,
         duration: 3000,
       });
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
+  // 🆕 Funciones para manejar cantidades en productos del día
+  const handleQuantityClick = (productId: string, currentQuantity: number) => {
+    setEditingQuantity(productId);
+    setTempQuantity(currentQuantity.toString());
+  };
+
+  const handleQuantityChange = (value: string) => {
+    const numValue = parseInt(value);
+    if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 999)) {
+      setTempQuantity(value);
+    }
+  };
+
+  const handleQuantitySubmit = async (productId: string) => {
+    const quantity = parseInt(tempQuantity);
+    if (!isNaN(quantity) && quantity >= 0) {
+      await updateDailyCartQuantity(productId, quantity);
+    }
+    setEditingQuantity(null);
+    setTempQuantity('');
+  };
+
+  const handleQuantityKeyDown = async (e: React.KeyboardEvent, productId: string) => {
+    if (e.key === 'Enter') {
+      await handleQuantitySubmit(productId);
+    } else if (e.key === 'Escape') {
+      setEditingQuantity(null);
+      setTempQuantity('');
+    }
+  };
+
+  const updateDailyCartQuantity = async (productId: string, newQuantity: number) => {
+    const cartItem = cartItems.find(item => item.product_id === productId);
+    if (!cartItem) return;
+
+    setAddingToCart(productId);
+    try {
+      if (newQuantity <= 0) {
+        // Para remover, usar cantidad negativa 
+        const result = await addToCart(productId, -cartItem.quantity, 'daily');
+        if (result.success) {
+          toast.success('Producto removido del carrito');
+        } else {
+          toast.error(result.message);
+        }
+      } else {
+        // Calcular la diferencia para agregar o remover
+        const difference = newQuantity - cartItem.quantity;
+        const result = await addToCart(productId, difference, 'daily');
+        
+        if (result.success) {
+          toast.success(`Cantidad actualizada: ${newQuantity}`);
+        } else {
+          toast.error(result.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating daily cart quantity:', error);
+      toast.error('Error al actualizar cantidad');
     } finally {
       setAddingToCart(null);
     }
@@ -423,7 +496,7 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
                   <button
                     onClick={() => {
                       if (availabilityInfo.isAvailable) {
-                        handleAddDailyToCart(product.id, product.name);
+                        handleAddToCart(product.id, product.name);
                       }
                     }}
                     disabled={!availabilityInfo.isAvailable || isAdding}
@@ -466,17 +539,78 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
   };
 
   const DailyProductCard = ({ product }: { product: any }) => {
+    const [imageError, setImageError] = useState(false);
+    const [timeRemaining, setTimeRemaining] = useState<{
+      hours: number;
+      minutes: number;
+      isExpired: boolean;
+      formattedTime: string;
+    }>({
+      hours: 0,
+      minutes: 0,
+      isExpired: true,
+      formattedTime: 'Expirado'
+    });
+    
     const imageUrl = getProductImageUrl(product);
     const cartQuantity = getCartItemQuantity(product.id);
     const isAdding = addingToCart === product.id;
 
-    // Debug de imagen
-    console.log('📅 DailyProductCard:', {
-      productName: product.name,
-      productImageUrl: product.image_url,
-      processedImageUrl: imageUrl,
-      hasImage: !!imageUrl
-    });
+    const formatPrice = (price: number) => {
+      return new Intl.NumberFormat('es-GT', {
+        style: 'currency',
+        currency: 'GTQ',
+        minimumFractionDigits: 2
+      }).format(price);
+    };
+
+    // Timer en tiempo real
+    useEffect(() => {
+      if (!product.expires_at) return;
+
+      const updateTimer = () => {
+        const now = new Date();
+        const expiry = new Date(product.expires_at);
+        const diff = expiry.getTime() - now.getTime();
+
+        if (diff <= 0) {
+          setTimeRemaining({
+            hours: 0,
+            minutes: 0,
+            isExpired: true,
+            formattedTime: 'Expirado'
+          });
+          return;
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        setTimeRemaining({
+          hours,
+          minutes,
+          isExpired: false,
+          formattedTime: hours > 0 ? `${hours}h ${minutes}m restantes` : `${minutes}m restantes`
+        });
+      };
+
+      updateTimer();
+      const interval = setInterval(updateTimer, 1000); // Actualizar cada segundo
+
+      return () => clearInterval(interval);
+    }, [product.expires_at]);
+
+    const getStockBadgeColor = () => {
+      if (product.stock_quantity === 0) return 'bg-red-500 text-white';
+      if (product.stock_quantity <= 3) return 'bg-yellow-500 text-white';
+      return 'bg-green-500 text-white';
+    };
+
+    const getStockMessage = () => {
+      if (product.stock_quantity === 0) return 'Agotado';
+      if (product.stock_quantity <= 3) return `¡Últimas ${product.stock_quantity}!`;
+      return `${product.stock_quantity} disponibles`;
+    };
 
     const handleImageClick = () => {
       if (imageUrl) {
@@ -485,105 +619,210 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
     };
 
     return (
-      <Card className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
+      <Card className="hover:shadow-xl transition-all duration-300 border-orange-200 overflow-hidden">
         <CardContent className="p-0">
           <div className="flex">
-            {/* Image */}
-            <div 
-              className="relative w-20 h-20 bg-gray-100 flex-shrink-0 cursor-pointer"
-              onClick={handleImageClick}
-            >
-              {imageUrl ? (
-                <ImageWithFallback
-                  src={imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
-                  <div className="text-center">
-                    <Calendar className="w-4 h-4 text-orange-300 mx-auto mb-1" />
-                    <span className="text-xs text-orange-400 font-medium">Sin imagen</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Click to expand indicator */}
-              {imageUrl && (
-                <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                  <div className="opacity-0 hover:opacity-100 transition-opacity bg-black/50 rounded-full p-1">
-                    <div className="flex items-center gap-1 text-white text-xs">
-                      <Package className="w-3 h-3" />
-                      <span>Ver</span>
+            {/* Imagen compacta - lado izquierdo */}
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-gray-100 flex-shrink-0">
+              <div 
+                className="cursor-pointer w-full h-full"
+                onClick={handleImageClick}
+              >
+                {imageUrl ? (
+                  <ImageWithFallback
+                    src={imageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
+                    <div className="text-center">
+                      <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 mx-auto mb-1" />
+                      <span className="text-xs text-orange-600 font-medium">Sin imagen</span>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+              
+              {/* Badge "Del Día" - esquina superior izquierda */}
+              <Badge className="absolute -top-1 -left-1 bg-orange-500 text-white animate-pulse text-xs px-1 py-0.5">
+                <Flame className="w-2.5 h-2.5 mr-0.5" />
+                <span className="hidden sm:inline">Del Día</span>
+                <span className="sm:hidden">Hoy</span>
+              </Badge>
+              
+              {/* Indicador de tiempo en esquina inferior */}
+              <div className="absolute -bottom-1 -right-1 bg-red-500 text-white rounded-full px-1.5 py-0.5 text-xs font-bold">
+                {timeRemaining.hours > 0 ? `${timeRemaining.hours}h` : `${timeRemaining.minutes}m`}
+              </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 p-3">
+            {/* Contenido principal - lado derecho */}
+            <div className="flex-1 p-3 min-w-0">
+              {/* Header con título y precio */}
               <div className="flex justify-between items-start mb-2">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm text-gray-900 mb-1">
+                <div className="flex-1 min-w-0 mr-2">
+                  <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-1 mb-1">
                     {product.name}
                   </h3>
                   {product.description && (
-                    <p className="text-xs text-gray-500 line-clamp-1">
+                    <p className="text-xs text-gray-500 line-clamp-1 mb-1">
                       {product.description}
                     </p>
                   )}
+                  
+                  {/* Info del vendedor compacta */}
+                  <div className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                    <Store className="w-2.5 h-2.5" />
+                    <span className="truncate">por {business?.business_name || 'Este negocio'}</span>
+                  </div>
                 </div>
                 
-                <div className="text-right ml-2">
-                  <span className="text-lg font-bold text-gray-900">
+                {/* Precio destacado */}
+                <div className="text-right flex-shrink-0">
+                  <div className="text-lg sm:text-xl font-bold text-orange-600">
                     Q{product.price?.toFixed(2)}
-                  </span>
-                  {product.compare_at_price && product.compare_at_price > product.price && (
-                    <div className="text-xs text-gray-400 line-through">
-                      Q{product.compare_at_price.toFixed(2)}
-                    </div>
-                  )}
+                  </div>
+                  {/* Rating compacto */}
+                  <div className="flex items-center gap-0.5 text-xs text-gray-500 justify-end">
+                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    <span>4.5</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center">
-                {!product.is_available ? (
-                  <Badge className="bg-red-100 text-red-700 text-xs">
-                    Agotado
-                  </Badge>
-                ) : cartQuantity > 0 ? (
-                  <Badge className="bg-orange-100 text-orange-700 text-xs font-semibold">
-                    {cartQuantity} en carrito
-                  </Badge>
-                ) : (
-                  <div />
+              {/* Información de estado en una línea */}
+              <div className="flex items-center gap-2 mb-2 text-xs">
+                {/* Timer compacto */}
+                {!timeRemaining.isExpired && (
+                  <div className="flex items-center gap-1 text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span className="font-medium">
+                      {timeRemaining.hours > 0 ? `${timeRemaining.hours}h ${timeRemaining.minutes}m` : `${timeRemaining.minutes}m`}
+                    </span>
+                  </div>
                 )}
+                
+                {/* Stock badge compacto */}
+                <Badge className={`text-xs ${getStockBadgeColor()} px-1.5 py-0.5`}>
+                  <Package className="w-2.5 h-2.5 mr-0.5" />
+                  <span>
+                    {product.stock_quantity === 0 ? 'Agotado' : 
+                     product.stock_quantity <= 3 ? `¡${product.stock_quantity}!` : 
+                     `${product.stock_quantity}`}
+                  </span>
+                </Badge>
+                
+                {/* Cantidad en carrito */}
+                {cartQuantity > 0 && (
+                  <Badge className="bg-orange-100 text-orange-700 text-xs font-semibold px-1.5 py-0.5">
+                    {cartQuantity}
+                  </Badge>
+                )}
+                
+                {/* Indicador de urgencia */}
+                {!timeRemaining.isExpired && timeRemaining.hours < 2 && (
+                  <Badge className="bg-yellow-100 text-yellow-700 text-xs animate-pulse px-1.5 py-0.5">
+                    ¡Urgente!
+                  </Badge>
+                )}
+              </div>
 
-                <Button
-                  size="sm"
-                  onClick={() => {
+              {/* Warning o estado de expiración */}
+              {timeRemaining.isExpired && (
+                <div className="bg-red-50 border border-red-200 rounded p-1.5 mb-2">
+                  <div className="flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-red-600 flex-shrink-0" />
+                    <span className="text-xs text-red-700 font-medium">Oferta expirada</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botón de acción o controles de cantidad */}
+              {cartQuantity > 0 ? (
+                <div className="flex items-center gap-1 mb-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateDailyCartQuantity(product.id, cartQuantity - 1)}
+                    disabled={isAdding}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                  
+                  {editingQuantity === product.id ? (
+                    <Input
+                      type="number"
+                      value={tempQuantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      onBlur={() => handleQuantitySubmit(product.id)}
+                      onKeyDown={(e) => handleQuantityKeyDown(e, product.id)}
+                      className="w-12 h-7 text-center text-xs p-1"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      onClick={() => handleQuantityClick(product.id, cartQuantity)}
+                      className="w-12 h-7 text-xs font-medium bg-gray-100 rounded border hover:bg-gray-200 flex items-center justify-center"
+                      title="Haz clic para editar cantidad"
+                    >
+                      {cartQuantity}
+                    </button>
+                  )}
+                  
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => updateDailyCartQuantity(product.id, cartQuantity + 1)}
+                    disabled={isAdding || product.stock_quantity <= cartQuantity}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : null}
+
+              {/* Botón principal */}
+              <Button
+                onClick={() => {
+                  if (cartQuantity > 0) {
+                    // Si ya está en carrito, sumar 1 más
+                    updateDailyCartQuantity(product.id, cartQuantity + 1);
+                  } else {
+                    // Si no está en carrito, agregar por primera vez
                     console.log('🍺 DailyProductCard button clicked - should call handleAddDailyToCart');
                     handleAddDailyToCart(product.id, product.name);
-                  }}
-                  disabled={!product.is_available || isAdding}
-                  className="h-8 px-3 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium"
-                >
-                  {isAdding ? (
-                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                  ) : cartQuantity > 0 ? (
-                    <>
-                      <Plus className="w-3 h-3 mr-1" />
-                      +1
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3 h-3 mr-1" />
-                      Agregar
-                    </>
-                  )}
-                </Button>
-              </div>
+                  }
+                }}
+                disabled={!product.is_available || isAdding || product.stock_quantity <= 0 || timeRemaining.isExpired}
+                className="w-full h-8 sm:h-9 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm font-medium"
+              >
+                {isAdding ? (
+                  <>
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    <span className="sm:hidden">...</span>
+                    <span className="hidden sm:inline">Agregando...</span>
+                  </>
+                ) : product.stock_quantity <= 0 ? (
+                  'Agotado'
+                ) : timeRemaining.isExpired ? (
+                  'Expirado'
+                ) : cartQuantity > 0 ? (
+                  <>
+                    <Plus className="w-3 h-3 mr-1" />
+                    <span className="sm:hidden">+1</span>
+                    <span className="hidden sm:inline">+1 más</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-3 h-3 mr-1" />
+                    <span className="sm:hidden">Agregar</span>
+                    <span className="hidden sm:inline">Agregar al carrito</span>
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </CardContent>
