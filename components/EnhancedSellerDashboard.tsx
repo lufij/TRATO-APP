@@ -56,6 +56,34 @@ export function EnhancedSellerDashboard() {
     }
   }, []);
 
+  // Solicitar permisos automáticamente al cargar, sin botones molestos
+  useEffect(() => {
+    const requestPermissionsAutomatically = async () => {
+      try {
+        // Solo solicitar si no se han denegado explícitamente
+        if (Notification.permission === 'default') {
+          console.log('🔔 Solicitando permisos de notificación automáticamente...');
+          
+          const permission = await Notification.requestPermission();
+          
+          if (permission === 'granted') {
+            localStorage.setItem('trato_permissions', 'granted');
+            console.log('✅ Permisos concedidos automáticamente');
+          } else {
+            console.log('⚠️ Permisos denegados por el usuario');
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Error solicitando permisos:', error);
+      }
+    };
+
+    // Solicitar permisos después de 2 segundos para mejor UX
+    const timer = setTimeout(requestPermissionsAutomatically, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Sistema de notificaciones en tiempo real
   useEffect(() => {
     if (!user?.id) return;
@@ -160,10 +188,7 @@ export function EnhancedSellerDashboard() {
 
   return (
     <>
-      {/* Gestión de permisos - solo aparece si se necesita */}
-      <NotificationPermissionManager />
-      
-      {/* Notificaciones flotantes */}
+      {/* Notificaciones flotantes - sin botones molestos */}
       <FloatingNotifications 
         notifications={floatingNotifications}
         onRemove={removeNotification}
