@@ -12,6 +12,7 @@ const ProfileRecovery = lazy(() => import('./components/ProfileRecovery').then(m
 const OrphanedUserDiagnostic = lazy(() => import('./components/OrphanedUserDiagnostic').then(m => ({ default: m.OrphanedUserDiagnostic })));
 const BuyerDashboard = lazy(() => import('./components/BuyerDashboard').then(m => ({ default: m.BuyerDashboard })));
 const SellerDashboard = lazy(() => import('./components/SellerDashboard').then(m => ({ default: m.SellerDashboard })));
+const EnhancedSellerDashboard = lazy(() => import('./components/EnhancedSellerDashboard').then(m => ({ default: m.EnhancedSellerDashboard })));
 const SimpleNotificationTest = lazy(() => import('./components/SimpleNotificationTest').then(m => ({ default: m.SimpleNotificationTest })));
 const DriverDashboard = lazy(() => import('./components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
 const DiagnosticPage = lazy(() => import('./components/DiagnosticPage').then(m => ({ default: m.DiagnosticPage })));
@@ -762,11 +763,11 @@ function AppContent() {
               <SoundNotificationWrapper>
                 <PWABanner />
                 <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>}>
-                  {/* MODO DE PRUEBA TEMPORAL - DEBUGGING NOTIFICACIONES */}
+                  {/* MODO DEBUG - Testing de notificaciones */}
                   {typeof window !== 'undefined' && window.location.search.includes('debug=notifications') ? (
                     <SimpleNotificationTest />
                   ) : (
-                    <SellerDashboard />
+                    <EnhancedSellerDashboard />
                   )}
                 </Suspense>
                 <Toaster />
