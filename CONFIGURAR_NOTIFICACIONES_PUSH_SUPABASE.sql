@@ -76,8 +76,8 @@ DECLARE
 BEGIN
   -- Solo para órdenes nuevas
   IF NEW.status = 'pending' AND (OLD IS NULL OR OLD.status != 'pending') THEN
-    -- Obtener información del vendedor
-    SELECT u.id, u.name, u.email 
+    -- Obtener información del vendedor (auth.users solo tiene id, email, raw_user_meta_data)
+    SELECT u.id, u.email, u.raw_user_meta_data
     FROM auth.users u 
     WHERE u.id = NEW.seller_id 
     INTO seller_info;

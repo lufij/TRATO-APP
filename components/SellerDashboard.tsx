@@ -22,6 +22,7 @@ import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { NotificationSystem } from './notifications/NotificationSystem';
 import { CriticalNotifications } from './notifications/CriticalNotifications';
 import { EnhancedPushNotifications } from './notifications/EnhancedPushNotifications';
+import { CriticalNotificationSystem } from './notifications/CriticalNotificationSystem';
 import { TimeoutAlerts } from './alerts/TimeoutAlerts';
 import { 
   Plus, 
@@ -1186,9 +1187,10 @@ export function SellerDashboard() {
         />
       </div>
       
-      {/* �🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
+      {/* 🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
       <CriticalNotifications onNotification={handleStockAlert} />
       <EnhancedPushNotifications onNotification={handleStockAlert} />
+      <CriticalNotificationSystem userRole="vendedor" />
       <TimeoutAlerts onAlert={handleOrderTimeout} />
       
       {/* Mobile Header */}
