@@ -19,7 +19,6 @@ import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner'
 import { NotificationPermissionManager } from './ui/NotificationPermissionManager-fixed';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
-import { VendorNotificationSystem } from './notifications/VendorNotificationSystem';
 import { 
   Plus, 
   Package, 
@@ -1168,15 +1167,7 @@ export function SellerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
-      {/* 🚨 SISTEMA UNIFICADO DE NOTIFICACIONES PARA VENDEDORES */}
-      <VendorNotificationSystem 
-        onNewOrder={(orderData) => {
-          console.log('🛒 Nueva orden recibida en dashboard:', orderData);
-          // Las órdenes se actualizarán automáticamente via Realtime
-        }}
-      />
-      
-      {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
+      {/* GESTOR DE PERMISOS DE NOTIFICACIONES */}
       <div className="container mx-auto px-4 pt-4">
         <NotificationPermissionManager 
           onPermissionChange={(hasPermission) => {
