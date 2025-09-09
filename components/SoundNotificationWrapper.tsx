@@ -232,10 +232,43 @@ export function SoundNotificationWrapper({ children }: SoundNotificationWrapperP
     <div className="relative">
       {children}
 
-      {/* ICONOS DE PRUEBA REMOVIDOS - Los iconos Bell y Volume2 que estaban 
-          en la esquina superior derecha han sido eliminados para no interferir 
-          con el botón de cerrar sesión. El sistema de notificaciones sigue 
-          funcionando normalmente a través de los paneles internos. */}
+      {/* Barra de estado de notificaciones fija en la parte superior */}
+      <div className="fixed top-0 right-0 z-50 p-4 flex items-center gap-2">
+        {/* Indicador de conexión */}
+        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+
+        {/* Botón de notificaciones */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowNotifications(!showNotifications)}
+          className="relative bg-white/90 backdrop-blur-sm"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-2 -right-2 w-5 h-5 p-0 flex items-center justify-center text-xs"
+            >
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+        </Button>
+
+        {/* Botón de configuración de sonido */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSettings(!showSettings)}
+          className="bg-white/90 backdrop-blur-sm"
+        >
+          {isEnabled ? (
+            <Volume2 className="w-4 h-4" />
+          ) : (
+            <VolumeX className="w-4 h-4" />
+          )}
+        </Button>
+      </div>
 
       {/* Panel de configuración de sonido */}
       {showSettings && (

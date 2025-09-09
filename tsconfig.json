@@ -34,6 +34,7 @@
     "dist",
     "database/**",
   "supabase/functions/**",
+    "backup-temp-files/**",
     "**/*.sql",
     "**/*.sql.tsx"
   ]

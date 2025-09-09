@@ -19,11 +19,7 @@ import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner'
 import { NotificationPermissionManager } from './ui/NotificationPermissionManager-fixed';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
-import { NotificationSystem } from './notifications/NotificationSystem';
-import { CriticalNotifications } from './notifications/CriticalNotifications';
-import { EnhancedPushNotifications } from './notifications/EnhancedPushNotifications';
-import { CriticalNotificationSystem } from './notifications/CriticalNotificationSystem';
-import { TimeoutAlerts } from './alerts/TimeoutAlerts';
+import { VendorNotificationSystem } from './notifications/VendorNotificationSystem';
 import { 
   Plus, 
   Package, 
@@ -1172,10 +1168,12 @@ export function SellerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
-      {/* Sistema de Notificaciones CRÍTICO para Vendedores */}
-      <NotificationSystem 
-        showBanner={true}
-        enableAutoActivation={true}  // Auto-activar para vendedores (CRÍTICO)
+      {/* 🚨 SISTEMA UNIFICADO DE NOTIFICACIONES PARA VENDEDORES */}
+      <VendorNotificationSystem 
+        onNewOrder={(orderData) => {
+          console.log('🛒 Nueva orden recibida en dashboard:', orderData);
+          // Las órdenes se actualizarán automáticamente via Realtime
+        }}
       />
       
       {/* � GESTOR DE PERMISOS DE NOTIFICACIONES - MUY VISIBLE */}
@@ -1186,12 +1184,6 @@ export function SellerDashboard() {
           }}
         />
       </div>
-      
-      {/* 🚨 NOTIFICACIONES CRÍTICAS PARA VENDEDORES */}
-      <CriticalNotifications onNotification={handleStockAlert} />
-      <EnhancedPushNotifications onNotification={handleStockAlert} />
-      <CriticalNotificationSystem userRole="vendedor" />
-      <TimeoutAlerts onAlert={handleOrderTimeout} />
       
       {/* Mobile Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-30 mb-2">
