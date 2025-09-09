@@ -43,7 +43,7 @@ self.addEventListener('push', (event) => {
   console.log('📨 TRATO SW: Push recibido:', event);
   
   let notificationOptions = {
-    title: 'TRATO - Nueva Orden �',
+    title: 'TRATO - Nueva Orden 🛒',
     body: 'Tienes un nuevo pedido que requiere tu atención inmediata',
     icon: '/icon-192.png',
     badge: '/icon-96.png',
@@ -68,12 +68,15 @@ self.addEventListener('push', (event) => {
     ],
     tag: 'trato-critical-order',
     renotify: true,
-    requireInteraction: true,
-    silent: false, // CRÍTICO: Permitir sonido del sistema
-    vibrate: [500, 200, 500, 200, 500, 300, 200, 300, 500], // Patrón más largo y distintivo
+    requireInteraction: true, // CRÍTICO: No se cierra automáticamente
+    silent: false, // IMPORTANTE: Con sonido del sistema
+    vibrate: [500, 200, 500, 200, 500, 300, 200, 300, 500], // Patrón FUERTE
     dir: 'ltr',
     lang: 'es',
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    // Configuraciones adicionales para mejor funcionamiento con pantalla apagada
+    persistent: true,
+    sticky: true
   };
 
   // Procesar datos del push si existen

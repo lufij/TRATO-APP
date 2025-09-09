@@ -25,6 +25,31 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const wakeLockRef = useRef<any>(null);
+
+  // 🔋 WAKE LOCK para mantener pantalla activa
+  const requestWakeLock = useCallback(async () => {
+    try {
+      if ('wakeLock' in navigator && user?.role === 'vendedor') {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log('🔋 Wake Lock activado - pantalla permanecerá activa');
+        
+        wakeLockRef.current.addEventListener('release', () => {
+          console.log('🔋 Wake Lock liberado');
+        });
+      }
+    } catch (error) {
+      console.error('Error activando Wake Lock:', error);
+    }
+  }, [user?.role]);
+
+  const releaseWakeLock = useCallback(() => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release();
+      wakeLockRef.current = null;
+      console.log('🔋 Wake Lock liberado manualmente');
+    }
+  }, []);
 
   // 🔊 SONIDO PARA NOTIFICACIONES (especialmente para vendedores)
   const playNotificationSound = useCallback(async (notificationType: string) => {
@@ -38,7 +63,7 @@ export function NotificationBell() {
       const audioContext = audioContextRef.current;
       await audioContext.resume();
 
-      const playTone = (frequency: number, duration: number, delay: number = 0) => {
+      const playTone = (frequency: number, duration: number, delay: number = 0, volume: number = 1.0) => {
         setTimeout(() => {
           const oscillator = audioContext.createOscillator();
           const gainNode = audioContext.createGain();
@@ -47,8 +72,8 @@ export function NotificationBell() {
           gainNode.connect(audioContext.destination);
           
           oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-          oscillator.type = 'sine';
-          gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+          oscillator.type = 'square'; // Cambiado de 'sine' a 'square' para sonido más fuerte
+          gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Volumen máximo
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
           
           oscillator.start(audioContext.currentTime);
@@ -56,27 +81,32 @@ export function NotificationBell() {
         }, delay);
       };
 
-      // Sonidos específicos por tipo de notificación
+      // Sonidos específicos por tipo de notificación - VOLUMEN MÁXIMO
       if (notificationType === 'new_order' && user?.role === 'vendedor') {
-        // Triple beep ascendente para nuevas órdenes de vendedores
-        playTone(800, 400, 0);
-        playTone(1000, 400, 300);
-        playTone(1200, 600, 600);
+        // Triple beep ascendente FUERTE para nuevas órdenes de vendedores
+        playTone(800, 500, 0, 1.0);   // Más duración y volumen máximo
+        playTone(1000, 500, 400, 1.0);
+        playTone(1200, 700, 800, 1.0);
       } else if (notificationType === 'order_assigned' && user?.role === 'repartidor') {
-        // Doble beep para repartidores
-        playTone(1000, 300, 0);
-        playTone(1000, 300, 400);
+        // Doble beep FUERTE para repartidores
+        playTone(1000, 400, 0, 1.0);
+        playTone(1000, 400, 500, 1.0);
       } else {
-        // Sonido suave para otras notificaciones
-        playTone(800, 500, 0);
+        // Sonido FUERTE para otras notificaciones
+        playTone(800, 600, 0, 0.9);
       }
 
-      // Vibración en móviles
+      // VIBRACIÓN INTENSA en móviles
       if ('vibrate' in navigator) {
         if (notificationType === 'new_order') {
-          navigator.vibrate([200, 100, 200, 100, 400]); // Patrón largo para órdenes
+          // Patrón LARGO e INTENSO para órdenes críticas
+          navigator.vibrate([300, 100, 300, 100, 300, 100, 500]);
+        } else if (notificationType === 'order_assigned') {
+          // Patrón MEDIO para repartidores
+          navigator.vibrate([250, 100, 250, 100, 400]);
         } else {
-          navigator.vibrate([200, 100, 200]); // Patrón corto
+          // Patrón estándar pero más fuerte
+          navigator.vibrate([200, 100, 200, 100, 300]);
         }
       }
     } catch (error) {
@@ -84,7 +114,7 @@ export function NotificationBell() {
     }
   }, [soundEnabled, user?.role]);
 
-  // Solicitar permisos de notificación para vendedores automáticamente
+  // Solicitar permisos de notificación para vendedores automáticamente + Wake Lock
   useEffect(() => {
     const requestNotificationPermission = async () => {
       if (user?.role === 'vendedor' && 'Notification' in window) {
@@ -92,16 +122,24 @@ export function NotificationBell() {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
             setSoundEnabled(true);
+            await requestWakeLock(); // Activar Wake Lock cuando se conceden permisos
             console.log('🔔 Permisos de notificación y sonido activados automáticamente para vendedor');
+            console.log('🔋 Wake Lock solicitado para mantener pantalla activa');
           }
         } else if (Notification.permission === 'granted') {
           setSoundEnabled(true);
+          await requestWakeLock(); // Activar Wake Lock si ya hay permisos
         }
       }
     };
 
     requestNotificationPermission();
-  }, [user?.role]);
+
+    // Cleanup en unmount
+    return () => {
+      releaseWakeLock();
+    };
+  }, [user?.role, requestWakeLock, releaseWakeLock]);
 
   useEffect(() => {
     if (user?.id) {
@@ -150,15 +188,38 @@ export function NotificationBell() {
           // 🔊 Reproducir sonido para la notificación
           playNotificationSound(newNotification.type);
           
-          // 📱 Mostrar notificación del navegador
+          // 📱 Mostrar notificación del navegador MEJORADA
           if (Notification.permission === 'granted') {
-            new Notification(newNotification.title, {
+            const notification = new Notification(newNotification.title, {
               body: newNotification.message,
               icon: '/favicon.ico',
               badge: '/favicon.ico',
               tag: `trato-${newNotification.type}`,
-              requireInteraction: newNotification.type === 'new_order'
+              requireInteraction: true, // CRÍTICO: No se cierra automáticamente
+              silent: false, // IMPORTANTE: Con sonido del sistema
+              data: {
+                type: newNotification.type,
+                id: newNotification.id,
+                timestamp: Date.now()
+              }
             });
+
+            // Manejar clicks en la notificación
+            notification.onclick = () => {
+              window.focus();
+              setIsOpen(true); // Abrir panel de notificaciones
+              notification.close();
+            };
+
+            // Para vendedores: notificación crítica que no se cierra
+            if (newNotification.type === 'new_order' && user?.role === 'vendedor') {
+              // No cerrar automáticamente las notificaciones críticas
+            } else {
+              // Cerrar automáticamente otras notificaciones después de 10 segundos
+              setTimeout(() => {
+                if (notification) notification.close();
+              }, 10000);
+            }
           }
           
           // 🍞 Toast notification
