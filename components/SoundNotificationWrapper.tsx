@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import { useAdvancedSoundNotifications, NotificationSound } from '../hooks/useAdvancedSoundNotifications';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../utils/supabase/client';
@@ -30,6 +30,30 @@ interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+interface NotificationContextType {
+  notifications: Notification[];
+  unreadCount: number;
+  showNotifications: boolean;
+  setShowNotifications: (show: boolean) => void;
+  markAsRead: (id: string) => void;
+}
+
+const NotificationContext = createContext<NotificationContextType | null>(null);
+
+export const useNotifications = () => {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    return {
+      notifications: [],
+      unreadCount: 0,
+      showNotifications: false,
+      setShowNotifications: () => {},
+      markAsRead: () => {}
+    };
+  }
+  return context;
+};
 
 export function SoundNotificationWrapper({ children }: SoundNotificationWrapperProps) {
   const { user } = useAuth();
@@ -229,46 +253,39 @@ export function SoundNotificationWrapper({ children }: SoundNotificationWrapperP
   }
 
   return (
-    <div className="relative">
-      {children}
+    <NotificationContext.Provider value={{
+      notifications,
+      unreadCount,
+      showNotifications,
+      setShowNotifications,
+      markAsRead
+    }}>
+      <div className="relative">
+        {children}
 
-      {/* Barra de estado de notificaciones fija en la parte superior */}
-      <div className="fixed top-0 right-0 z-50 p-4 flex items-center gap-2">
-        {/* Indicador de conexión */}
-        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-
-        {/* Botón de notificaciones */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowNotifications(!showNotifications)}
-          className="relative bg-white/90 backdrop-blur-sm"
-        >
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-2 -right-2 w-5 h-5 p-0 flex items-center justify-center text-xs"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-
-        {/* Botón de configuración de sonido */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowSettings(!showSettings)}
-          className="bg-white/90 backdrop-blur-sm"
-        >
-          {isEnabled ? (
-            <Volume2 className="w-4 h-4" />
-          ) : (
-            <VolumeX className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
+      {/* Botón movido al header del SellerDashboard - ya no se renderiza aquí */}
+      {/* 
+      {user?.role === 'vendedor' && (
+        <div className="fixed top-4 right-32 z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative bg-white/90 backdrop-blur-sm"
+          >
+            <Bell className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -top-2 -right-2 w-5 h-5 p-0 flex items-center justify-center text-xs"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            )}
+          </Button>
+        </div>
+      )}
+      */}
 
       {/* Panel de configuración de sonido */}
       {showSettings && (
@@ -437,6 +454,7 @@ export function SoundNotificationWrapper({ children }: SoundNotificationWrapperP
           Audio: {isEnabled ? 'ON' : 'OFF'} | {isConnected ? 'Conectado' : 'Desconectado'}
         </div>
       )}
-    </div>
+      </div>
+    </NotificationContext.Provider>
   );
 }

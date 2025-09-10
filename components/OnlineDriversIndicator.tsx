@@ -121,7 +121,7 @@ export function OnlineDriversIndicator({ className = '' }: OnlineDriversIndicato
   }
 
   return (
-    <div className="fixed top-16 right-4 z-50">
+    <div className="fixed top-28 left-4 z-40 md:top-32 md:left-6">
       <div className="flex flex-col gap-1">
         <Badge 
           variant="default" 

@@ -57,6 +57,7 @@ export function NotificationPermissionManager({
       <div className={`flex items-center gap-2 text-sm text-green-700 ${className}`}>
         <CheckCircle className="w-4 h-4 text-green-600" />
         <span>Notificaciones activas</span>
+        {/* Icono de sonido removido - causaba problemas de UI */}
       </div>
     );
   }

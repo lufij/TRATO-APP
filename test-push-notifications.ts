@@ -1,7 +1,12 @@
 // 🧪 SISTEMA DE PRUEBAS COMPLETO - PUSH NOTIFICATIONS
-// Para probar notificaciones con app abierta Y cerrada
+// Solo para desarrollo - NO visible en producción
 
-console.log('🚀 Iniciando sistema de pruebas Push Notifications...');
+// Solo cargar en desarrollo
+if (process.env.NODE_ENV === 'development') {
+  console.log('🚀 Iniciando sistema de pruebas Push Notifications...');
+} else {
+  console.log('🔔 Sistema de notificaciones cargado (modo producción)');
+}
 
 // ✅ FUNCIÓN 1: Probar notificación con app abierta
 async function testNotificationWithAppOpen() {
@@ -189,47 +194,49 @@ async function runCompleteTest() {
   console.log('   3. O configura backend para enviar push notifications');
 }
 
-// 🔧 FUNCIONES DE UTILIDAD PARA TESTING MANUAL
-(window as any).testPushNotifications = {
-  checkStatus: checkSystemStatus,
-  testAppOpen: testNotificationWithAppOpen,
-  testRealPush: testRealPushNotification,
-  runCompleteTest: runCompleteTest,
-  
-  // Función para probar sonido directamente
-  testSound: () => {
-    if (typeof (window as any).playVendorNotificationSound === 'function') {
-      (window as any).playVendorNotificationSound();
-      console.log('🔊 Sonido de prueba activado');
-    } else {
-      console.log('❌ Función de sonido no disponible');
-    }
-  },
-  
-  // Simular mensaje del Service Worker
-  simulateServiceWorkerMessage: () => {
-    const event = new MessageEvent('message', {
-      data: {
-        type: 'PLAY_POWERFUL_NOTIFICATION',
-        payload: {
-          title: '🧪 Test Service Worker',
-          body: 'Simulando mensaje del Service Worker'
-        },
-        soundType: 'new_order'
-      }
-    });
+// 🔧 FUNCIONES DE UTILIDAD PARA TESTING MANUAL (solo desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  (window as any).testPushNotifications = {
+    checkStatus: checkSystemStatus,
+    testAppOpen: testNotificationWithAppOpen,
+    testRealPush: testRealPushNotification,
+    runCompleteTest: runCompleteTest,
     
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.dispatchEvent(event);
-      console.log('📨 Mensaje del Service Worker simulado');
+    // Función para probar sonido directamente
+    testSound: () => {
+      if (typeof (window as any).playVendorNotificationSound === 'function') {
+        (window as any).playVendorNotificationSound();
+        console.log('🔊 Sonido de prueba activado');
+      } else {
+        console.log('❌ Función de sonido no disponible');
+      }
+    },
+    
+    // Simular mensaje del Service Worker
+    simulateServiceWorkerMessage: () => {
+      const event = new MessageEvent('message', {
+        data: {
+          type: 'PLAY_POWERFUL_NOTIFICATION',
+          payload: {
+            title: '🧪 Test Service Worker',
+            body: 'Simulando mensaje del Service Worker'
+          },
+          soundType: 'new_order'
+        }
+      });
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.dispatchEvent(event);
+        console.log('📨 Mensaje del Service Worker simulado');
+      }
     }
-  }
-};
+  };
 
-console.log('🎯 Sistema de pruebas cargado. Usa en consola:');
-console.log('- testPushNotifications.checkStatus()');
-console.log('- testPushNotifications.testAppOpen()');
-console.log('- testPushNotifications.testSound()');
-console.log('- testPushNotifications.runCompleteTest()');
+  console.log('🎯 Sistema de pruebas cargado (DESARROLLO). Usa en consola:');
+  console.log('- testPushNotifications.checkStatus()');
+  console.log('- testPushNotifications.testAppOpen()');
+  console.log('- testPushNotifications.testSound()');
+  console.log('- testPushNotifications.runCompleteTest()');
+}
 
 export default {};

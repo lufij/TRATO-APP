@@ -40,9 +40,11 @@ import {
   Star,
   Settings,
   LogOut,
-  MapPin
+  MapPin,
+  Bell
 } from 'lucide-react';
 import { MobileToastNotifications } from './notifications/MobileToastNotifications';
+import { useNotifications } from './SoundNotificationWrapper';
 
 interface Product {
   id: string;
@@ -76,6 +78,7 @@ type ProductView = 'list' | 'add-product' | 'add-daily' | 'edit-product' | 'edit
 export function SellerDashboard() {
   const { user, signOut } = useAuth();
   const { canPerformMainAction, refreshStatus } = useVerificationStatus('vendedor');
+  const { notifications, unreadCount, showNotifications, setShowNotifications } = useNotifications();
   const [currentView, setCurrentView] = useState<MainView>('dashboard');
   const [productView, setProductView] = useState<ProductView>('list');
   const [products, setProducts] = useState<Product[]>([]);
@@ -1192,15 +1195,32 @@ export function SellerDashboard() {
                 <p className="text-xs md:text-sm text-gray-600 hidden sm:block">Panel de control empresarial</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={signOut} 
-              className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-4 py-2 min-h-[44px]"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Cerrar Sesión</span>
-              <span className="sm:hidden">Salir</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Botón de notificaciones integrado con funcionalidad completa */}
+              <Button
+                variant="outline"
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-4 py-2 min-h-[44px] relative"
+              >
+                <Bell className="w-4 h-4" />
+                <span className="hidden sm:inline">Notificaciones</span>
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 min-w-[16px] h-4 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={signOut} 
+                className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-4 py-2 min-h-[44px]"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Cerrar Sesión</span>
+                <span className="sm:hidden">Salir</span>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -1227,10 +1247,12 @@ export function SellerDashboard() {
           <NotificationPermissionBanner />
         </div>
 
-        {/* Push Notifications Setup - CRÍTICO para no perder ventas */}
-        <div className="mb-4 md:mb-6">
-          <PushNotificationSetup />
-        </div>
+        {/* Push Notifications Setup - CRÍTICO para no perder ventas - Solo para vendedores sin configurar */}
+        {user?.role === 'vendedor' && (
+          <div className="mb-4 md:mb-6">
+            <PushNotificationSetup />
+          </div>
+        )}
 
         {/* Mobile Navigation */}
         <div className="block md:hidden">
@@ -1384,9 +1406,6 @@ export function SellerDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Indicador de repartidores online */}
-      <OnlineDriversIndicator />
-
       {/* Mobile Toast Notifications */}
       <MobileToastNotifications 
         onNewOrder={() => {
@@ -1396,6 +1415,9 @@ export function SellerDashboard() {
           }
         }}
       />
+
+      {/* Indicador de repartidores online - sin wrapper extra */}
+      <OnlineDriversIndicator />
     </div>
   );
 }

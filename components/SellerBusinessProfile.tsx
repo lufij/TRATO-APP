@@ -56,7 +56,7 @@ interface BusinessProfile {
   updated_at: string;
 }
 
-// Tab Button Component
+// Tab Button Component - Mejorado para ser más grande y visible
 const TabButton = ({ active, onClick, children, icon: Icon }: {
   active: boolean;
   onClick: () => void;
@@ -65,14 +65,14 @@ const TabButton = ({ active, onClick, children, icon: Icon }: {
 }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${
+    className={`flex flex-col sm:flex-row items-center gap-2 px-4 py-3 sm:px-6 sm:py-4 text-sm font-bold rounded-lg transition-all duration-200 transform hover:scale-105 ${
       active
-        ? 'bg-blue-600 text-white'
-        : 'text-gray-600 hover:bg-gray-100'
+        ? 'bg-blue-600 text-white shadow-lg'
+        : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200 hover:border-blue-300'
     }`}
   >
-    <Icon className="w-4 h-4" />
-    <span className="hidden sm:inline">{children}</span>
+    <Icon className="w-6 h-6 sm:w-5 sm:h-5" />
+    <span className="text-xs sm:text-sm font-bold">{children}</span>
   </button>
 );
 
@@ -721,9 +721,9 @@ export function SellerBusinessProfile() {
           </Alert>
         )}
 
-        <Card className="w-full overflow-hidden shadow-lg border-none">
-          {/* Cover Image */}
-          <div className="relative h-40 sm:h-56 bg-gradient-to-r from-blue-500 to-purple-600">
+        <Card className="w-full overflow-hidden shadow-lg border-none bg-white">
+          {/* Cover Image - Altura responsiva mejorada */}
+          <div className="relative h-32 sm:h-48 md:h-56 bg-gradient-to-r from-blue-500 to-purple-600">
             {formData.cover_image_url ? (
               <ImageWithFallback
                 src={formData.cover_image_url}
@@ -754,11 +754,11 @@ export function SellerBusinessProfile() {
             )}
           </div>
 
-          {/* Profile Header */}
-          <div className="relative px-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 sm:-mt-12">
-              {/* Logo */}
-              <div className="relative h-32 w-32 rounded-full border-4 border-white bg-gradient-to-br from-green-400 to-blue-500 shadow-md flex items-center justify-center">
+          {/* Profile Header - Mejorado para móvil */}
+          <div className="relative px-4 sm:px-6 pb-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-12 sm:-mt-16 mb-4 sm:mb-6">
+              {/* Logo - Tamaño responsivo */}
+              <div className="relative h-24 w-24 sm:h-32 sm:w-32 rounded-full border-4 border-white bg-gradient-to-br from-green-400 to-blue-500 shadow-lg flex items-center justify-center">
                 {formData.business_logo ? (
                   <ImageWithFallback
                     src={formData.business_logo}
@@ -783,41 +783,59 @@ export function SellerBusinessProfile() {
                 )}
               </div>
               
-              {/* Business Info */}
-              <div className="mt-4 sm:ml-6 text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start gap-2">
-                  <h2 className="text-xl font-bold text-gray-900">{formData.business_name}</h2>
-                  {profile?.is_verified && <Verified className="w-5 h-5 text-blue-500" />}
-                </div>
-                <p className="text-gray-500">{formData.business_category}</p>
-              </div>
-              
-              {/* Business Status Toggle */}
-              <div className="mt-4 sm:mt-0 sm:ml-auto">
-                <div className={`flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium ${
+              {/* Business Info - Mejorado para móvil */}
+              <div className="flex-1 text-center sm:text-left sm:ml-6 mt-4 sm:mt-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                  <div>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">{formData.business_name}</h2>
+                      {profile?.is_verified && <Verified className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1">{formData.business_category}</p>
+                  </div>
+                  
+                  {/* Business Status Toggle - Mejor posicionamiento */}
+                  <div className="flex justify-center sm:justify-end mt-3 sm:mt-0">
+                <div 
+                  onClick={toggleBusinessStatus}
+                  className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm font-bold cursor-pointer transform transition-all duration-200 hover:scale-105 shadow-lg ${
                   formData.is_open_now 
-                    ? 'bg-green-500 text-white' 
-                    : 'bg-gray-400 text-white'
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-red-500 text-white hover:bg-red-600'
                 }`}>
-                  <span>
-                    {formData.is_open_now ? 'Abierto' : 'Cerrado'}
+                  <div className={`w-3 h-3 rounded-full animate-pulse ${
+                    formData.is_open_now ? 'bg-green-200' : 'bg-red-200'
+                  }`} />
+                  <span className="font-bold">
+                    {formData.is_open_now ? 'ABIERTO' : 'CERRADO'}
                   </span>
                   <Switch 
                     checked={formData.is_open_now} 
                     onCheckedChange={toggleBusinessStatus}
-                    className="h-3 w-5 scale-75"
+                    className="h-5 w-9"
                   />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Tabs Navigation */}
-          <div className="px-6 mt-6 border-b border-gray-200">
-            <div className="flex flex-wrap items-center gap-2 -mb-px overflow-x-auto">
-              <TabButton active={activeTab === 'info'} onClick={() => setActiveTab('info')} icon={Info}>Información</TabButton>
-              <TabButton active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={MapPin}>Ubicación</TabButton>
-              <TabButton active={activeTab === 'delivery'} onClick={() => setActiveTab('delivery')} icon={Truck}>Delivery</TabButton>
+          {/* Tabs Navigation - Mejorado para móvil */}
+          <div className="px-4 sm:px-6 mt-6 bg-gray-50 py-4 rounded-t-lg">
+            <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-4">
+              <TabButton active={activeTab === 'info'} onClick={() => setActiveTab('info')} icon={Info}>
+                <span className="hidden sm:inline">Información</span>
+                <span className="sm:hidden">Info</span>
+              </TabButton>
+              <TabButton active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={MapPin}>
+                <span className="hidden sm:inline">Ubicación</span>
+                <span className="sm:hidden">Lugar</span>
+              </TabButton>
+              <TabButton active={activeTab === 'delivery'} onClick={() => setActiveTab('delivery')} icon={Truck}>
+                <span className="hidden sm:inline">Delivery</span>
+                <span className="sm:hidden">Envío</span>
+              </TabButton>
             </div>
           </div>
 

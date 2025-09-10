@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Button } from '../ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Badge } from '../ui/badge';
+import { Bell, BellOff, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../../utils/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { Bell, BellDot, Volume2, VolumeX } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
 import { toast } from 'sonner';
 
 interface Notification {
@@ -32,11 +31,7 @@ export function NotificationBell() {
     try {
       if ('wakeLock' in navigator && user?.role === 'vendedor') {
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-        console.log('🔋 Wake Lock activado - pantalla permanecerá activa');
-        
-        wakeLockRef.current.addEventListener('release', () => {
-          console.log('🔋 Wake Lock liberado');
-        });
+        console.log('🔋 Wake Lock activado para vendedor');
       }
     } catch (error) {
       console.error('Error activando Wake Lock:', error);
@@ -51,7 +46,7 @@ export function NotificationBell() {
     }
   }, []);
 
-  // � FUNCIÓN DE SONIDO POTENTE REUTILIZABLE
+  // 🔊 FUNCIÓN DE SONIDO POTENTE REUTILIZABLE (2 repeticiones automáticas)
   const playPowerfulTone = useCallback(async () => {
     try {
       if (!audioContextRef.current) {
@@ -90,7 +85,7 @@ export function NotificationBell() {
         createPowerfulTone(1500, 800, sequenceDelay + 1500, 1.0); // Súper agudo
       };
 
-      // Reproducir 2 veces
+      // 🔄 REPRODUCIR 2 VECES
       playSequence(0);
       playSequence(3000);
 
@@ -108,93 +103,20 @@ export function NotificationBell() {
     }
   }, []);
 
-  // �🔊 SONIDO PARA NOTIFICACIONES (especialmente para vendedores)
+  // 🔊 SONIDO PARA NOTIFICACIONES - SIMPLIFICADO PARA USAR playPowerfulTone
   const playNotificationSound = useCallback(async (notificationType: string) => {
     if (!soundEnabled) return;
     
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-
-      const audioContext = audioContextRef.current;
-      await audioContext.resume();
-
-      // 🚨 SONIDO SUPER FUERTE - Múltiples osciladores simultáneos
-      const playPowerfulTone = (frequency: number, duration: number, delay: number = 0, volume: number = 1.0) => {
-        setTimeout(() => {
-          // CREAR 3 OSCILADORES SIMULTÁNEOS PARA SONIDO MÁS FUERTE
-          for (let i = 0; i < 3; i++) {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // Frecuencias ligeramente diferentes para sonido más rico y fuerte
-            oscillator.frequency.setValueAtTime(frequency + (i * 5), audioContext.currentTime);
-            oscillator.type = 'square'; // Onda cuadrada = más fuerte
-            gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Volumen máximo
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + duration / 1000);
-          }
-        }, delay);
-      };
-
-      // 🎵 SECUENCIA COMPLETA DE SONIDO (se ejecuta 2 veces)
-      const playFullSequence = (sequenceDelay = 0) => {
-        if (notificationType === 'new_order' && user?.role === 'vendedor') {
-          // 🚨 SECUENCIA SÚPER CRÍTICA PARA VENDEDORES - 4 tonos fuertes
-          playPowerfulTone(900, 600, sequenceDelay + 0, 1.0);     // Tono grave fuerte
-          playPowerfulTone(1100, 600, sequenceDelay + 500, 1.0);  // Tono medio fuerte  
-          playPowerfulTone(1300, 600, sequenceDelay + 1000, 1.0); // Tono agudo fuerte
-          playPowerfulTone(1500, 800, sequenceDelay + 1500, 1.0); // Tono súper agudo MÁS largo
-        } else if (notificationType === 'order_assigned' && user?.role === 'repartidor') {
-          // 🚚 SECUENCIA FUERTE PARA REPARTIDORES - 3 tonos fuertes
-          playPowerfulTone(1000, 500, sequenceDelay + 0, 1.0);
-          playPowerfulTone(1200, 500, sequenceDelay + 400, 1.0);
-          playPowerfulTone(1000, 700, sequenceDelay + 800, 1.0);
-        } else {
-          // 🔔 SECUENCIA ESTÁNDAR PERO FUERTE - 2 tonos fuertes
-          playPowerfulTone(800, 600, sequenceDelay + 0, 1.0);
-          playPowerfulTone(1000, 700, sequenceDelay + 500, 1.0);
-        }
-      };
-
-      // 🔄 REPRODUCIR SECUENCIA 2 VECES
-      playFullSequence(0);      // Primera vez inmediatamente
-      playFullSequence(3000);   // Segunda vez después de 3 segundos
-
-      // 📳 VIBRACIÓN SÚPER INTENSA (también 2 veces)
-      if ('vibrate' in navigator) {
-        if (notificationType === 'new_order') {
-          // PATRÓN LARGO E INTENSO - 2 veces
-          navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
-          setTimeout(() => {
-            navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
-          }, 3000);
-        } else if (notificationType === 'order_assigned') {
-          // PATRÓN MEDIO INTENSO - 2 veces  
-          navigator.vibrate([300, 120, 300, 120, 500]);
-          setTimeout(() => {
-            navigator.vibrate([300, 120, 300, 120, 500]);
-          }, 3000);
-        } else {
-          // PATRÓN ESTÁNDAR INTENSO - 2 veces
-          navigator.vibrate([250, 100, 250, 100, 400]);
-          setTimeout(() => {
-            navigator.vibrate([250, 100, 250, 100, 400]);
-          }, 3000);
-        }
-      }
-
-      console.log('🔊 Sonido SÚPER FUERTE reproducido 2 VECES para:', notificationType);
+      // 🚨 USAR DIRECTAMENTE LA FUNCIÓN POTENTE (ya incluye 2 repeticiones)
+      console.log('🔊 Activando sonido SÚPER FUERTE 2x para:', notificationType);
+      await playPowerfulTone();
+      
+      console.log('✅ Sonido SÚPER FUERTE 2x completado');
     } catch (error) {
       console.error('Error reproduciendo sonido:', error);
     }
-  }, [soundEnabled, user?.role]);
+  }, [soundEnabled, playPowerfulTone]);
 
   // 🌐 EXPONER FUNCIÓN DE SONIDO GLOBALMENTE PARA SERVICE WORKER
   useEffect(() => {
@@ -214,13 +136,11 @@ export function NotificationBell() {
           const permission = await Notification.requestPermission();
           if (permission === 'granted') {
             setSoundEnabled(true);
-            await requestWakeLock(); // Activar Wake Lock cuando se conceden permisos
-            console.log('🔔 Permisos de notificación y sonido activados automáticamente para vendedor');
-            console.log('🔋 Wake Lock solicitado para mantener pantalla activa');
+            await requestWakeLock();
           }
         } else if (Notification.permission === 'granted') {
           setSoundEnabled(true);
-          await requestWakeLock(); // Activar Wake Lock si ya hay permisos
+          await requestWakeLock();
         }
       }
     };
@@ -273,7 +193,7 @@ export function NotificationBell() {
         }
       };
     }
-  }, [user?.id]);
+  }, [user?.id, playNotificationSound]);
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
@@ -317,36 +237,13 @@ export function NotificationBell() {
           
           // 📱 Mostrar notificación del navegador MEJORADA
           if (Notification.permission === 'granted') {
-            const notification = new Notification(newNotification.title, {
+            new Notification(newNotification.title, {
               body: newNotification.message,
               icon: '/favicon.ico',
               badge: '/favicon.ico',
-              tag: `trato-${newNotification.type}`,
-              requireInteraction: true, // CRÍTICO: No se cierra automáticamente
-              silent: false, // IMPORTANTE: Con sonido del sistema
-              data: {
-                type: newNotification.type,
-                id: newNotification.id,
-                timestamp: Date.now()
-              }
-            });
-
-            // Manejar clicks en la notificación
-            notification.onclick = () => {
-              window.focus();
-              setIsOpen(true); // Abrir panel de notificaciones
-              notification.close();
-            };
-
-            // Para vendedores: notificación crítica que no se cierra
-            if (newNotification.type === 'new_order' && user?.role === 'vendedor') {
-              // No cerrar automáticamente las notificaciones críticas
-            } else {
-              // Cerrar automáticamente otras notificaciones después de 10 segundos
-              setTimeout(() => {
-                if (notification) notification.close();
-              }, 10000);
-            }
+              tag: 'trato-notification',
+              requireInteraction: true,
+            } as any);
           }
           
           // 🍞 Toast notification
@@ -373,11 +270,6 @@ export function NotificationBell() {
           .from('notifications')
           .update({ is_read: true })
           .in('id', unreadIds);
-        
-        // Update local state to reflect the change
-        setNotifications(prev => 
-          prev.map(n => unreadIds.includes(n.id) ? { ...n, is_read: true } : n)
-        );
       }
     }
   };
@@ -388,16 +280,14 @@ export function NotificationBell() {
       const now = new Date();
       const diffSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
       
-      if (diffSeconds < 60) return `hace ${diffSeconds}s`;
+      if (diffSeconds < 60) return 'Ahora';
       const diffMinutes = Math.floor(diffSeconds / 60);
-      if (diffMinutes < 60) return `hace ${diffMinutes}m`;
+      if (diffMinutes < 60) return `${diffMinutes}m`;
       const diffHours = Math.floor(diffMinutes / 60);
-      if (diffHours < 24) return `hace ${diffHours}h`;
-      const diffDays = Math.floor(diffHours / 24);
-      return `hace ${diffDays}d`;
-
+      if (diffHours < 24) return `${diffHours}h`;
+      return `${Math.floor(diffHours / 24)}d`;
     } catch {
-      return 'Fecha inválida';
+      return 'Ahora';
     }
   };
 
@@ -417,90 +307,67 @@ export function NotificationBell() {
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button className="relative rounded-full p-2 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-          {unreadCount > 0 ? (
-            <BellDot className="h-6 w-6 text-gray-700" />
-          ) : (
-            <Bell className="h-6 w-6 text-gray-600" />
-          )}
+        <Button variant="ghost" className="relative h-10 w-10 p-0">
+          <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex items-center justify-center h-5 w-5 text-xs font-bold text-white bg-red-500 rounded-full">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
+            <Badge 
+              variant="destructive" 
+              className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </Badge>
           )}
-        </button>
+        </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 bg-white border border-gray-200 shadow-lg" align="end">
-        <Card className="border-0 shadow-none">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-gray-900 flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Notificaciones
-              </CardTitle>
-              {/* Control de sonido para vendedores y repartidores */}
-              {(user?.role === 'vendedor' || user?.role === 'repartidor') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="flex items-center gap-1 text-xs"
-                >
-                  {soundEnabled ? (
-                    <>
-                      <Volume2 className="h-4 w-4 text-green-600" />
-                      <span className="text-green-600">ON</span>
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-400">OFF</span>
-                    </>
-                  )}
-                </Button>
-              )}
+      
+      <PopoverContent className="w-80" align="end">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium">Notificaciones</h4>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className="h-8 w-8 p-0"
+                title={soundEnabled ? "Desactivar sonidos" : "Activar sonidos"}
+              >
+                {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="max-h-96 overflow-y-auto p-0">
-            {notifications.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {notifications.map(notification => {
-                  const badgeInfo = getNotificationBadge(notification.type);
-                  return (
-                    <div key={notification.id} className={`p-4 ${!notification.is_read ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 transition-colors`}>
-                      <div className="flex items-start gap-3">
-                        <div className="mt-1">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeInfo.color}`}>
-                            {badgeInfo.label}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-gray-900 mb-1">
-                            {notification.title}
-                          </h4>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            {formatTime(notification.created_at)}
-                          </p>
-                        </div>
+          </div>
+          
+          {notifications.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              <BellOff className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">No hay notificaciones</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {notifications.map((notification) => {
+                const badge = getNotificationBadge(notification.type);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-3 rounded-lg border transition-colors ${
+                      notification.is_read ? 'bg-gray-50' : 'bg-white border-orange-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+                        {badge.label}
                       </div>
+                      <span className="text-xs text-gray-500">{formatTime(notification.created_at)}</span>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <Bell className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-sm text-gray-500 mb-2">No tienes notificaciones</p>
-                <p className="text-xs text-gray-400">
-                  Las notificaciones aparecerán aquí cuando las recibas
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    
+                    <h5 className="font-medium text-sm mb-1">{notification.title}</h5>
+                    <p className="text-xs text-gray-600 leading-relaxed">{notification.message}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
   );
