@@ -18,6 +18,7 @@ import { VerificationAlert } from './VerificationAlert';
 import { NotificationPermissionBanner } from './ui/NotificationPermissionBanner';
 import { NotificationPermissionManager } from './ui/NotificationPermissionManager-fixed';
 import { OnlineDriversIndicator } from './OnlineDriversIndicator';
+import PushNotificationSetup from './notifications/PushNotificationSetup';
 import { useVerificationStatus } from '../hooks/useVerificationStatus';
 import { 
   Plus, 
@@ -1224,6 +1225,11 @@ export function SellerDashboard() {
         {/* Notification Permission Banner */}
         <div className="mb-4 md:mb-6">
           <NotificationPermissionBanner />
+        </div>
+
+        {/* Push Notifications Setup - CRÍTICO para no perder ventas */}
+        <div className="mb-4 md:mb-6">
+          <PushNotificationSetup />
         </div>
 
         {/* Mobile Navigation */}

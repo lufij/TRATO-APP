@@ -51,7 +51,64 @@ export function NotificationBell() {
     }
   }, []);
 
-  // 🔊 SONIDO PARA NOTIFICACIONES (especialmente para vendedores)
+  // � FUNCIÓN DE SONIDO POTENTE REUTILIZABLE
+  const playPowerfulTone = useCallback(async () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+
+      const audioContext = audioContextRef.current;
+      await audioContext.resume();
+
+      // 🔊 CREAR 3 OSCILADORES SIMULTÁNEOS PARA SONIDO MÁS FUERTE
+      const createPowerfulTone = (frequency: number, duration: number, delay: number = 0, volume: number = 1.0) => {
+        setTimeout(() => {
+          for (let i = 0; i < 3; i++) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency + (i * 5), audioContext.currentTime);
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+          }
+        }, delay);
+      };
+
+      // 🎵 SECUENCIA COMPLETA 2 VECES PARA VENDEDORES
+      const playSequence = (sequenceDelay = 0) => {
+        createPowerfulTone(900, 600, sequenceDelay + 0, 1.0);     // Grave fuerte
+        createPowerfulTone(1100, 600, sequenceDelay + 500, 1.0);  // Medio fuerte  
+        createPowerfulTone(1300, 600, sequenceDelay + 1000, 1.0); // Agudo fuerte
+        createPowerfulTone(1500, 800, sequenceDelay + 1500, 1.0); // Súper agudo
+      };
+
+      // Reproducir 2 veces
+      playSequence(0);
+      playSequence(3000);
+
+      // 📳 VIBRACIÓN INTENSA 2 veces
+      if ('vibrate' in navigator) {
+        navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        setTimeout(() => {
+          navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        }, 3000);
+      }
+
+      console.log('🚨 Sonido potente activado (2 repeticiones)');
+    } catch (error) {
+      console.error('❌ Error con sonido potente:', error);
+    }
+  }, []);
+
+  // �🔊 SONIDO PARA NOTIFICACIONES (especialmente para vendedores)
   const playNotificationSound = useCallback(async (notificationType: string) => {
     if (!soundEnabled) return;
     
@@ -63,56 +120,91 @@ export function NotificationBell() {
       const audioContext = audioContextRef.current;
       await audioContext.resume();
 
-      const playTone = (frequency: number, duration: number, delay: number = 0, volume: number = 1.0) => {
+      // 🚨 SONIDO SUPER FUERTE - Múltiples osciladores simultáneos
+      const playPowerfulTone = (frequency: number, duration: number, delay: number = 0, volume: number = 1.0) => {
         setTimeout(() => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-          oscillator.type = 'square'; // Cambiado de 'sine' a 'square' para sonido más fuerte
-          gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Volumen máximo
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-          
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + duration / 1000);
+          // CREAR 3 OSCILADORES SIMULTÁNEOS PARA SONIDO MÁS FUERTE
+          for (let i = 0; i < 3; i++) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Frecuencias ligeramente diferentes para sonido más rico y fuerte
+            oscillator.frequency.setValueAtTime(frequency + (i * 5), audioContext.currentTime);
+            oscillator.type = 'square'; // Onda cuadrada = más fuerte
+            gainNode.gain.setValueAtTime(volume, audioContext.currentTime); // Volumen máximo
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+          }
         }, delay);
       };
 
-      // Sonidos específicos por tipo de notificación - VOLUMEN MÁXIMO
-      if (notificationType === 'new_order' && user?.role === 'vendedor') {
-        // Triple beep ascendente FUERTE para nuevas órdenes de vendedores
-        playTone(800, 500, 0, 1.0);   // Más duración y volumen máximo
-        playTone(1000, 500, 400, 1.0);
-        playTone(1200, 700, 800, 1.0);
-      } else if (notificationType === 'order_assigned' && user?.role === 'repartidor') {
-        // Doble beep FUERTE para repartidores
-        playTone(1000, 400, 0, 1.0);
-        playTone(1000, 400, 500, 1.0);
-      } else {
-        // Sonido FUERTE para otras notificaciones
-        playTone(800, 600, 0, 0.9);
-      }
+      // 🎵 SECUENCIA COMPLETA DE SONIDO (se ejecuta 2 veces)
+      const playFullSequence = (sequenceDelay = 0) => {
+        if (notificationType === 'new_order' && user?.role === 'vendedor') {
+          // 🚨 SECUENCIA SÚPER CRÍTICA PARA VENDEDORES - 4 tonos fuertes
+          playPowerfulTone(900, 600, sequenceDelay + 0, 1.0);     // Tono grave fuerte
+          playPowerfulTone(1100, 600, sequenceDelay + 500, 1.0);  // Tono medio fuerte  
+          playPowerfulTone(1300, 600, sequenceDelay + 1000, 1.0); // Tono agudo fuerte
+          playPowerfulTone(1500, 800, sequenceDelay + 1500, 1.0); // Tono súper agudo MÁS largo
+        } else if (notificationType === 'order_assigned' && user?.role === 'repartidor') {
+          // 🚚 SECUENCIA FUERTE PARA REPARTIDORES - 3 tonos fuertes
+          playPowerfulTone(1000, 500, sequenceDelay + 0, 1.0);
+          playPowerfulTone(1200, 500, sequenceDelay + 400, 1.0);
+          playPowerfulTone(1000, 700, sequenceDelay + 800, 1.0);
+        } else {
+          // 🔔 SECUENCIA ESTÁNDAR PERO FUERTE - 2 tonos fuertes
+          playPowerfulTone(800, 600, sequenceDelay + 0, 1.0);
+          playPowerfulTone(1000, 700, sequenceDelay + 500, 1.0);
+        }
+      };
 
-      // VIBRACIÓN INTENSA en móviles
+      // 🔄 REPRODUCIR SECUENCIA 2 VECES
+      playFullSequence(0);      // Primera vez inmediatamente
+      playFullSequence(3000);   // Segunda vez después de 3 segundos
+
+      // 📳 VIBRACIÓN SÚPER INTENSA (también 2 veces)
       if ('vibrate' in navigator) {
         if (notificationType === 'new_order') {
-          // Patrón LARGO e INTENSO para órdenes críticas
-          navigator.vibrate([300, 100, 300, 100, 300, 100, 500]);
+          // PATRÓN LARGO E INTENSO - 2 veces
+          navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+          setTimeout(() => {
+            navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+          }, 3000);
         } else if (notificationType === 'order_assigned') {
-          // Patrón MEDIO para repartidores
-          navigator.vibrate([250, 100, 250, 100, 400]);
+          // PATRÓN MEDIO INTENSO - 2 veces  
+          navigator.vibrate([300, 120, 300, 120, 500]);
+          setTimeout(() => {
+            navigator.vibrate([300, 120, 300, 120, 500]);
+          }, 3000);
         } else {
-          // Patrón estándar pero más fuerte
-          navigator.vibrate([200, 100, 200, 100, 300]);
+          // PATRÓN ESTÁNDAR INTENSO - 2 veces
+          navigator.vibrate([250, 100, 250, 100, 400]);
+          setTimeout(() => {
+            navigator.vibrate([250, 100, 250, 100, 400]);
+          }, 3000);
         }
       }
+
+      console.log('🔊 Sonido SÚPER FUERTE reproducido 2 VECES para:', notificationType);
     } catch (error) {
       console.error('Error reproduciendo sonido:', error);
     }
   }, [soundEnabled, user?.role]);
+
+  // 🌐 EXPONER FUNCIÓN DE SONIDO GLOBALMENTE PARA SERVICE WORKER
+  useEffect(() => {
+    // Hacer la función disponible globalmente
+    (window as any).playVendorNotificationSound = playPowerfulTone;
+    
+    return () => {
+      delete (window as any).playVendorNotificationSound;
+    };
+  }, [playPowerfulTone]);
 
   // Solicitar permisos de notificación para vendedores automáticamente + Wake Lock
   useEffect(() => {
@@ -145,6 +237,41 @@ export function NotificationBell() {
     if (user?.id) {
       fetchNotifications();
       setupRealtimeSubscription();
+      
+      // 🔊 Escuchar mensajes del Service Worker para Push Notifications
+      const handleServiceWorkerMessage = (event: MessageEvent) => {
+        console.log('📨 Mensaje del Service Worker recibido:', event.data);
+        
+        if (event.data?.type === 'PLAY_POWERFUL_NOTIFICATION') {
+          // Reproducir sonido potente cuando llega push con app abierta
+          playNotificationSound(event.data.soundType || 'new_order');
+          
+          // Mostrar toast si tenemos los datos
+          if (event.data.payload) {
+            const { title, body } = event.data.payload;
+            toast.info(title || '🔔 Nueva Notificación', {
+              description: body || 'Tienes una nueva actualización',
+              duration: 8000
+            });
+          }
+        } else if (event.data?.type === 'PUSH_RECEIVED') {
+          // Manejar push recibido - actualizar UI si es necesario
+          console.log('📨 Push recibido con app abierta:', event.data.payload);
+          fetchNotifications(); // Recargar notificaciones
+        }
+      };
+
+      // Registrar listener del Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+      }
+
+      // Cleanup
+      return () => {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+        }
+      };
     }
   }, [user?.id]);
 

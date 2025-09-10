@@ -209,41 +209,56 @@ class NotificationPowerManager {
     }
   }
 
-  // 🔊 PROBAR SONIDO FUERTE
+  // 🔊 PROBAR SONIDO SÚPER FUERTE (2 veces)
   async playLoudSound() {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       await audioContext.resume();
       
-      const playTone = (frequency, duration, delay = 0) => {
+      // 🚨 SONIDO SÚPER FUERTE - Múltiples osciladores simultáneos
+      const playPowerfulTone = (frequency, duration, delay = 0) => {
         setTimeout(() => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-          oscillator.type = 'square'; // Sonido más fuerte
-          gainNode.gain.setValueAtTime(1.0, audioContext.currentTime); // Volumen máximo
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-          
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + duration / 1000);
+          // CREAR 3 OSCILADORES SIMULTÁNEOS PARA SONIDO MÁS FUERTE
+          for (let i = 0; i < 3; i++) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Frecuencias ligeramente diferentes para sonido más rico y fuerte
+            oscillator.frequency.setValueAtTime(frequency + (i * 5), audioContext.currentTime);
+            oscillator.type = 'square'; // Onda cuadrada = más fuerte
+            gainNode.gain.setValueAtTime(1.0, audioContext.currentTime); // Volumen máximo
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+          }
         }, delay);
       };
-      
-      // Triple beep FUERTE
-      playTone(800, 500, 0);
-      playTone(1000, 500, 400);
-      playTone(1200, 700, 800);
-      
-      // Vibración intensa
+
+      // 🎵 SECUENCIA COMPLETA DE PRUEBA (2 veces)
+      const playTestSequence = (sequenceDelay = 0) => {
+        playPowerfulTone(900, 600, sequenceDelay + 0);     // Tono grave fuerte
+        playPowerfulTone(1100, 600, sequenceDelay + 500);  // Tono medio fuerte  
+        playPowerfulTone(1300, 600, sequenceDelay + 1000); // Tono agudo fuerte
+        playPowerfulTone(1500, 800, sequenceDelay + 1500); // Tono súper agudo MÁS largo
+      };
+
+      // 🔄 REPRODUCIR 2 VECES
+      playTestSequence(0);      // Primera vez
+      playTestSequence(3000);   // Segunda vez después de 3 segundos
+
+      // 📳 VIBRACIÓN INTENSA (2 veces)
       if ('vibrate' in navigator) {
-        navigator.vibrate([300, 100, 300, 100, 300, 100, 500]);
+        navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        setTimeout(() => {
+          navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        }, 3000);
       }
       
-      console.log('🔊 Sonido de prueba reproducido');
+      console.log('🔊 Sonido de prueba SÚPER FUERTE reproducido 2 VECES');
     } catch (error) {
       console.error('❌ Error reproduciendo sonido:', error);
     }
@@ -279,9 +294,74 @@ window.testNotifications = {
     return await window.notificationPowerManager.initialize(userRole);
   },
   
-  // Reproducir sonido fuerte
+  // Reproducir sonido súper fuerte (2 veces)
   async playLoudSound() {
     return await window.notificationPowerManager.playLoudSound();
+  },
+
+  // 🚨 PROBAR SONIDO ESPECÍFICO DE VENDEDOR (NUEVA FUNCIÓN)
+  async playVendorSound() {
+    try {
+      console.log('🛒 Simulando sonido de nueva orden para vendedor...');
+      
+      // Simular evento de notificación
+      const event = new CustomEvent('notification-received', {
+        detail: {
+          type: 'new_order',
+          title: 'Nueva Orden de Prueba',
+          message: 'Probando sonido súper fuerte para vendedores',
+          userRole: 'vendedor'
+        }
+      });
+
+      // Reproducir el sonido directamente como lo haría el sistema
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      await audioContext.resume();
+
+      const playPowerfulTone = (frequency, duration, delay = 0) => {
+        setTimeout(() => {
+          for (let i = 0; i < 3; i++) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency + (i * 5), audioContext.currentTime);
+            oscillator.type = 'square';
+            gainNode.gain.setValueAtTime(1.0, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration / 1000);
+          }
+        }, delay);
+      };
+
+      // Secuencia específica de vendedor (2 veces)
+      const playVendorSequence = (sequenceDelay = 0) => {
+        playPowerfulTone(900, 600, sequenceDelay + 0);
+        playPowerfulTone(1100, 600, sequenceDelay + 500);
+        playPowerfulTone(1300, 600, sequenceDelay + 1000);
+        playPowerfulTone(1500, 800, sequenceDelay + 1500);
+      };
+
+      playVendorSequence(0);      // Primera vez
+      playVendorSequence(3000);   // Segunda vez
+
+      // Vibración de vendedor (2 veces)
+      if ('vibrate' in navigator) {
+        navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        setTimeout(() => {
+          navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+        }, 3000);
+      }
+
+      console.log('🔊 Sonido de VENDEDOR (nueva orden) reproducido 2 VECES - SÚPER FUERTE');
+      
+    } catch (error) {
+      console.error('❌ Error reproduciendo sonido de vendedor:', error);
+    }
   },
   
   // Diagnóstico completo
@@ -295,15 +375,22 @@ window.testNotifications = {
 🔔 COMANDOS DISPONIBLES:
 
 • testNotifications.setup('vendedor') - Configurar sistema completo
-• testNotifications.playLoudSound() - Probar sonido fuerte
+• testNotifications.playLoudSound() - Probar sonido fuerte genérico
+• testNotifications.playVendorSound() - 🚨 PROBAR SONIDO ESPECÍFICO DE VENDEDOR
 • testNotifications.diagnose() - Ver estado del sistema
 • testNotifications.help() - Ver esta ayuda
 
 📱 PARA VENDEDORES:
 1. Ejecutar: testNotifications.setup('vendedor')
 2. Permitir TODOS los permisos que se soliciten
-3. Configurar dispositivo según las instrucciones mostradas
-4. Probar con: testNotifications.playLoudSound()
+3. Probar con: testNotifications.playVendorSound() ← 🚨 NUEVO Y MÁS FUERTE
+4. Configurar dispositivo según las instrucciones mostradas
+
+🔊 EL SONIDO AHORA ES:
+• 3x MÁS FUERTE (3 osciladores simultáneos)
+• 2 REPETICIONES (cada 3 segundos)
+• 4 TONOS por secuencia (900→1100→1300→1500 Hz)
+• VIBRACIÓN INTENSA (2 veces)
     `);
   }
 };
