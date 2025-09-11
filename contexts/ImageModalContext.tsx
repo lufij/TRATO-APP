@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { ImageModal } from '../components/ui/image-modal';
+import { MobileImageZoomModal } from '../components/ui/MobileImageZoomModal';
 import { useImageModal } from '../hooks/useImageModal';
 
 interface ImageModalContextType {
@@ -22,7 +22,7 @@ export function ImageModalProvider({ children }: { children: React.ReactNode }) 
   return (
     <ImageModalContext.Provider value={value}>
       {children}
-      <ImageModal 
+      <MobileImageZoomModal 
         isOpen={isOpen}
         onClose={closeModal}
         imageUrl={imageUrl}

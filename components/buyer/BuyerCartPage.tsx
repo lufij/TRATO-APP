@@ -8,6 +8,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useImageModalContext } from '../../contexts/ImageModalContext';
 import { 
   ShoppingCart, 
   Plus, 
@@ -39,11 +40,11 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
     getCartTotal, 
     getCartItemCount 
   } = useCart();
+  const { openImageModal } = useImageModalContext();
 
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [tempQuantity, setTempQuantity] = useState<string>('');
-  const [selectedImage, setSelectedImage] = useState<{ src: string; alt: string } | null>(null);
 
   // Cálculos del carrito
   const subtotal = getCartTotal();
@@ -206,10 +207,10 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
                           src={item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop'}
                           alt={item.product?.name || 'Producto'}
                           className="w-16 h-16 object-cover rounded-lg flex-shrink-0 cursor-pointer"
-                          onClick={() => setSelectedImage({
-                            src: item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop',
-                            alt: item.product?.name || 'Producto'
-                          })}
+                          onClick={() => {
+                            const imageUrl = item.product?.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop';
+                            openImageModal(imageUrl, item.product?.name || 'Producto');
+                          }}
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-gray-900 truncate">{item.product?.name}</h4>
@@ -319,40 +320,6 @@ export function BuyerCartPage({ onContinueShopping, onProceedToCheckout }: Buyer
           </Card>
         </div>
       </div>
-
-      {/* Modal de Imagen Ampliada */}
-      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-2">
-          <DialogHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-semibold">
-                {selectedImage?.alt}
-              </DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedImage(null)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </DialogHeader>
-          {selectedImage && (
-            <div className="flex items-center justify-center max-h-[70vh]">
-              <img
-                src={selectedImage.src}
-                alt={selectedImage.alt}
-                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop';
-                }}
-              />
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

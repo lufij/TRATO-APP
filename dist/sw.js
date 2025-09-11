@@ -1,18 +1,39 @@
-// TRATO Service Worker - Notificaciones Push Mejoradas v1.4.1
-const CACHE_NAME = 'trato-app-v1.4.1';
+// TRATO Service Worker - Push Notifications REALES v2.0
+const CACHE_NAME = 'trato-app-v2.0';
+
+// 🔊 CONFIGURACIÓN DE SONIDOS CRÍTICOS
+const CRITICAL_SOUND_CONFIG = {
+  new_order: {
+    frequencies: [900, 1100, 1300, 1500],
+    durations: [600, 600, 600, 800],
+    delays: [0, 500, 1000, 1500],
+    vibrate: [400, 150, 400, 150, 400, 150, 600],
+    repeat: 2,
+    repeatDelay: 3000
+  },
+  order_assigned: {
+    frequencies: [1000, 1200, 1000],
+    durations: [500, 500, 700],
+    delays: [0, 400, 800],
+    vibrate: [300, 120, 300, 120, 500],
+    repeat: 2,
+    repeatDelay: 3000
+  }
+};
 
 // Instalar Service Worker con cache mínimo
 self.addEventListener('install', (event) => {
-  console.log('🚀 TRATO SW: Instalando Service Worker v1.4.1');
+  console.log('🚀 TRATO SW v2.0: Instalando Service Worker para Push REALES');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('✅ TRATO SW: Cache inicializado');
-        // Cache mínimo para offline
         return cache.addAll([
           '/',
           '/manifest.json',
-          '/offline.html'
+          '/offline.html',
+          '/icon-192.png',
+          '/icon-96.png'
         ].filter(Boolean));
       })
       .catch((error) => {
@@ -36,23 +57,70 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// ===== NOTIFICACIONES PUSH AVANZADAS =====
+// ===== PUSH NOTIFICATIONS REALES (FUNCIONAN CON APP CERRADA) =====
 
-// Escuchar mensajes push del servidor
+// 📨 MANEJAR PUSH MESSAGES DEL SERVIDOR
 self.addEventListener('push', (event) => {
-  console.log('📨 TRATO SW: Push recibido:', event);
+  console.log('📨 TRATO SW: Push recibido (APP PUEDE ESTAR CERRADA):', event);
   
-  let notificationOptions = {
+  let notificationData = {
     title: 'TRATO - Nueva Orden 🛒',
     body: 'Tienes un nuevo pedido que requiere tu atención inmediata',
+    type: 'new_order',
+    orderId: null,
+    urgent: true
+  };
+
+  // Procesar datos del push si existen
+  if (event.data) {
+    try {
+      const pushPayload = event.data.json();
+      console.log('📦 TRATO SW: Datos del push:', pushPayload);
+      
+      notificationData = { ...notificationData, ...pushPayload };
+      
+    } catch (error) {
+      console.error('❌ TRATO SW: Error parseando push data:', error);
+    }
+  }
+
+  // Configurar notificación según el tipo
+  const notificationOptions = buildNotificationOptions(notificationData);
+
+  // 🚨 MOSTRAR NOTIFICACIÓN (CRÍTICO: Funciona con app cerrada)
+  event.waitUntil(
+    Promise.all([
+      // Mostrar notificación
+      self.registration.showNotification(notificationOptions.title, notificationOptions),
+      
+      // Intentar reproducir sonido si es posible (limitado en SW)
+      handlePushSound(notificationData.type),
+      
+      // Enviar mensaje a la app SI está abierta para sonido potente
+      notifyOpenClientsWithSound(notificationData),
+      
+      // Registrar para estadísticas
+      logNotificationReceived(notificationData)
+    ])
+  );
+});
+
+// 🔧 CONSTRUIR OPCIONES DE NOTIFICACIÓN
+function buildNotificationOptions(data) {
+  const baseOptions = {
+    body: data.body,
     icon: '/icon-192.png',
     badge: '/icon-96.png',
-    image: '/notification-banner.png',
+    tag: `trato-${data.type}-${data.orderId || Date.now()}`,
+    requireInteraction: true, // CRÍTICO: No se cierra automáticamente
+    silent: false, // IMPORTANTE: Usar sonido del sistema
+    vibrate: CRITICAL_SOUND_CONFIG[data.type]?.vibrate || [200, 100, 200],
     data: {
-      url: '/',
+      type: data.type,
+      orderId: data.orderId,
+      url: data.orderId ? `/?order=${data.orderId}` : '/',
       timestamp: Date.now(),
-      type: 'new_order',
-      sound: 'critical'
+      urgent: data.urgent
     },
     actions: [
       {
@@ -66,65 +134,101 @@ self.addEventListener('push', (event) => {
         icon: '/icon-close.png'
       }
     ],
-    tag: 'trato-critical-order',
-    renotify: true,
-    requireInteraction: true, // CRÍTICO: No se cierra automáticamente
-    silent: false, // IMPORTANTE: Con sonido del sistema
-    vibrate: [500, 200, 500, 200, 500, 300, 200, 300, 500], // Patrón FUERTE
     dir: 'ltr',
-    lang: 'es',
-    timestamp: Date.now(),
-    // Configuraciones adicionales para mejor funcionamiento con pantalla apagada
-    persistent: true,
-    sticky: true
+    lang: 'es'
   };
 
-  // Procesar datos del push si existen
-  if (event.data) {
-    try {
-      const pushData = event.data.json();
-      console.log('📦 TRATO SW: Datos del push:', pushData);
-      
-      // Personalizar notificación según tipo
-      if (pushData.type === 'new_order') {
-        notificationOptions.title = `🆕 Nuevo Pedido - ${pushData.order_type || 'Delivery'}`;
-        notificationOptions.body = `Pedido #${pushData.order_id || 'XXX'} por $${pushData.total || '0.00'}`;
-        notificationOptions.data.orderId = pushData.order_id;
-        notificationOptions.tag = `order-${pushData.order_id}`;
-      } else if (pushData.type === 'order_ready') {
-        notificationOptions.title = '✅ Pedido Listo para Recoger';
-        notificationOptions.body = `Tu pedido #${pushData.order_id} está listo`;
-        notificationOptions.icon = '/icon-ready.png';
-      } else if (pushData.type === 'order_delivered') {
-        notificationOptions.title = '🎉 Pedido Entregado';
-        notificationOptions.body = `Tu pedido #${pushData.order_id} ha sido entregado`;
-        notificationOptions.icon = '/icon-delivered.png';
-      }
-      
-      // Merge con datos adicionales
-      notificationOptions = { ...notificationOptions, ...pushData.notification };
-      
-    } catch (error) {
-      console.error('❌ TRATO SW: Error parseando push data:', error);
-    }
+  // Personalizar según tipo
+  if (data.type === 'new_order') {
+    baseOptions.title = `🆕 Nuevo Pedido ${data.orderId ? `#${data.orderId}` : ''}`;
+    baseOptions.body = `Pedido por $${data.total || '0.00'} - Responde rápidamente`;
+    baseOptions.image = '/notification-new-order.png';
+  } else if (data.type === 'order_assigned') {
+    baseOptions.title = '🚚 Pedido Asignado';
+    baseOptions.body = `Te asignaron la entrega del pedido #${data.orderId}`;
+    baseOptions.icon = '/icon-delivery.png';
   }
 
-  // Mostrar notificación
-  event.waitUntil(
-    self.registration.showNotification(notificationOptions.title, notificationOptions)
-      .then(() => {
-        console.log('✅ TRATO SW: Notificación mostrada');
-        
-        // Reproducir sonido personalizado si es posible
-        if ('serviceWorker' in navigator && 'Notification' in window) {
-          playNotificationSound(notificationOptions.data.type);
-        }
-      })
-      .catch((error) => {
-        console.error('❌ TRATO SW: Error mostrando notificación:', error);
-      })
-  );
-});
+  return baseOptions;
+}
+
+// 🔊 INTENTAR REPRODUCIR SONIDO EN SERVICE WORKER (limitado)
+async function handlePushSound(notificationType) {
+  try {
+    // En Service Worker el audio es muy limitado
+    // El sonido principal se maneja en la app cuando está abierta
+    console.log(`🔊 TRATO SW: Sonido solicitado para ${notificationType}`);
+    
+    // TODO: Investigar Audio Worklets para sonido en SW
+    
+  } catch (error) {
+    console.error('❌ TRATO SW: Error con sonido:', error);
+  }
+}
+
+// 📢 NOTIFICAR CLIENTES ABIERTOS CON SONIDO POTENTE
+async function notifyOpenClientsWithSound(data) {
+  try {
+    const clients = await self.clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    });
+    
+    console.log(`🔊 TRATO SW: Notificando ${clients.length} clientes con sonido potente`);
+    
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'PLAY_POWERFUL_NOTIFICATION',
+        payload: data,
+        soundType: data.type || 'new_order',
+        timestamp: Date.now(),
+        repeat: true // Activar repetición de sonido
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ TRATO SW: Error notificando clientes con sonido:', error);
+  }
+}
+
+// 📊 REGISTRAR NOTIFICACIÓN RECIBIDA
+async function logNotificationReceived(data) {
+  try {
+    console.log('📊 TRATO SW: Registrando notificación:', {
+      type: data.type,
+      timestamp: new Date().toISOString(),
+      orderId: data.orderId
+    });
+    
+    // En el futuro podríamos guardar estadísticas en IndexedDB
+    
+  } catch (error) {
+    console.error('❌ TRATO SW: Error registrando notificación:', error);
+  }
+}
+
+// 📢 NOTIFICAR CLIENTES ABIERTOS (función original mantenida para compatibilidad)
+async function notifyOpenClients(data) {
+  try {
+    const clients = await self.clients.matchAll({ 
+      type: 'window', 
+      includeUncontrolled: true 
+    });
+    
+    console.log(`📢 TRATO SW: Notificando ${clients.length} clientes abiertos`);
+    
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'PUSH_RECEIVED',
+        payload: data,
+        timestamp: Date.now()
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ TRATO SW: Error notificando clientes:', error);
+  }
+}
 
 // Manejar clicks en notificaciones
 self.addEventListener('notificationclick', (event) => {
