@@ -15,6 +15,17 @@ export default {
   ],
   theme: {
     extend: {
+      // Breakpoints personalizados para mejor responsividad móvil
+      screens: {
+        'xs': '475px',
+        // Los otros breakpoints se mantienen por defecto:
+        // 'sm': '640px',
+        // 'md': '768px', 
+        // 'lg': '1024px',
+        // 'xl': '1280px',
+        // '2xl': '1536px'
+      },
+      
       // Colores de marca TRATO
       colors: {
         // Colores principales de TRATO
