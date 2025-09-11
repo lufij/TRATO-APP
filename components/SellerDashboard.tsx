@@ -105,6 +105,7 @@ export function SellerDashboard() {
     totalViews: 0,
     totalSales: 0,
     revenue: 0,
+    revenueChange: 0, // 🔥 PORCENTAJE DE CAMBIO MENSUAL
     avgRating: 0 // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
   });
 
@@ -233,6 +234,52 @@ export function SellerDashboard() {
     }
   };
 
+  // 🔥 FUNCIÓN PARA CALCULAR INGRESOS MENSUALES REALES
+  const calculateMonthlyRevenue = async (sellerId: string) => {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      
+      // Ingresos del mes actual
+      const { data: currentMonthOrders, error: currentError } = await supabase
+        .from('orders')
+        .select('total, status')
+        .eq('seller_id', sellerId)
+        .eq('status', 'delivered')
+        .gte('created_at', startOfMonth.toISOString());
+        
+      const currentRevenue = currentMonthOrders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
+      
+      // Ingresos del mes pasado
+      const { data: lastMonthOrders, error: lastError } = await supabase
+        .from('orders')
+        .select('total, status')
+        .eq('seller_id', sellerId)
+        .eq('status', 'delivered')
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lte('created_at', endOfLastMonth.toISOString());
+        
+      const lastRevenue = lastMonthOrders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
+      
+      // Calcular porcentaje de cambio
+      let percentageChange = 0;
+      if (lastRevenue > 0) {
+        percentageChange = ((currentRevenue - lastRevenue) / lastRevenue) * 100;
+      } else if (currentRevenue > 0) {
+        percentageChange = 100; // Si no había ingresos el mes pasado, es 100% de incremento
+      }
+      
+      console.log(`📊 Ingresos mes actual: Q${currentRevenue}, mes pasado: Q${lastRevenue}, cambio: ${percentageChange.toFixed(1)}%`);
+      
+      return { currentRevenue, percentageChange };
+    } catch (error) {
+      console.error('Error calculating monthly revenue:', error);
+      return { currentRevenue: 0, percentageChange: 0 };
+    }
+  };
+
   const loadStats = async () => {
     try {
       // Calculate basic stats from products
@@ -241,8 +288,9 @@ export function SellerDashboard() {
       
       // Initialize stats with defaults
       let totalSales = 0;
-      let revenue = 0;
-      let avgRating = 0; // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
+      let monthlyRevenue = 0;
+      let revenueChange = 0;
+      let avgRating = 0;
       
       try {
         // Test if orders table exists first
@@ -260,11 +308,15 @@ export function SellerDashboard() {
 
           if (!ordersError && ordersData) {
             totalSales = ordersData.length;
-            revenue = ordersData
-              .filter(order => order.status === 'delivered')
-              .reduce((sum, order) => sum + (order.total || 0), 0);
             
-            console.log(`Loaded ${totalSales} orders, revenue: Q${revenue}`);
+            // 🔥 CALCULAR INGRESOS MENSUALES REALES
+            if (user?.id) {
+              const { currentRevenue, percentageChange } = await calculateMonthlyRevenue(user.id);
+              monthlyRevenue = currentRevenue;
+              revenueChange = percentageChange;
+            }
+            
+            console.log(`📈 Estadísticas actualizadas: ${totalSales} órdenes, ingresos del mes: Q${monthlyRevenue}, cambio: ${revenueChange.toFixed(1)}%`);
           }
 
           // 🔥 GET REAL SELLER RATING FROM DATABASE
@@ -296,7 +348,8 @@ export function SellerDashboard() {
         dailyProducts: dailyProductsCount,
         totalViews: Math.floor(Math.random() * 1000) + 500, // TODO: Implement real view tracking
         totalSales,
-        revenue,
+        revenue: monthlyRevenue, // 🔥 INGRESOS MENSUALES REALES
+        revenueChange, // 🔥 PORCENTAJE DE CAMBIO REAL
         avgRating
       });
     } catch (error) {
@@ -308,6 +361,7 @@ export function SellerDashboard() {
         totalViews: 0,
         totalSales: 0,
         revenue: 0,
+        revenueChange: 0, // 🔥 PORCENTAJE DE CAMBIO MENSUAL
         avgRating: 0 // 🔥 CAMBIAR A 0 PARA MOSTRAR DATOS REALES
       });
     }
@@ -826,7 +880,12 @@ export function SellerDashboard() {
               Q{stats.revenue.toLocaleString()}
             </div>
             <p className="text-sm text-gray-600">
-              +12% comparado al mes pasado
+              {stats.revenueChange > 0 
+                ? `+${stats.revenueChange.toFixed(1)}% comparado al mes pasado`
+                : stats.revenueChange < 0 
+                  ? `${stats.revenueChange.toFixed(1)}% comparado al mes pasado`
+                  : 'Sin cambios comparado al mes pasado'
+              }
             </p>
           </CardContent>
         </Card>

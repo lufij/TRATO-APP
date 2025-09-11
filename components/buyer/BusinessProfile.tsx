@@ -350,36 +350,33 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
       }
     };
 
-    // Función para obtener el texto del badge de stock
+    // Función para obtener el texto del badge de stock (sin íconos para evitar confusión)
     const getStockBadge = () => {
       if (availabilityInfo.isOutOfStock) {
-        return { text: "Agotado", className: "bg-red-100 text-red-700", icon: "❌" };
+        return { text: "Agotado", className: "bg-red-100 text-red-700" };
       }
       if (availabilityInfo.isDisabledByVendor) {
-        return { text: "No disponible", className: "bg-gray-100 text-gray-600", icon: "⏸️" };
+        return { text: "No disponible", className: "bg-gray-100 text-gray-600" };
       }
       if (availabilityInfo.isLastUnits) {
         return { 
           text: `¡Últimas ${availabilityInfo.stockCount}!`, 
-          className: "bg-red-100 text-red-700 animate-pulse", 
-          icon: "🔥" 
+          className: "bg-red-100 text-red-700 animate-pulse"
         };
       }
       if (availabilityInfo.isLowStock) {
         return { 
           text: `${availabilityInfo.stockCount} disponibles`, 
-          className: "bg-orange-100 text-orange-700", 
-          icon: "⚠️" 
+          className: "bg-orange-100 text-orange-700"
         };
       }
       if (availabilityInfo.hasStock) {
         return { 
           text: `${availabilityInfo.stockCount} disponibles`, 
-          className: "bg-green-100 text-green-700", 
-          icon: "✅" 
+          className: "bg-green-100 text-green-700"
         };
       }
-      return { text: "Sin stock", className: "bg-gray-100 text-gray-600", icon: "❌" };
+      return { text: "Sin stock", className: "bg-gray-100 text-gray-600" };
     };
 
     const stockBadge = getStockBadge();
@@ -487,7 +484,6 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
                   
                   {/* Badge de stock mejorado */}
                   <Badge className={`text-xs font-medium w-fit ${stockBadge.className}`}>
-                    <span className="mr-1">{stockBadge.icon}</span>
                     {stockBadge.text}
                   </Badge>
                 </div>
@@ -704,13 +700,12 @@ export function BusinessProfile({ businessId, onBack, onShowCart }: BusinessProf
                   </div>
                 )}
                 
-                {/* Stock badge compacto */}
+                {/* Stock badge compacto sin ícono para evitar confusión */}
                 <Badge className={`text-xs ${getStockBadgeColor()} px-1.5 py-0.5`}>
-                  <Package className="w-2.5 h-2.5 mr-0.5" />
                   <span>
                     {product.stock_quantity === 0 ? 'Agotado' : 
                      product.stock_quantity <= 3 ? `¡${product.stock_quantity}!` : 
-                     `${product.stock_quantity}`}
+                     `${product.stock_quantity} disponibles`}
                   </span>
                 </Badge>
                 

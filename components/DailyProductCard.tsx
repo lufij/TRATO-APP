@@ -10,7 +10,6 @@ import {
   Edit2, 
   Trash2, 
   Clock,
-  DollarSign,
   Hash,
   Timer,
   Flame
@@ -54,11 +53,7 @@ export function DailyProductCard({ dailyProduct, onEdit, onDelete }: DailyProduc
   }, [dailyProduct.expires_at]);
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('es-GT', {
-      style: 'currency',
-      currency: 'GTQ',
-      minimumFractionDigits: 2
-    }).format(price);
+    return `Q${price.toFixed(2)}`;
   };
 
   const formatTime = (dateString: string) => {
@@ -132,7 +127,6 @@ export function DailyProductCard({ dailyProduct, onEdit, onDelete }: DailyProduc
           {/* Price and Stock Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <DollarSign className="w-4 h-4 text-orange-600" />
               <span className="font-semibold text-lg text-orange-600">
                 {formatPrice(dailyProduct.price)}
               </span>

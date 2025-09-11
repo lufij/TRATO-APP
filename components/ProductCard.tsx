@@ -11,7 +11,6 @@ import {
   Eye, 
   EyeOff, 
   Package,
-  DollarSign,
   Hash
 } from 'lucide-react';
 
@@ -40,11 +39,7 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   const { openImageModal } = useImageModalContext();
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('es-GT', {
-      style: 'currency',
-      currency: 'GTQ',
-      minimumFractionDigits: 2
-    }).format(price);
+    return `Q${price.toFixed(2)}`;
   };
 
   const formatDate = (dateString: string) => {
@@ -154,7 +149,6 @@ export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
           {/* Price and Stock Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
-              <DollarSign className="w-4 h-4 text-green-600 flex-shrink-0" />
               <span className="font-bold text-sm md:text-lg text-green-600">
                 {formatPrice(product.price)}
               </span>

@@ -182,7 +182,7 @@ function PWABanner() {
   return (
     <>
       {showPWAInstall && <UniversalPWAInstall onClose={() => setShowPWAInstall(false)} />}
-      {showNotificationSetup && <IOSNotificationSetup onPermissionChange={() => setShowNotificationSetup(false)} />}
+      {/* {showNotificationSetup && <IOSNotificationSetup onPermissionChange={() => setShowNotificationSetup(false)} />} */}
     </>
   );
 }

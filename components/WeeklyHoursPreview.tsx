@@ -204,25 +204,25 @@ export function WeeklyHoursPreview({
                     </button>
                   </div>
                   
-                  {/* Segunda línea: Horarios compactos */}
+                  {/* Segunda línea: Horarios - Stack vertical en móvil */}
                   {weeklyHours[day.key].isOpen && (
-                    <div className="flex items-center gap-3 text-xs">
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-600">Abre:</span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 w-12">Abre:</span>
                         <Input
                           type="time"
                           value={weeklyHours[day.key].openTime}
                           onChange={(e) => updateWeeklyHours(day.key, 'openTime', e.target.value)}
-                          className="w-20 h-7 text-xs px-2"
+                          className="flex-1 max-w-[110px] h-7 text-xs"
                         />
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gray-600">Cierra:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 w-12">Cierra:</span>
                         <Input
                           type="time"
                           value={weeklyHours[day.key].closeTime}
                           onChange={(e) => updateWeeklyHours(day.key, 'closeTime', e.target.value)}
-                          className="w-20 h-7 text-xs px-2"
+                          className="flex-1 max-w-[110px] h-7 text-xs"
                         />
                       </div>
                     </div>
