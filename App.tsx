@@ -32,6 +32,8 @@ import { AlertCircle, Database, Loader2, CheckCircle, Stethoscope, Download, Ref
 import { useServiceWorker } from './hooks/useServiceWorker';
 import { useSoundNotifications } from './hooks/useSoundNotifications';
 import { useAdvancedSoundNotifications } from './hooks/useAdvancedSoundNotifications';
+import UniversalPWAInstall from './components/ui/UniversalPWAInstall';
+import IOSNotificationSetup from './components/ui/IOSNotificationSetup';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 
@@ -141,6 +143,8 @@ function ErrorBoundaryFallback({ error, resetError }: { error: Error; resetError
 // PWA Install/Update Banner Component
 function PWABanner() {
   const { serviceWorker, activateUpdate } = useServiceWorker();
+  const [showPWAInstall, setShowPWAInstall] = useState(true);
+  const [showNotificationSetup, setShowNotificationSetup] = useState(true);
   
   // Temporalmente deshabilitado para evitar falsos positivos
   const isOnline = true; // navigator.onLine;
@@ -164,28 +168,6 @@ function PWABanner() {
     );
   }
 
-  // PWA install banner temporalmente deshabilitado
-  /*
-  if (canInstall) {
-    return (
-      <div className="bg-green-500 text-white p-3 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <Download className="h-4 w-4" />
-          <span className="text-sm font-medium">Instala TRATO en tu dispositivo</span>
-          <Button
-            onClick={showInstallPrompt}
-            size="sm"
-            variant="secondary"
-            className="ml-2 bg-white text-green-500 hover:bg-gray-100"
-          >
-            Instalar
-          </Button>
-        </div>
-      </div>
-    );
-  }
-  */
-
   if (!isOnline) {
     return (
       <div className="bg-yellow-500 text-white p-3 text-center">
@@ -197,7 +179,12 @@ function PWABanner() {
     );
   }
 
-  return null;
+  return (
+    <>
+      {showPWAInstall && <UniversalPWAInstall onClose={() => setShowPWAInstall(false)} />}
+      {showNotificationSetup && <IOSNotificationSetup onPermissionChange={() => setShowNotificationSetup(false)} />}
+    </>
+  );
 }
 
 function AppContent() {
