@@ -6,6 +6,7 @@ import { Input } from '../../ui/input';
 import { Product } from '../../../utils/supabase/client';
 import { DailyProduct } from '../../../hooks/useBuyerData';
 import { useRealTimeStock, useSellerRating, useDailyProductTimer } from '../../../hooks/useRealTimeStock';
+import { getAddToCartButtonInfo, BusinessStatus } from '../../../utils/businessStatus';
 import { 
   Plus, 
   Minus, 
@@ -18,13 +19,16 @@ import {
   XCircle,
   Heart,
   Flame,
-  Package
+  Package,
+  AlertCircle
 } from 'lucide-react';
 import { ImageWithFallback } from '../../figma/ImageWithFallback';
 import { getProductImageUrl } from '../../../utils/imageUtils';
 
-// Tipo union para productos normales y del día
-type AnyProduct = Product | DailyProduct;
+// Tipo union para productos normales y del día con estado de negocio
+type AnyProduct = (Product | DailyProduct) & {
+  businessStatus?: BusinessStatus | null;
+};
 
 interface ProductCardProps {
   product: AnyProduct;
@@ -65,6 +69,26 @@ export function ProductCard({
   const imageUrl = product.image_url || '';
   const sellerName = product.seller?.name || 'Tienda';
 
+  // 🔥 NUEVO: Estado del negocio y lógica de botón
+  const businessStatus = product.businessStatus;
+  
+  console.log('🛍️ PRODUCT CARD DEBUG:', {
+    productName: product.name,
+    businessStatus,
+    sellerId: product.seller?.id || product.seller_id
+  });
+  
+  const { canAdd, buttonText, alertMessage, buttonClass } = getAddToCartButtonInfo(
+    businessStatus || { isOpen: true, reason: 'open', message: 'Abierto', canOrder: true }
+  );
+
+  console.log('🎯 BUTTON STATUS:', {
+    productName: product.name,
+    canAdd,
+    buttonText,
+    buttonClass
+  });
+
   // 🆕 MEJORA 1: Stock en tiempo real
   const { available_stock, stock_quantity, sold_quantity, loading: stockLoading } = useRealTimeStock(
     product.id, 
@@ -86,6 +110,15 @@ export function ProductCard({
   const toggleFavorite = () => {
     setIsFavorite(!isFavorite);
     // TODO: Implementar guardado en backend
+  };
+
+  // 🔥 NUEVO: Manejar clic del botón con restricciones de negocio
+  const handleAddToCartClick = () => {
+    if (!canAdd && alertMessage) {
+      alert(alertMessage);
+      return;
+    }
+    onAddToCart(product.id, isDaily, product.name);
   };
 
   if (viewMode === 'list') {
@@ -256,12 +289,21 @@ export function ProductCard({
                   ) : (
                     <Button
                       size="sm"
-                      onClick={() => onAddToCart(product.id, isDaily, product.name)}
-                      disabled={addingToCart || stock <= 0}
-                      className="bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 text-white"
+                      onClick={handleAddToCartClick}
+                      disabled={addingToCart || stock <= 0 || !canAdd}
+                      className={buttonClass}
                     >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Agregar
+                      {!canAdd ? (
+                        <>
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {buttonText}
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3 h-3 mr-1" />
+                          Agregar
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -354,13 +396,23 @@ export function ProductCard({
 
             {/* Vendedor y rating */}
             <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-              <button 
-                onClick={() => onBusinessClick(product.seller_id)}
-                className="flex items-center gap-1 hover:text-orange-600 hover:underline"
-              >
-                <Store className="w-3 h-3" />
-                {sellerName}
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => onBusinessClick(product.seller_id)}
+                  className="flex items-center gap-1 hover:text-orange-600 hover:underline"
+                >
+                  <Store className="w-3 h-3" />
+                  {sellerName}
+                </button>
+
+                {/* 🔥 NUEVO: Indicador de estado del negocio */}
+                {businessStatus && !businessStatus.isOpen && (
+                  <Badge variant="destructive" className="text-xs px-1 py-0">
+                    <AlertCircle className="w-2 h-2 mr-1" />
+                    Cerrado hoy
+                  </Badge>
+                )}
+              </div>
               
               {/* 🆕 MEJORA 3: Rating real de la tienda */}
               <div className="flex items-center gap-1">
@@ -436,12 +488,21 @@ export function ProductCard({
               </div>
             ) : (
               <Button
-                onClick={() => onAddToCart(product.id, isDaily, product.name)}
-                disabled={addingToCart || stock <= 0}
-                className="w-full bg-gradient-to-r from-orange-500 to-green-500 hover:from-orange-600 hover:to-green-600 text-white"
+                onClick={handleAddToCartClick}
+                disabled={addingToCart || stock <= 0 || !canAdd}
+                className={`w-full ${buttonClass}`}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar al carrito
+                {!canAdd ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    {buttonText}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Agregar al carrito
+                  </>
+                )}
               </Button>
             )}
           </div>

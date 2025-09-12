@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase, Product, Seller } from '../utils/supabase/client';
 import { getBusinessImageUrl } from '../utils/imageUtils';
 import { forceClearSupabaseCache, forceRefreshWithTimestamp } from '../utils/cacheBuster';
-import { getBusinessStatus, BusinessStatus } from '../utils/businessStatus';
+import { isBusinessOpen } from '../utils/businessHours';
 
 // Hook for handling page visibility (optimize for mobile battery)
 const usePageVisibility = () => {
@@ -46,6 +46,8 @@ export interface BusinessListing {
   business_description?: string;
   business_address?: string;
   business_phone?: string;
+  phone?: string;
+  address?: string | null;
   logo_url?: string;
   cover_image_url?: string; // ✅ NUEVA PROPIEDAD PARA PORTADA
   is_verified: boolean;
@@ -54,12 +56,13 @@ export interface BusinessListing {
   user: {
     name: string;
     phone?: string;
+    email?: string;
+    address?: string;
     avatar_url?: string;
   };
   // Campos adicionales para compatibilidad con BusinessProfile
   cover_image?: string;
   category?: string;
-  address?: string;
   phone_number?: string;
   is_open_now?: boolean;
 }
@@ -76,40 +79,6 @@ export function useBuyerData() {
 
   // Use page visibility to optimize polling for mobile battery
   const isPageVisible = usePageVisibility();
-
-  // Función para procesar productos con estado de negocio - LÓGICA SIMPLE
-  const processProductsWithBusinessStatus = (products: any[]): any[] => {
-    return products.map(product => {
-      if (!product.seller) {
-        return { ...product, businessStatus: null };
-      }
-
-      // ✅ LÓGICA SIMPLE como el toggle manual: 
-      // Ambas condiciones deben ser true para estar abierto
-      const manuallyOpen = product.seller.is_open_now ?? true;
-      const openBySchedule = product.seller.is_open_by_schedule ?? true;
-      const isOpen = manuallyOpen && openBySchedule;
-
-      const businessStatus = {
-        isOpen,
-        reason: isOpen ? 'open' : 'closed',
-        message: isOpen ? 'Negocio abierto' : 'Cerrado hoy',
-        canOrder: isOpen
-      };
-
-      console.log('🏪 Simple Business Status:', {
-        productName: product.name,
-        manuallyOpen,
-        openBySchedule,
-        finalStatus: isOpen
-      });
-
-      return {
-        ...product,
-        businessStatus
-      };
-    });
-  };
 
   // Fetch regular products
   const fetchProducts = async (filters?: {
@@ -132,14 +101,10 @@ export function useBuyerData() {
             business_description,
             logo_url,
             is_verified,
-            is_open_now,
-            is_open_by_schedule,
-            business_hours,
             user:users(name, avatar_url)
           )
         `)
         .eq('is_public', true)
-        .eq('is_available', true)  // 🔥 CONSISTENCIA: Agregar filtro is_available
         .gt('stock_quantity', 0);
 
       if (filters?.search) {
@@ -193,10 +158,7 @@ export function useBuyerData() {
         console.error('Error fetching products:', error);
         setProducts([]);
       } else {
-        // Procesar productos con estado de negocio individual
-        const productsWithBusinessStatus = processProductsWithBusinessStatus((data as any[]) || []);
-        console.log(`📦 Productos procesados: ${productsWithBusinessStatus.length} total`);
-        setProducts(productsWithBusinessStatus);
+        setProducts((data as any[]) || []);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -223,9 +185,6 @@ export function useBuyerData() {
             business_name,
             logo_url,
             is_verified,
-            is_open_now,
-            is_open_by_schedule,
-            business_hours,
             user:users(name, avatar_url)
           )
         `)
@@ -262,7 +221,10 @@ export function useBuyerData() {
                 id,
                 business_name,
                 logo_url,
-                is_verified
+                is_verified,
+                is_open_now,
+                is_active,
+                weekly_hours
               )
             `)
             .gt('stock_quantity', 0)
@@ -298,11 +260,9 @@ export function useBuyerData() {
           index === self.findIndex(p => p.name === product.name)
         ) : [];
 
-        // Procesar productos del día con estado de negocio individual
-        const dailyProductsWithBusinessStatus = processProductsWithBusinessStatus(uniqueProducts);
-        console.log(`📦 Productos del día procesados: ${data?.length || 0} total, ${dailyProductsWithBusinessStatus.length} con estado de negocio`);
+        console.log(`📦 Productos del día cargados: ${data?.length || 0} total, ${uniqueProducts.length} únicos`);
         
-        setDailyProducts(dailyProductsWithBusinessStatus);
+        setDailyProducts(uniqueProducts);
       }
     } catch (error) {
       console.error('Error fetching daily products:', error);
@@ -331,9 +291,13 @@ export function useBuyerData() {
           cover_image_url,
           logo_url,
           is_verified,
+          is_open_now,
+          weekly_hours,
           user:users(name, phone, email, address, avatar_url)
         `)
         .not('business_name', 'is', null)
+        // 🚨 TEMPORALMENTE REMOVIDO: .eq('is_active', true) - para debug
+        // 🔥 REMOVIDO: .eq('is_open_now', true) - Lo evaluamos después con horarios
         .order('is_verified', { ascending: false });
 
       if (error) {
@@ -345,8 +309,10 @@ export function useBuyerData() {
         if (isRelIssue) {
           const r = await supabase
             .from('sellers')
-            .select('id,business_name,business_description,business_address,business_phone,phone,address,business_logo,cover_image_url,logo_url,is_verified')
+            .select('id,business_name,business_description,business_address,business_phone,phone,address,business_logo,cover_image_url,logo_url,is_verified,is_open_now,weekly_hours')
             .not('business_name', 'is', null)
+            // 🚨 TEMPORALMENTE REMOVIDO: .eq('is_active', true) - para debug
+            // 🔥 REMOVIDO: .eq('is_open_now', true) - Lo evaluamos después con horarios
             .order('is_verified', { ascending: false });
           data = r.data as any[] | null;
           error = r.error as any;
@@ -366,11 +332,15 @@ export function useBuyerData() {
         business_description?: string | null;
         business_address?: string | null;
         business_phone?: string | null;
+        phone?: string | null;
+        address?: string | null;
         business_logo?: string | null;
         cover_image_url?: string | null;
         logo_url?: string | null;
         is_verified: boolean;
-        user?: { name: string; phone?: string; avatar_url?: string } | null;
+        is_open_now?: boolean;
+        weekly_hours?: string | null;
+        user?: { name: string; phone?: string; email?: string; address?: string; avatar_url?: string } | null;
       };
 
   const sellers = (data as unknown as SellerRow[]) || [];
@@ -444,6 +414,21 @@ export function useBuyerData() {
         
         const productCount = productsBySeller.get(business.id) || 0;
         const realRating = ratingsBySeller.get(business.id) || 0;
+        
+        // 🔥 LÓGICA DE HORARIOS: Evaluar si está abierto según horarios semanales
+        const isOpenBySchedule = business.weekly_hours 
+          ? isBusinessOpen(business.weekly_hours) 
+          : true; // Si no tiene horarios, asumimos que está abierto
+        
+        // 🔥 COMBINAMOS: Estado manual (is_open_now) Y horarios programados
+        const isTrulyOpen = (business.is_open_now ?? true) && isOpenBySchedule;
+        
+        console.log(`🏪 ${business.business_name}:`, {
+          manual: business.is_open_now,
+          schedule: isOpenBySchedule,
+          final: isTrulyOpen
+        });
+
         return {
           id: business.id,
           business_name: business.business_name,
@@ -455,9 +440,9 @@ export function useBuyerData() {
           is_verified: business.is_verified,
           products_count: productCount,
           rating: realRating, // 🔥 CALIFICACIÓN REAL DESDE BASE DE DATOS
-          // 🔥 DATOS REALES DEL VENDEDOR
-          phone: business.phone,
-          address: business.address,
+          // 🔥 DATOS REALES DEL VENDEDOR - CON FILTRO NULL
+          phone: business.phone ?? undefined,
+          address: business.address ?? undefined,
           user: {
             name: business.user?.name ?? 'Usuario',
             phone: business.user?.phone ?? undefined,
@@ -470,11 +455,18 @@ export function useBuyerData() {
           category: 'General',
           // 🔥 LÓGICA UNIFICADA: misma que en BusinessProfile
           phone_number: business.phone || business.business_phone || business.user?.phone || undefined,
-          is_open_now: true
+          is_open_now: isTrulyOpen // 🔥 ESTADO FINAL: manual Y horarios
         };
       });
 
-      setBusinesses(businessesWithStats);
+      // 🔥 FILTRO FINAL: Solo mostrar negocios realmente abiertos
+      // 🚨 TEMPORALMENTE DESHABILITADO PARA DEBUG - Mostrar TODOS los negocios
+      // const openBusinesses = businessesWithStats.filter(business => business.is_open_now);
+      const openBusinesses = businessesWithStats; // 🚨 MOSTRAR TODOS TEMPORALMENTE
+      
+      console.log(`🎯 NEGOCIOS FILTRADOS: ${businessesWithStats.length} total → ${openBusinesses.length} mostrados (filtro deshabilitado)`);
+
+      setBusinesses(openBusinesses);
     } catch (error) {
       console.error('Error fetching businesses:', error);
     } finally {
@@ -485,7 +477,31 @@ export function useBuyerData() {
   // Get products by business
   const getBusinessProducts = async (businessId: string): Promise<Product[]> => {
     try {
-      // Try with relationship, then fallback
+      // 🔥 PRIMERO: Verificar que el negocio esté abierto
+      const { data: businessData, error: businessError } = await supabase
+        .from('sellers')
+        .select('is_open_now, weekly_hours, business_name')
+        .eq('id', businessId)
+        .eq('is_active', true)
+        .single();
+
+      if (businessError || !businessData) {
+        console.log(`❌ Negocio ${businessId} no encontrado o inactivo`);
+        return [];
+      }
+
+      // 🔥 VERIFICAR ESTADO: manual + horarios
+      const isOpenBySchedule = businessData.weekly_hours 
+        ? isBusinessOpen(businessData.weekly_hours) 
+        : true;
+      const isTrulyOpen = (businessData.is_open_now ?? true) && isOpenBySchedule;
+
+      if (!isTrulyOpen) {
+        console.log(`🔴 Negocio ${businessData.business_name} está cerrado - No mostrar productos`);
+        return [];
+      }
+
+      // 🔥 SOLO SI ESTÁ ABIERTO: Obtener productos
       let q = supabase
         .from('products')
         .select(`

@@ -28,37 +28,37 @@ interface SoundNotificationConfig {
 
 const defaultConfig: SoundNotificationConfig = {
   enabled: true,
-  volume: 0.7,
+  volume: 1.0, // Volumen máximo para que los vendedores no pierdan ventas
   sounds: {
     [NotificationSound.NEW_ORDER]: {
-      frequency: 800,
-      duration: 300,
-      pattern: 'triple'
+      frequency: 1400, // Frecuencia de emergencia muy alta y audible
+      duration: 600,   // Duración más larga para máxima atención
+      pattern: 'double' // Doble tono urgente
     },
     [NotificationSound.ORDER_ASSIGNED]: {
-      frequency: 600,
-      duration: 200,
+      frequency: 1300, // Tono de emergencia agudo
+      duration: 500,
       pattern: 'double'
     },
     [NotificationSound.ORDER_READY]: {
-      frequency: 1000,
-      duration: 250,
+      frequency: 1500, // Frecuencia máxima para pedido listo
+      duration: 550,
       pattern: 'double'
     },
     [NotificationSound.ORDER_DELIVERED]: {
-      frequency: 500,
-      duration: 400,
-      pattern: 'single'
+      frequency: 1200, // Tono alto pero confirmatorio
+      duration: 650,
+      pattern: 'double'
     },
     [NotificationSound.NEW_PRODUCT]: {
-      frequency: 700,
-      duration: 200,
-      pattern: 'single'
+      frequency: 1250, // Tono de alerta audible
+      duration: 450,
+      pattern: 'double'
     },
     [NotificationSound.GENERAL]: {
-      frequency: 650,
-      duration: 200,
-      pattern: 'single'
+      frequency: 1350, // Tono general de emergencia
+      duration: 500,
+      pattern: 'double'
     }
   }
 };
@@ -161,7 +161,7 @@ export function useSoundNotifications() {
         break;
       case 'double':
         playTone();
-        playTone(config.duration + 100);
+        playTone(config.duration + 30); // Espacio mínimo para máxima urgencia
         break;
       case 'triple':
         playTone();

@@ -279,6 +279,74 @@ export function usePushNotifications() {
     }
   }, [user?.id]);
 
+  // 📱 Notificación AGRESIVA para móviles - no perder ventas
+  const showAggressiveMobileNotification = useCallback(async (title: string, options: {
+    body?: string;
+    data?: any;
+    soundType?: string;
+    critical?: boolean;
+  }) => {
+    if (!supported) return null;
+
+    // Detectar móvil
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                     ('ontouchstart' in window);
+
+    if (isMobile) {
+      console.log('📱 Aplicando notificación AGRESIVA para móvil...');
+      
+      // Configuración agresiva para móviles
+      const mobileOptions = {
+        ...options,
+        requireInteraction: true,        // Forzar interacción
+        persistent: true,                // Persistente
+        renotify: true,                  // Re-notificar
+        silent: false,                   // NO silencioso
+        tag: `mobile-urgent-${Date.now()}`, // Tag único
+        timestamp: Date.now(),
+        actions: [
+          {
+            action: 'view',
+            title: '👀 Ver Pedido',
+            icon: '/favicon.ico'
+          },
+          {
+            action: 'dismiss',
+            title: '❌ Cerrar',
+            icon: '/favicon.ico'
+          }
+        ],
+        vibrate: [1000, 100, 1000, 100, 1000, 100, 1000], // Vibración muy intensa
+      };
+
+      try {
+        // Notificación principal
+        const mainNotification = await showNotification(title, mobileOptions);
+
+        // Si es crítico (nueva orden), crear notificación de respaldo
+        if (options.critical) {
+          setTimeout(async () => {
+            await showNotification(
+              `🚨 URGENTE: ${title}`,
+              {
+                ...mobileOptions,
+                body: `⚠️ IMPORTANTE: ${options.body}`,
+                tag: `backup-${Date.now()}`
+              }
+            );
+          }, 3000);
+        }
+
+        return mainNotification;
+      } catch (error) {
+        console.error('Error en notificación móvil agresiva:', error);
+        return await showNotification(title, options);
+      }
+    } else {
+      return await showNotification(title, options);
+    }
+  }, [showNotification, supported]);
+
   return {
     permission,
     supported,
@@ -289,6 +357,7 @@ export function usePushNotifications() {
     unsubscribeFromPush,
     showNotification,
     showOrderNotification,
+    showAggressiveMobileNotification, // Nueva función para móviles
     sendTestNotification,
     canNotify: supported && permission === 'granted'
   };

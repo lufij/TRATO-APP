@@ -1148,6 +1148,7 @@ export function SellerBusinessProfile() {
                     weeklyHours={weeklyHours}
                     updateWeeklyHours={updateWeeklyHours}
                     generateWeeklyHoursText={generateWeeklyHoursText}
+                    getHoursAsJSON={getHoursAsJSON}
                   />
                 </div>
               </div>

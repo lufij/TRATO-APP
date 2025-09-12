@@ -59,12 +59,12 @@ async function activateAdvancedNotifications() {
       // Función de sonido mejorada con repeticiones
       window.playAdvancedNotificationSound = function(config = {}) {
         const defaultConfig = {
-          frequency: 880,
-          duration: 400,
-          pattern: 'triple',
-          volume: 0.8,
-          repeatCount: 2,
-          repeatInterval: 1500
+          frequency: 1400, // Frecuencia de emergencia para vendedores
+          duration: 600,   // Duración más larga para máxima atención  
+          pattern: 'double', // Patrón doble urgente
+          volume: 1.0,     // Volumen máximo para no perder ventas
+          repeatCount: 3,  // Repetir más para asegurar que se escuche
+          repeatInterval: 1200 // Intervalo más corto para urgencia
         };
         
         const finalConfig = { ...defaultConfig, ...config };
@@ -109,7 +109,7 @@ async function activateAdvancedNotifications() {
               break;
             case 'double':
               playTone(finalConfig.frequency, finalConfig.duration, finalConfig.volume);
-              playTone(finalConfig.frequency, finalConfig.duration, finalConfig.volume, finalConfig.duration + 150);
+              playTone(finalConfig.frequency, finalConfig.duration, finalConfig.volume, finalConfig.duration + 30); // Espacio mínimo para máxima urgencia
               break;
             case 'triple':
               playTone(finalConfig.frequency, finalConfig.duration, finalConfig.volume);
@@ -117,9 +117,9 @@ async function activateAdvancedNotifications() {
               playTone(finalConfig.frequency, finalConfig.duration, finalConfig.volume, (finalConfig.duration + 150) * 2);
               break;
             case 'critical':
-              // Sonido crítico - muy audible
+              // Sonido crítico de emergencia - máxima audibilidad
               for (let i = 0; i < 5; i++) {
-                playTone(1000 + (i * 200), 300, 0.9, i * 400);
+                playTone(1400 + (i * 200), 500, 1.0, i * 300); // Frecuencias más altas, volumen máximo, más rápido
               }
               break;
           }
@@ -262,75 +262,100 @@ async function activateAdvancedNotifications() {
     // 🎯 PASO 6: Funciones específicas por tipo de notificación
     console.log('6️⃣ Configurando tipos específicos de notificación...');
     
-    // Nueva orden (para vendedores)
+    // Nueva orden (para vendedores) - CONFIGURACIÓN DE EMERGENCIA MÓVIL
     window.notifyNewOrder = function(orderData) {
+      // Detectar móvil para aplicar configuración específica
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const soundConfig = {
+        pattern: 'double',  // Doble tono de emergencia
+        frequency: 1400,    // Frecuencia de emergencia muy alta
+        repeatCount: isMobile ? 6 : 3,     // MÁS repeticiones en móvil
+        repeatInterval: isMobile ? 600 : 1200, // MÁS frecuente en móvil
+        volume: 1.0,        // Volumen máximo
+        duration: isMobile ? 800 : 600     // MÁS duración en móvil
+      };
+      
+      console.log(`📱 Nueva orden - Configuración ${isMobile ? 'MÓVIL' : 'DESKTOP'}`);
+      
       return window.showAdvancedNotification('🛒 ¡Nueva Orden Recibida!', {
         body: `${orderData.customer_name} - Q${orderData.total}\nTipo: ${orderData.delivery_type}`,
-        soundConfig: { 
-          pattern: 'triple', 
-          frequency: 880, 
-          repeatCount: 3, 
-          repeatInterval: 2000 
-        },
+        soundConfig,
         priority: 'high',
         requireInteraction: true,
+        critical: true, // Marcar como crítico para móviles
         data: { type: 'new_order', orderId: orderData.id }
       });
     };
     
-    // Repartidor asignado
+    // Repartidor asignado - CONFIGURACIÓN DE EMERGENCIA
     window.notifyDriverAssigned = function(orderData) {
       return window.showAdvancedNotification('🚚 Repartidor Asignado', {
         body: `Tu pedido #${orderData.id} está en camino`,
         soundConfig: { 
           pattern: 'double', 
-          frequency: 660, 
-          repeatCount: 2 
+          frequency: 1300,  // Frecuencia de emergencia
+          repeatCount: 2,
+          volume: 1.0,      // Volumen máximo
+          duration: 500     // Duración larga
         },
         priority: 'normal',
         data: { type: 'driver_assigned', orderId: orderData.id }
       });
     };
     
-    // Entrega disponible (para repartidores)
+    // Entrega disponible (para repartidores) - CONFIGURACIÓN DE EMERGENCIA MÓVIL
     window.notifyDeliveryAvailable = function(orderData) {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const soundConfig = {
+        pattern: 'double',  // Cambiado a double para urgencia
+        frequency: 1500,    // Frecuencia máxima de emergencia
+        repeatCount: isMobile ? 5 : 3,     // MÁS repeticiones en móvil
+        repeatInterval: isMobile ? 700 : 1000, // MÁS frecuente en móvil
+        volume: 1.0,        // Volumen máximo
+        duration: isMobile ? 700 : 550     // MÁS duración en móvil
+      };
+      
+      console.log(`📦 Entrega disponible - Configuración ${isMobile ? 'MÓVIL' : 'DESKTOP'}`);
+      
       return window.showAdvancedNotification('📦 Nueva Entrega Disponible', {
         body: `Entrega para: ${orderData.customer_name} - ${orderData.delivery_address}`,
-        soundConfig: { 
-          pattern: 'triple', 
-          frequency: 1000, 
-          repeatCount: 3,
-          repeatInterval: 1500 
-        },
+        soundConfig,
         priority: 'high',
         requireInteraction: true,
+        critical: true, // Crítico para repartidores móviles
         data: { type: 'delivery_available', orderId: orderData.id }
       });
     };
     
-    // Pedido entregado
+    // Pedido entregado - CONFIGURACIÓN DE EMERGENCIA
     window.notifyOrderDelivered = function(orderData) {
       return window.showAdvancedNotification('✅ Pedido Entregado', {
         body: `Tu pedido ha sido entregado exitosamente`,
         soundConfig: { 
-          pattern: 'single', 
-          frequency: 440, 
-          repeatCount: 1 
+          pattern: 'double',  // Cambiado a double para confirmación audible
+          frequency: 1200,    // Frecuencia alta confirmativa 
+          repeatCount: 1,
+          volume: 1.0,        // Volumen máximo
+          duration: 650       // Duración larga para confirmación 
         },
         priority: 'normal',
         data: { type: 'order_delivered', orderId: orderData.id }
       });
     };
     
-    // Notificación crítica
+    // Notificación crítica - CONFIGURACIÓN MÁXIMA DE EMERGENCIA
     window.notifyCritical = function(message, data = {}) {
       return window.showAdvancedNotification('🚨 Alerta Crítica', {
         body: message,
         soundConfig: { 
           pattern: 'critical', 
-          frequency: 1200, 
+          frequency: 1600,      // Frecuencia crítica máxima
           repeatCount: 5,
-          repeatInterval: 1000
+          repeatInterval: 600,  // Más frecuente para crítico
+          volume: 1.0,          // Volumen máximo
+          duration: 800         // Duración muy larga
         },
         priority: 'critical',
         requireInteraction: true,
@@ -343,27 +368,34 @@ async function activateAdvancedNotifications() {
     console.log('7️⃣ Probando sistema avanzado...');
     
     window.testAdvancedNotifications = async function() {
-      console.log('🧪 Iniciando prueba del sistema avanzado...');
+      console.log('🧪 Iniciando prueba del sistema avanzado DE EMERGENCIA...');
       
-      // Test de sonido básico
-      console.log('🔊 Probando sonido básico...');
+      // Test de sonido básico con configuración de emergencia
+      console.log('🔊 Probando sonido de emergencia básico...');
       window.playAdvancedNotificationSound({
         pattern: 'double',
-        frequency: 800,
-        repeatCount: 1
+        frequency: 1400,    // Frecuencia de emergencia
+        repeatCount: 1,
+        volume: 1.0,        // Volumen máximo
+        duration: 600       // Duración larga
       });
       
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Test de notificación completa
-      console.log('📢 Probando notificación completa...');
-      window.showAdvancedNotification('🧪 Prueba del Sistema', {
-        body: 'Sistema de notificaciones avanzado funcionando correctamente',
-        soundConfig: { pattern: 'triple', frequency: 660 },
-        priority: 'normal'
+      // Test de notificación completa con emergencia
+      console.log('📢 Probando notificación completa de emergencia...');
+      window.showAdvancedNotification('🧪 Prueba del Sistema DE EMERGENCIA', {
+        body: 'Sistema de notificaciones de emergencia funcionando - Volumen MÁXIMO',
+        soundConfig: { 
+          pattern: 'double', 
+          frequency: 1500,  // Frecuencia máxima
+          volume: 1.0,      // Volumen máximo
+          duration: 550     // Duración larga
+        },
+        priority: 'high'     // Prioridad alta
       });
       
-      console.log('✅ Prueba completada');
+      console.log('✅ Prueba de emergencia completada - ¿Se escuchó FUERTE?');
     };
 
     // 🎯 PASO 8: Configuración para mantener activo en segundo plano

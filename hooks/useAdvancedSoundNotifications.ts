@@ -35,75 +35,75 @@ interface SoundNotificationConfig {
   };
 }
 
-// Configuraciones optimizadas para máxima audibilidad
+// Configuraciones optimizadas para máxima audibilidad - SONIDOS DE EMERGENCIA PARA VENDEDORES
 const defaultConfig: SoundNotificationConfig = {
   enabled: true,
-  volume: 0.8, // Volumen alto por defecto
+  volume: 1.0, // Volumen máximo para que no pierdan ventas
   enableVibration: true,
   enableBackgroundNotifications: true,
   sounds: {
     [NotificationSound.NEW_ORDER]: {
-      frequency: 880, // Nota A5 - muy audible
-      duration: 400,
-      pattern: 'triple',
-      volume: 0.9,
-      vibration: [400, 200, 400, 200, 400], // Vibración triple
-      repeatCount: 3,
-      repeatInterval: 2000
+      frequency: 1400, // Frecuencia de emergencia muy alta
+      duration: 600,   // Duración larga para máxima atención
+      pattern: 'double', // Doble tono urgente
+      volume: 1.0,     // Volumen máximo
+      vibration: [800, 50, 800, 50, 800], // Vibración triple intensa para móviles
+      repeatCount: 4,  // Más repeticiones en móviles
+      repeatInterval: 1000 // Más frecuente para móviles
     },
     [NotificationSound.ORDER_ASSIGNED]: {
-      frequency: 660, // Nota E5
-      duration: 300,
+      frequency: 1300, // Tono agudo de emergencia
+      duration: 500,
       pattern: 'double',
-      volume: 0.8,
-      vibration: [300, 150, 300],
+      volume: 1.0,
+      vibration: [600, 50, 600, 50, 600], // Vibración intensa
+      repeatCount: 3,  // Más repeticiones
+      repeatInterval: 800
+    },
+    [NotificationSound.ORDER_READY]: {
+      frequency: 1500, // Frecuencia máxima para emergencia
+      duration: 550,
+      pattern: 'double',
+      volume: 1.0,
+      vibration: [700, 50, 700, 50, 700], // Vibración muy intensa
+      repeatCount: 3,
+      repeatInterval: 700
+    },
+    [NotificationSound.ORDER_DELIVERED]: {
+      frequency: 1200, // Tono alto confirmatorio
+      duration: 650,   // Más largo para confirmación
+      pattern: 'double',
+      volume: 1.0,
+      vibration: [1000, 100, 1000], // Vibración larga confirmativa
       repeatCount: 2,
       repeatInterval: 1500
     },
-    [NotificationSound.ORDER_READY]: {
-      frequency: 1108, // Nota C#6 - muy aguda
-      duration: 250,
+    [NotificationSound.NEW_PRODUCT]: {
+      frequency: 1250, // Tono de alerta audible
+      duration: 450,
       pattern: 'double',
-      volume: 0.8,
-      vibration: [250, 100, 250],
+      volume: 1.0,
+      vibration: [400, 50, 400, 50, 400], // Vibración triple
+      repeatCount: 2,
+      repeatInterval: 1200
+    },
+    [NotificationSound.GENERAL]: {
+      frequency: 1350, // Tono general de emergencia
+      duration: 500,
+      pattern: 'double',
+      volume: 1.0,
+      vibration: [500, 50, 500, 50, 500], // Vibración intensa
       repeatCount: 2,
       repeatInterval: 1000
     },
-    [NotificationSound.ORDER_DELIVERED]: {
-      frequency: 440, // Nota A4 - grave pero audible
-      duration: 500,
-      pattern: 'single',
-      volume: 0.7,
-      vibration: [500],
-      repeatCount: 1,
-      repeatInterval: 0
-    },
-    [NotificationSound.NEW_PRODUCT]: {
-      frequency: 784, // Nota G5
-      duration: 200,
-      pattern: 'single',
-      volume: 0.7,
-      vibration: [200],
-      repeatCount: 1,
-      repeatInterval: 0
-    },
-    [NotificationSound.GENERAL]: {
-      frequency: 523, // Nota C5
-      duration: 300,
-      pattern: 'single',
-      volume: 0.7,
-      vibration: [300],
-      repeatCount: 1,
-      repeatInterval: 0
-    },
     [NotificationSound.CRITICAL]: {
-      frequency: 1000, // 1kHz - máxima audibilidad
-      duration: 600,
+      frequency: 1600, // Frecuencia crítica máxima
+      duration: 800,   // Duración muy larga
       pattern: 'continuous',
       volume: 1.0, // Volumen máximo
-      vibration: [600, 200, 600, 200, 600],
-      repeatCount: 5, // Repetir 5 veces
-      repeatInterval: 1000
+      vibration: [1000, 100, 1000, 100, 1000, 100, 1000], // Vibración muy intensa y larga
+      repeatCount: 6, // Muchas repeticiones para crítico
+      repeatInterval: 500 // Muy frecuente para crítico
     }
   }
 };
@@ -120,6 +120,27 @@ export function useAdvancedSoundNotifications() {
   useEffect(() => {
     const initializeAudio = async () => {
       try {
+        // Detectar si es dispositivo móvil
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                         ('ontouchstart' in window) ||
+                         (window.innerWidth <= 768);
+        
+        console.log(`📱 Dispositivo detectado: ${isMobile ? 'MÓVIL' : 'ESCRITORIO'}`);
+        
+        // Aplicar configuraciones específicas para móviles
+        if (isMobile) {
+          console.log('🔧 Aplicando optimizaciones para móvil...');
+          // Aumentar repeticiones y mejorar vibración en móviles
+          configRef.current.sounds[NotificationSound.NEW_ORDER].repeatCount = 5; // Más repeticiones
+          configRef.current.sounds[NotificationSound.NEW_ORDER].repeatInterval = 800; // Más frecuente
+          configRef.current.sounds[NotificationSound.ORDER_ASSIGNED].repeatCount = 4;
+          configRef.current.sounds[NotificationSound.ORDER_READY].repeatCount = 4;
+          
+          // Vibración más larga en móviles
+          configRef.current.sounds[NotificationSound.NEW_ORDER].vibration = [1000, 50, 1000, 50, 1000, 50, 1000];
+          configRef.current.sounds[NotificationSound.CRITICAL].vibration = [1500, 100, 1500, 100, 1500, 100, 1500];
+        }
+        
         // Crear AudioContext con configuraciones optimizadas
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioContextClass && !audioContextRef.current) {
@@ -249,7 +270,7 @@ export function useAdvancedSoundNotifications() {
         
         case 'double':
           playTone();
-          playTone(config.duration + 150);
+          playTone(config.duration + 30); // Espacio mínimo para máxima urgencia
           break;
         
         case 'triple':

@@ -4,28 +4,96 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Switch } from './ui/switch';
 import { Button } from './ui/button';
-import { Calendar, Edit2, Save, X, Copy, Clock } from 'lucide-react';
+import { Calendar, Edit2, Save, X, Copy, Clock, Loader2 } from 'lucide-react';
 import { DAYS_OF_WEEK, WeeklyHours } from '../constants/business';
+import { supabase } from '../utils/supabase/client';
+import { useAuth } from '../contexts/AuthContext';
 
 interface WeeklyHoursPreviewProps {
   weeklyHours: WeeklyHours;
   updateWeeklyHours: (day: string, field: string, value: any) => void;
   generateWeeklyHoursText: () => string;
+  getHoursAsJSON: () => string;
 }
 
 export function WeeklyHoursPreview({ 
   weeklyHours, 
   updateWeeklyHours, 
-  generateWeeklyHoursText
+  generateWeeklyHoursText,
+  getHoursAsJSON
 }: WeeklyHoursPreviewProps) {
+  const { user } = useAuth();
   const [isEditingHours, setIsEditingHours] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [templateHours, setTemplateHours] = useState({
     openTime: '09:00',
     closeTime: '18:00'
   });
 
-  const handleSaveHours = () => {
-    setIsEditingHours(false);
+  const handleSaveHours = async () => {
+    if (!user) {
+      console.error('No user found');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      // ✅ NUEVA LÓGICA SIMPLE: Evaluar si está abierto HOY por horario
+      const now = new Date();
+      const currentDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+      
+      const todaySchedule = weeklyHours[currentDay];
+      let isOpenBySchedule = true; // Default abierto
+      
+      if (todaySchedule && typeof todaySchedule === 'object') {
+        // Si está marcado como cerrado todo el día
+        if ('isOpen' in todaySchedule && !todaySchedule.isOpen) {
+          isOpenBySchedule = false;
+        }
+        // Si tiene horarios específicos, verificar si estamos dentro del rango
+        else if ('openTime' in todaySchedule && 'closeTime' in todaySchedule) {
+          const [openHour, openMin] = todaySchedule.openTime.split(':').map(Number);
+          const [closeHour, closeMin] = todaySchedule.closeTime.split(':').map(Number);
+          const openTimeMin = openHour * 60 + openMin;
+          const closeTimeMin = closeHour * 60 + closeMin;
+          isOpenBySchedule = currentTime >= openTimeMin && currentTime <= closeTimeMin;
+        }
+      }
+
+      console.log('📅 Schedule evaluation:', {
+        currentDay,
+        currentTime,
+        todaySchedule,
+        isOpenBySchedule
+      });
+
+      // Guardar horarios Y estado calculado en la base de datos
+      const { error } = await supabase
+        .from('sellers')
+        .update({
+          business_hours: getHoursAsJSON(),
+          is_open_by_schedule: isOpenBySchedule, // ✅ NUEVO CAMPO
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error saving hours:', error);
+        alert('Error al guardar horarios: ' + error.message);
+        return;
+      }
+
+      console.log('✅ Horarios y estado guardados exitosamente');
+      alert('✅ Horarios guardados exitosamente');
+      setIsEditingHours(false);
+    } catch (error) {
+      console.error('Error saving hours:', error);
+      alert('Error inesperado al guardar horarios');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -168,6 +236,7 @@ export function WeeklyHoursPreview({
                   variant="outline"
                   size="sm"
                   onClick={handleCancelEdit}
+                  disabled={isSaving}
                   className="flex items-center gap-2 flex-1"
                 >
                   <X className="w-4 h-4" />
@@ -176,10 +245,15 @@ export function WeeklyHoursPreview({
                 <Button
                   size="sm"
                   onClick={handleSaveHours}
+                  disabled={isSaving}
                   className="flex items-center gap-2 flex-1"
                 >
-                  <Save className="w-4 h-4" />
-                  Guardar
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  {isSaving ? 'Guardando...' : 'Guardar'}
                 </Button>
               </div>
             </div>
